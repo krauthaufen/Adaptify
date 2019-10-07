@@ -27,6 +27,7 @@ group Build
   nuget Fake.DotNet.Paket ~> 5.16.1
   nuget Fake.Core.ReleaseNotes ~> 5.16.1
   nuget Fake.Tools.Git ~> 5.16.1
+  nuget ILRepack ~> 2.0.18
 
 group Docs
   framework: net461

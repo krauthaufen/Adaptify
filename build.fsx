@@ -66,54 +66,6 @@ Target.create "Compile" (fun _ ->
     DotNet.build options "Adaptify.sln"
 )
 
-Target.create "NpmInstall" (fun _ ->
-    let modules = "node_modules" |> Path.GetFullPath
-
-    if not (Directory.Exists modules) then
-        Trace.trace "running `npm install`"
-
-        let npm =
-            if isWindows then CreateProcess.fromRawCommand "cmd" ["/C"; "npm"; "install"; "--dev"]
-            else CreateProcess.fromRawCommand "npm" ["install"]
-
-        use s = new MemoryStream()
-        npm
-        |> CreateProcess.withWorkingDirectory Environment.CurrentDirectory
-        |> CreateProcess.withStandardError (StreamSpecification.UseStream(true, s))
-        |> CreateProcess.withStandardOutput  (StreamSpecification.UseStream(true, s))
-        |> Proc.run
-        |> ignore
-
-)
-
-Target.create "CompileFable" (fun _ ->
-    let npx = "node_modules/npx/index.js" |> Path.GetFullPath
-    let proj = "src/FSharp.Data.Adaptive/FSharp.Data.Adaptive.fsproj" |> Path.GetFullPath
-    let outDir = "bin/Fable.Splitter" |> Path.GetFullPath
-
-    CreateProcess.fromRawCommand "node" [npx; "fable-splitter"; proj; "-o"; outDir]
-    |> CreateProcess.withWorkingDirectory Environment.CurrentDirectory
-    |> CreateProcess.withStandardError StreamSpecification.Inherit
-    |> CreateProcess.withStandardOutput StreamSpecification.Inherit
-    |> CreateProcess.ensureExitCode
-    |> Proc.run
-    |> ignore
-)
-
-Target.create "WatchFable" (fun _ ->
-    let wpds = "node_modules/webpack-dev-server/bin/webpack-dev-server.js" |> Path.GetFullPath
-    //let proj = "src/FSharp.Data.Adaptive/FSharp.Data.Adaptive.fsproj" |> Path.GetFullPath
-    //let old = Environment.CurrentDirectory
-    //Environment.CurrentDirectory <- Path.GetDirectoryName proj
-    CreateProcess.fromRawCommand "node" [wpds]
-    |> CreateProcess.withWorkingDirectory Environment.CurrentDirectory
-    |> CreateProcess.withStandardError StreamSpecification.Inherit
-    |> CreateProcess.withStandardOutput StreamSpecification.Inherit
-    |> CreateProcess.ensureExitCode
-    |> Proc.run
-    |> ignore
-
-)
 
 
 
@@ -288,8 +240,40 @@ Target.create "ReleaseDocs" (fun _ ->
     reallyDelete 5
 )
 
-"NpmInstall" ==> "CompileFable"
-"NpmInstall" ==> "WatchFable"
+
+Target.create "MergeDotNet" (fun _ ->
+    
+    let outFolder =
+        Path.GetFullPath(Path.Combine("bin", "Release", "netcoreapp2.2"))
+        
+    Trace.logfn "out folder: %s" outFolder
+
+    let args =
+        [|
+            "/out:../Adaptify.MSBuild.DotNet.dll"
+            "/internalize"
+            
+            "Adaptify.MSBuild.DotNet.dll"
+            "Adaptify.Compiler.Core.dll"
+            "FSharp.Compiler.Service.dll"
+            "FSharp.Core.dll"
+        |]
+
+    let worked = 
+        let paramters = 
+            { 
+                Program = Path.GetFullPath(Path.Combine("packages", "build", "ILRepack", "tools", "ILRepack.exe"))
+                WorkingDir = outFolder
+                CommandLine = String.concat " " args
+                Args = []
+            }
+
+        Fake.Core.Process.shellExec paramters
+    if worked = 0 then
+        Trace.log "merged"
+    else
+        failwith "error in ILRepack"
+)
 
 "Compile" ==> 
     "Docs"
