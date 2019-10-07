@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>..\..\bin\Debug\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <OutputPath>..\..\bin\Release\</OutputPath>
+  </PropertyGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+  <ItemGroup>
+    <Compile Include="..\Adaptify.MSBuild.DotNet\BuildTask.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Adaptify.Compiler.Core\Adaptify.Compiler.Core.fsproj" />
+  </ItemGroup>
+</Project>
