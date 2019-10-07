@@ -187,7 +187,7 @@ let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
 let main argv =
     let projFiles = 
         if argv.Length > 0 then argv
-        else [| Path.Combine(__SOURCE_DIRECTORY__, "..", "Example", "Example.fsproj") |]
+        else [| Path.Combine(__SOURCE_DIRECTORY__, "..", "Examples", "NetCore", "NetCore.fsproj") |]
 
 
     let checker = 
