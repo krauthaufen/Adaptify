@@ -1,3 +1,3 @@
-### FSharp.Data.Adaptive.PreCompiler
+### Adaptify
 
 TODO
