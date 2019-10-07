@@ -9,4 +9,5 @@ type Model =
         all     : HashSet<int>
         value   : int
         test    : IndexList<int>
+        foo     : string
     }
