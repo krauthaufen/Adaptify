@@ -1,7 +1,6 @@
 version 5.215.0
 source https://api.nuget.org/v3/index.json
 redirects: off
-storage: none
 framework: netstandard2.0, netcoreapp2.2, net472
 
 nuget FSharp.Core                           >= 4.6.2

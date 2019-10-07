@@ -141,8 +141,20 @@ let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
         match answer with
         | FSharpCheckFileAnswer.Succeeded res ->
             let adaptors = 
-                res.PartialAssemblySignature.Entities
-                |> Seq.toList
+
+                let rec allEntities (d : FSharpImplementationFileDeclaration) =
+                    match d with
+                    | FSharpImplementationFileDeclaration.Entity(e, ds) ->
+                        e :: List.collect allEntities ds
+                    | _ ->
+                        []
+
+                let entities = 
+                    res.ImplementationFile.Value.Declarations
+                    |> Seq.toList
+                    |> List.collect allEntities
+
+                entities
                 |> List.collect (fun e -> Adaptor.generate { qualifiedPath = Option.toList e.Namespace; file = path } e)
                 |> List.groupBy (fun (f, _, _) -> f)
                 |> List.map (fun (f, els) -> 

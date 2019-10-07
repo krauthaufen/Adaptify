@@ -68,8 +68,6 @@ type AdaptifyTask() =
 
 
                     for file in files do
-                        let name = Path.GetFileNameWithoutExtension file
-
                         let path = Path.Combine(projDir, file)
                         let content = File.ReadAllText path
                         let text = FSharp.Compiler.Text.SourceText.ofString content
@@ -77,9 +75,23 @@ type AdaptifyTask() =
         
                         match answer with
                         | FSharpCheckFileAnswer.Succeeded res ->
-                            let adaptors = 
-                                res.PartialAssemblySignature.Entities
+
+                        
+                            let rec allEntities (d : FSharpImplementationFileDeclaration) =
+                                match d with
+                                | FSharpImplementationFileDeclaration.Entity(e, ds) ->
+                                    e :: List.collect allEntities ds
+                                | _ ->
+                                    []
+
+                            let entities = 
+                                res.ImplementationFile.Value.Declarations
                                 |> Seq.toList
+                                |> List.collect allEntities
+
+
+                            let adaptors = 
+                                entities
                                 |> List.collect (fun e -> Adaptor.generate { qualifiedPath = Option.toList e.Namespace; file = path } e)
                                 |> List.groupBy (fun (f, _, _) -> f)
                                 |> List.map (fun (f, els) -> 
@@ -101,10 +113,10 @@ type AdaptifyTask() =
 
 
                             newFiles.Add file
-                            if builder.Length > 0 then
+                            if not (System.String.IsNullOrWhiteSpace(string builder)) then
                                 let file = Path.ChangeExtension(path, ".g.fs")
                                 File.WriteAllText(file, builder.ToString())
-                                newFiles.Add (Path.ChangeExtension(file, ".g.fs"))
+                                newFiles.Add file
 
                         | FSharpCheckFileAnswer.Aborted ->
                             ()

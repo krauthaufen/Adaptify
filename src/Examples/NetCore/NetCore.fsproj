@@ -5,8 +5,25 @@
     <TargetFramework>netcoreapp2.2</TargetFramework>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>..\..\..\bin\Debug\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <OutputPath>..\..\..\bin\Release\</OutputPath>
+  </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Model.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
-  <Import Project="$(MSBuildThisFileDirectory)..\..\..\bin\Debug\net472\Adaptify.MSBuild.targets"/>
+
+  <ItemGroup>
+    <PackageReference Include="FSharp.Data.Adaptive" Version="0.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Adaptify.Core">
+      <HintPath>..\..\..\bin\Release\netstandard2.0\Adaptify.Core.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <Import Project="$(MSBuildThisFileDirectory)..\..\..\bin\Release\Adaptify.MSBuild.targets" />
 </Project>

@@ -248,6 +248,19 @@ Target.create "MergeDotNet" (fun _ ->
         
     Trace.logfn "out folder: %s" outFolder
 
+    File.Copy(
+        "packages/FSharp.Compiler.Service/lib/netstandard2.0/FSharp.Compiler.Service.dll",
+        Path.Combine(outFolder, "FSharp.Compiler.Service.dll"),
+        true
+    )
+
+    
+    File.Copy(
+        "packages/FSharp.Core/lib/netstandard2.0/FSharp.Core.dll",
+        Path.Combine(outFolder, "FSharp.Core.dll"),
+        true
+    )
+
     let args =
         [|
             "/out:../Adaptify.MSBuild.DotNet.dll"
@@ -274,6 +287,66 @@ Target.create "MergeDotNet" (fun _ ->
     else
         failwith "error in ILRepack"
 )
+
+
+Target.create "MergeFramework" (fun _ ->
+    
+    let outFolder =
+        Path.GetFullPath(Path.Combine("bin", "Release", "net472"))
+        
+    Trace.logfn "out folder: %s" outFolder
+
+    File.Copy(
+        "packages/FSharp.Compiler.Service/lib/netstandard2.0/FSharp.Compiler.Service.dll",
+        Path.Combine(outFolder, "FSharp.Compiler.Service.dll"),
+        true
+    )
+
+    
+    File.Copy(
+        "packages/FSharp.Core/lib/netstandard2.0/FSharp.Core.dll",
+        Path.Combine(outFolder, "FSharp.Core.dll"),
+        true
+    )
+
+    let args =
+        [|
+            "/out:../Adaptify.MSBuild.Framework.dll"
+            "/internalize"
+            
+            "Adaptify.MSBuild.Framework.dll"
+            "Adaptify.Compiler.Core.dll"
+            "FSharp.Compiler.Service.dll"
+            "FSharp.Core.dll"
+        |]
+
+    let worked = 
+        let paramters = 
+            { 
+                Program = Path.GetFullPath(Path.Combine("packages", "build", "ILRepack", "tools", "ILRepack.exe"))
+                WorkingDir = outFolder
+                CommandLine = String.concat " " args
+                Args = []
+            }
+
+        Fake.Core.Process.shellExec paramters
+    if worked = 0 then
+        Trace.log "merged"
+    else
+        failwith "error in ILRepack"
+)
+
+Target.create "Merge" (fun _ ->
+    let outDir = "bin/Release"
+    File.Copy("bin/Release/net472/Adaptify.MSBuild.targets", Path.Combine(outDir, "Adaptify.MSBuild.targets"), true)
+)
+
+"Compile" ==> "MergeDotNet"
+"Compile" ==> "MergeFramework"
+
+"MergeDotNet" ==> "Merge"
+"MergeFramework" ==> "Merge"
+
 
 "Compile" ==> 
     "Docs"

@@ -1,5 +1,4 @@
 REDIRECTS: OFF
-STORAGE: NONE
 RESTRICTION: || (== net472) (== netcoreapp2.2) (== netstandard2.0)
 NUGET
   remote: https://api.nuget.org/v3/index.json
@@ -558,6 +557,7 @@ NUGET
       FSharp.Core (>= 4.2.3) - restriction: || (>= net46) (>= netstandard2.0)
       System.Reactive (>= 4.0) - restriction: || (>= net46) (>= netstandard2.0)
     FSharp.Core (4.7) - restriction: || (>= net462) (>= netstandard2.0)
+    ILRepack (2.0.18)
     Microsoft.Build (16.3) - restriction: || (>= net462) (>= netstandard2.0)
       Microsoft.Build.Framework (>= 16.3) - restriction: || (>= net472) (>= netcoreapp2.1)
       Microsoft.VisualStudio.Setup.Configuration.Interop (>= 1.16.30) - restriction: >= net472

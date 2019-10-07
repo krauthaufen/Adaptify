@@ -15,7 +15,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\Adaptify.Compiler.Core\Adaptify.Compiler.Core.fsproj" />
   </ItemGroup>
