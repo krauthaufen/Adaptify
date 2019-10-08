@@ -10,4 +10,5 @@ type Model =
         value   : int
         test    : IndexList<Model>
         foo     : string
+        bar     : HashMap<int, string>
     }
