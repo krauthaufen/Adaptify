@@ -159,3 +159,42 @@ module ProjectInfo =
                 yield f
 
         ]
+
+    let computeHash (info : ProjectInfo) =
+        use ms = new MemoryStream()
+        use w = new StreamWriter(ms)
+
+        w.WriteLine(info.project)
+        w.WriteLine(
+            if info.isNewStyle then "newstyle"
+            else "oldstyle"
+        )
+        w.WriteLine "references"
+        for r in info.references do w.WriteLine(r)
+        w.WriteLine "files"
+        for f in info.files do w.WriteLine f
+        w.WriteLine "defines"
+        for f in info.defines do w.WriteLine f
+        w.WriteLine(
+            match info.target with
+            | Target.Exe -> "exe"
+            | Target.WinExe -> "winexe"
+            | Target.Library -> "library"
+            | Target.Module -> "module"
+        )
+        w.WriteLine "additional"
+        for a in info.additional do w.WriteLine a
+        w.WriteLine(
+            match info.debug with
+            | DebugType.Full -> "full"
+            | DebugType.Off -> "off"
+            | DebugType.PdbOnly -> "pdbonly"
+            | DebugType.Portable -> "portable"
+        )
+
+        ms.Seek(0L, SeekOrigin.Begin) |> ignore
+        let md5 = System.Security.Cryptography.MD5.Create()
+        let hash = md5.ComputeHash(ms)
+        System.Guid hash |> string
+
+

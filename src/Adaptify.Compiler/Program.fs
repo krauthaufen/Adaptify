@@ -167,6 +167,7 @@ let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
             for (ns, modules) in Map.toSeq adaptors do
                 sprintf "namespace %s" ns |> builder.AppendLine |> ignore
                 sprintf "open FSharp.Data.Adaptive" |> builder.AppendLine |> ignore
+                sprintf "open Adaptify" |> builder.AppendLine |> ignore
                 for (m, def) in Map.toSeq modules do
                     sprintf "[<AutoOpen>]" |> builder.AppendLine |> ignore
                     sprintf "module rec %s =" m |> builder.AppendLine |> ignore

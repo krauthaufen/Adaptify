@@ -6,8 +6,8 @@ open Adaptify
 [<ModelType>]
 type Model =
     {
-        all     : HashSet<int>
+        all     : HashMap<int, Model>
         value   : int
-        test    : IndexList<int>
+        test    : IndexList<Model>
         foo     : string
     }

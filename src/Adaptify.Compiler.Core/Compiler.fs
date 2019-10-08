@@ -389,22 +389,35 @@ module DomainTypeDescription =
                 ]
             def, defName
 
+    let switch (cond : DomainTypeDescription) (t : DomainTypeDescription) (cc : DomainTypeDescription) =
+        {
+            isTrivial = fun g -> cond.isTrivial g
+            name = fun a -> if cond.isTrivial a then t.name a else cc.name a
+            init = fun a b -> if cond.isTrivial a then t.init a b else cc.init a b
+            view = fun a b -> if cond.isTrivial a then t.view a b else cc.view a b
+            update = fun a b c -> if cond.isTrivial a then t.update a b c else cc.update a b c
+            definition = fun a -> if cond.isTrivial a then t.definition a else cc.definition a
+            internalName = fun a -> if cond.isTrivial a then t.internalName a else cc.internalName a
+        }
+
     let rec getAssociatedType (ctx : AdaptorContext) (t : FSharpType) : DomainTypeDescription =
-        cached t (fun t ->
-            match t with
+        cached t (fun typ ->
+            match typ with
             | Option (AnyAdaptive as t) ->
                 let desc = getAssociatedType ctx t
                 optionAdaptor desc
 
             | HashMap (k, (AnyAdaptive as v)) ->
                 let t = getAssociatedType ctx v
-                if t.isTrivial Map.empty then cmap k v
-                else cmapAdaptor k t
+                switch t (cmap k v) (cmapAdaptor k t)
+                //if v <> typ && t.isTrivial Map.empty then cmap k v
+                //else cmapAdaptor k t
 
             | IndexList (AnyAdaptive as v) -> 
                 let t = getAssociatedType ctx v
-                if t.isTrivial Map.empty then clist v
-                else clistAdaptor t
+                switch t (clist v) (clistAdaptor t)
+                //if t.isTrivial Map.empty then clist v
+                //else clistAdaptor t
 
             | HashSet (AnyAdaptive as v) -> 
                 failwithf "HashSet of Adaptors not implemented yet %A." v
@@ -416,7 +429,7 @@ module DomainTypeDescription =
             | HashMap (k, v)                -> cmap k v
             | IndexList t                   -> clist t
             | Adaptor t                     -> adaptor ctx t
-            | _                             -> cval t
+            | _                             -> cval typ
         )
 
     and optionAdaptor (t : DomainTypeDescription) =
@@ -489,37 +502,48 @@ module DomainTypeDescription =
     and cmapAdaptor (key : FSharpType) (valueType : DomainTypeDescription) =    
 
         let init (gen : GenericArguments) (value : string) =
+            
             String.concat "\r\n" [
                 let initCode = valueType.init gen "v"
-                let def, arg = helper (valueType.view gen) "initValue" ["_", None; "v", None] initCode
+                let def, initCode = helper (valueType.view gen) "initValue" ["v", None] initCode
                 yield! def
-                yield sprintf "cmap(%s |> HashMap.map %s)" value arg
+                
+                let updateCode = valueType.update gen true "t" "v"
+                let def, updateCode = helper (valueType.view gen) "updateValue" ["t", Some (valueType.internalName gen); "v", None] updateCode
+                yield! def
+
+                let viewCode = valueType.view gen "v"
+                let def, viewCode = helper (valueType.view gen) "viewValue" ["v", None] viewCode
+                yield! def
+
+                yield sprintf "ChangeableModelMap(%s, %s, %s, %s)" value initCode updateCode viewCode
             ]
 
         let update (gen : GenericArguments) (retValue : bool) (target : string) (value : string) =
             String.concat "\r\n" [
-                let initCode = valueType.init gen "v"
+                yield sprintf "%s.update(%s)" target value
+                //let initCode = valueType.init gen "v"
 
-                let def, initValue = helper (valueType.view gen) "initValue" ["v", None] (valueType.init gen "v")
-                yield! def
+                //let def, initValue = helper (valueType.view gen) "initValue" ["v", None] (valueType.init gen "v")
+                //yield! def
 
-                let def, updateValue = 
-                    let updateCode = sprintf "let t = unbox<%s> t\r\n%s" (valueType.internalName gen) (valueType.update gen true "t" "v")
-                    helper (valueType.view gen) "updateValue" ["t", None; "v", None] updateCode
-                yield! def
+                //let def, updateValue = 
+                //    let updateCode = sprintf "let t = unbox<%s> t\r\n%s" (valueType.internalName gen) (valueType.update gen true "t" "v")
+                //    helper (valueType.view gen) "updateValue" ["t", None; "v", None] updateCode
+                //yield! def
 
-                yield sprintf "let merge k (o : option<_>) (n : option<_>) ="
-                yield sprintf "    match o with"
-                yield sprintf "    | Some t -> "
-                yield sprintf "        match n with"
-                yield sprintf "        | Some v -> %s t v |> Some" updateValue
-                yield sprintf "        | None -> None"
-                yield sprintf "    | None ->"
-                yield sprintf "        match n with"
-                yield sprintf "        | Some v -> Some (%s v)" initValue
-                yield sprintf "        | None -> None"
+                //yield sprintf "let merge k (o : option<_>) (n : option<_>) ="
+                //yield sprintf "    match o with"
+                //yield sprintf "    | Some t -> "
+                //yield sprintf "        match n with"
+                //yield sprintf "        | Some v -> %s t v |> Some" updateValue
+                //yield sprintf "        | None -> None"
+                //yield sprintf "    | None ->"
+                //yield sprintf "        match n with"
+                //yield sprintf "        | Some v -> Some (%s v)" initValue
+                //yield sprintf "        | None -> None"
                     
-                yield sprintf "%s.Value <- HashMap.choose2 merge %s.Value %s" target target value
+                //yield sprintf "%s.Value <- HashMap.choose2 merge %s.Value %s" target target value
                 if retValue then 
                     yield target
 
@@ -540,33 +564,23 @@ module DomainTypeDescription =
         let init (gen : GenericArguments) (value : string) =
             String.concat "\r\n" [
                 let initCode = valueType.init gen "v"
-                let def, arg = helper (valueType.view gen) "initValue" ["v", None] initCode
+                let def, initCode = helper (valueType.view gen) "initValue" ["v", None] initCode
                 yield! def
-                yield sprintf "clist(%s |> IndexList.map %s)" value arg
+                
+                let updateCode = valueType.update gen true "t" "v"
+                let def, updateCode = helper (valueType.view gen) "updateValue" ["t", Some (valueType.internalName gen); "v", None] updateCode
+                yield! def
+
+                let viewCode = valueType.view gen "v"
+                let def, viewCode = helper (valueType.view gen) "viewValue" ["v", None] viewCode
+                yield! def
+
+                yield sprintf "ChangeableModelList(%s, %s, %s, %s)" value initCode updateCode viewCode
             ]
 
         let update (gen : GenericArguments) (retValue : bool) (target : string) (value : string) =
             String.concat "\r\n" [
-                let def, initValue = helper (valueType.view gen) "initValue" ["v", None] (valueType.init gen "v")
-                yield! def
-
-                let def, updateValue = 
-                    let updateCode = sprintf "let t = unbox<%s> t\r\n%s" (valueType.internalName gen) (valueType.update gen true "t" "v")
-                    helper (valueType.view gen) "updateValue" ["t", None; "v", None] updateCode
-                yield! def
-
-                yield sprintf "let merge k (o : option<_>) (n : option<_>) ="
-                yield sprintf "    match o with"
-                yield sprintf "    | Some t -> "
-                yield sprintf "        match n with"
-                yield sprintf "        | Some v -> %s t v |> Some" updateValue
-                yield sprintf "        | None -> None"
-                yield sprintf "    | None ->"
-                yield sprintf "        match n with"
-                yield sprintf "        | Some v -> Some (%s v)" initValue
-                yield sprintf "        | None -> None"
-                    
-                yield sprintf "%s.Value <- IndexList.choose2 merge %s.Value %s" target target value
+                yield sprintf "%s.update(%s)" target value
                 if retValue then 
                     yield target
 
@@ -578,7 +592,7 @@ module DomainTypeDescription =
             init = init
             update = update
             view = fun _ v -> sprintf "%s :> alist<_>" v
-            name = fun _ -> "amap<_>"
+            name = fun _ -> "alist<_>"
             internalName = fun _ -> "clist<_>"
         }
 
@@ -1203,22 +1217,6 @@ module Adaptor =
                         sprintf "%sAdaptor" (System.IO.Path.GetFileNameWithoutExtension ctx.file)
                         
                     [ns, moduleName, lines]
-
-
-                    //[
-                    //    match ctx.qualifiedPath with
-                    //    | [] -> 
-                    //        yield "namespace global"
-                    //    | ns ->
-                    //        yield sprintf "namespace %s" (String.concat "." ns)
-
-                    //    yield ""
-                    //    yield "open FSharp.Data.Adaptive"
-                    //    yield ""
-                    //    yield sprintf "module %sAdaptor =" (System.IO.Path.GetFileNameWithoutExtension ctx.file)
-                    //    for l in lines do
-                    //        yield "    " + l
-                    //]
 
                 | None ->
                     []
