@@ -21,3 +21,4 @@ symbolCache.db
 /docs/output
 /node_modules
 /.fable
+.adaptifycache

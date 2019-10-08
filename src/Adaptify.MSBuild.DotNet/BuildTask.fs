@@ -52,7 +52,7 @@ type AdaptifyTask() =
 
     member x.info fmt =
         fmt |> Printf.kprintf (fun str ->
-            x.Log.LogMessage(MessageImportance.Low, str)
+            x.Log.LogMessage(MessageImportance.Normal, str)
         )
 
         
@@ -168,7 +168,7 @@ type AdaptifyTask() =
                                     true
                                 
                         if needsUpdate then
-                            x.info "update file %s" file
+                            x.info "[Adaptify] update file %s" file
                             let text = FSharp.Compiler.Text.SourceText.ofString content
                             let (_parseResult, answer) = checker.ParseAndCheckFileInProject(file, 0, text, options) |> Async.RunSynchronously
         
@@ -223,6 +223,8 @@ type AdaptifyTask() =
                             | FSharpCheckFileAnswer.Aborted ->
                                 x.warn "[Adaptify] could not parse %s" file
                                 ()
+                        else
+                            x.info "[Adaptify] skipping %s" file
 
                     CacheFile.save { projectHash = projHash; fileHashes = newHashes } cacheFile
                     results <- Seq.toArray newFiles

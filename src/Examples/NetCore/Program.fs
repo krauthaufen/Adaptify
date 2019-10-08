@@ -4,6 +4,8 @@ open FSharp.Data.Adaptive
 
 [<EntryPoint>]
 let main _argv =
+    printfn "hi there"
+
     let model = 
         AdaptiveModel.create {
             all     = HashMap.empty
