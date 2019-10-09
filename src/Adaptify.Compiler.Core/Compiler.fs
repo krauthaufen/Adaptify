@@ -89,14 +89,21 @@ module FSharpTypePatterns =
         else
             None
 
-    let (|FullName|) (typ : FSharpType) =
-        let targs = typ.GenericArguments |> Seq.toList
-        if typ.HasTypeDefinition then
-            let path = typ.TypeDefinition.AccessPath
-            FullName(path + "." + typ.TypeDefinition.DisplayName, targs)
-        else
+    let rec (|FullName|) (typ : FSharpType) =
+        if typ.IsGenericParameter then
             let name = typ.Format(FSharpDisplayContext.Empty)
-            FullName (name, targs)
+            FullName("'" + name, [])
+        elif typ.IsAbbreviation then
+            (|FullName|) typ.AbbreviatedType
+        else 
+            let targs = typ.GenericArguments |> Seq.toList
+            if typ.HasTypeDefinition then
+                let path = typ.TypeDefinition.AccessPath
+                FullName(path + "." + typ.TypeDefinition.DisplayName, targs)
+            else
+                let name = typ.Format(FSharpDisplayContext.Empty)
+                FullName (name, targs)
+            
 
     let (|FromFSharpDataAdaptive|_|) (typ : FSharpType) =
         if typ.HasTypeDefinition then
@@ -506,15 +513,15 @@ module DomainTypeDescription =
             
             String.concat "\r\n" [
                 let initCode = valueType.init gen "v"
-                let def, initCode = helper (valueType.view gen) "initValue" ["v", None] initCode
+                let def, initCode = helper id "initValue" ["v", None] initCode
                 yield! def
                 
                 let updateCode = valueType.update gen true "t" "v"
-                let def, updateCode = helper (valueType.view gen) "updateValue" ["t", Some (valueType.internalName gen); "v", None] updateCode
+                let def, updateCode = helper id "updateValue" ["t", Some (valueType.internalName gen); "v", None] updateCode
                 yield! def
 
                 let viewCode = valueType.view gen "v"
-                let def, viewCode = helper (valueType.view gen) "viewValue" ["v", None] viewCode
+                let def, viewCode = helper id "viewValue" ["v", None] viewCode
                 yield! def
 
                 yield sprintf "ChangeableModelMap(%s, %s, %s, %s)" value initCode updateCode viewCode
@@ -565,15 +572,15 @@ module DomainTypeDescription =
         let init (gen : GenericArguments) (value : string) =
             String.concat "\r\n" [
                 let initCode = valueType.init gen "v"
-                let def, initCode = helper (valueType.view gen) "initValue" ["v", None] initCode
+                let def, initCode = helper id "initValue" ["v", None] initCode
                 yield! def
                 
                 let updateCode = valueType.update gen true "t" "v"
-                let def, updateCode = helper (valueType.view gen) "updateValue" ["t", Some (valueType.internalName gen); "v", None] updateCode
+                let def, updateCode = helper id "updateValue" ["t", Some (valueType.internalName gen); "v", None] updateCode
                 yield! def
 
                 let viewCode = valueType.view gen "v"
-                let def, viewCode = helper (valueType.view gen) "viewValue" ["v", None] viewCode
+                let def, viewCode = helper id "viewValue" ["v", None] viewCode
                 yield! def
 
                 yield sprintf "ChangeableModelList(%s, %s, %s, %s)" value initCode updateCode viewCode
@@ -1134,11 +1141,11 @@ module DomainTypeDescription =
 
             String.concat "\r\n" [
                 for (p, a) in adaptors do
-                    if a.isTrivial targs then
-                        yield sprintf "let inline init%s v = v" p
-                        yield sprintf "let inline update%s _t v = v" p
-                        yield sprintf "let inline view%s v = v" p
-                    else
+                    //if a.isTrivial targs then
+                    //    yield sprintf "let inline init%s v = v" p
+                    //    yield sprintf "let inline update%s _t v = v" p
+                    //    yield sprintf "let inline view%s v = v" p
+                    //else
                         let initCode = a.init targs "v"
                         let initLines = initCode.Split([|"\r\n"|], StringSplitOptions.None)
                         if initLines.Length = 1 then
@@ -1189,14 +1196,25 @@ module DomainTypeDescription =
                 sprintf "%s.%s(%s)" target updateMemberName value
                     
 
+        let name (targs : GenericArguments) =
+            match tparNames with
+            | [] -> typeFormat name
+            | pars ->
+                let suffix = 
+                    pars 
+                    |> Seq.map (fun _n -> "_") 
+                    |> String.concat ", " 
+                    |> sprintf "<%s>"
+                typeFormat name + suffix
+
         { 
             isTrivial = fun _ -> false  
-            name = fun _ -> typeFormat name
+            name = name
             definition = definition >> Some
             init = init
             update = update
             view = fun _ n -> n
-            internalName = fun _ -> typeFormat name
+            internalName = name
         }
 module Adaptor = 
     let rec generate (ctx : AdaptorContext) (entity : FSharpEntity) =

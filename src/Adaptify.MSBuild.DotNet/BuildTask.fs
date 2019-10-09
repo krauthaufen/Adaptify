@@ -60,6 +60,10 @@ type AdaptifyTask() =
         fmt |> Printf.kprintf (fun str ->
             x.Log.LogWarning(str)
         )
+    member x.error fmt =
+        fmt |> Printf.kprintf (fun str ->
+            x.Log.LogError(str)
+        )
 
     override x.Execute() =
         if debug then
@@ -67,8 +71,6 @@ type AdaptifyTask() =
             
         match Path.GetExtension projectFile with
             | ".fsproj" -> 
-
-                
                 try
                     let targetType = 
                         match outputType.ToLower() with
@@ -79,7 +81,6 @@ type AdaptifyTask() =
                     let isNetFramework = references |> Array.exists (fun r -> Path.GetFileNameWithoutExtension(r).ToLower() = "mscorlib")
                     let checker = FSharpChecker.Create(keepAssemblyContents = true)
                     
-
                     let inFiles =
                         let rec appendGenerated (f : list<string>) =
                             match f with
@@ -230,13 +231,13 @@ type AdaptifyTask() =
                     results <- Seq.toArray newFiles
                     true
                 with e ->
+                    x.error "failed: %A" e
                     false
               
-             | other -> 
+            | _other -> 
                 results <- files
                 true
                 
-
 
     member x.Debug
         with get() = debug
