@@ -120,6 +120,10 @@ module ProjectInfo =
             | UnexpectedMSBuildResult res ->
                 Error [sprintf "msbuild error: %s" res]
 
+let md5 = System.Security.Cryptography.MD5.Create()
+let inline hash (str : string) = 
+    md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes str) |> System.Guid |> string
+                    
 let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
         
     let args = ProjectInfo.toFscArgs info
@@ -177,7 +181,10 @@ let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
 
             if builder.Length > 0 then
                 let file = Path.ChangeExtension(path, ".g.fs")
-                File.WriteAllText(file, builder.ToString())
+                
+                let result = sprintf "//%s\r\n" (hash content) + builder.ToString()
+
+                File.WriteAllText(file, result)
 
 
 

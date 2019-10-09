@@ -22,7 +22,7 @@ let main _argv =
     match AVal.force res with
     | AdaptiveCaseA a -> ()
     | AdaptiveCaseB v -> ()
-    model.nested.list
+
     let _list   : alist<AdaptiveModel> = model.test
     let _value  : aval<int> = model.value
     let _all    : amap<int, AdaptiveModel> = model.all

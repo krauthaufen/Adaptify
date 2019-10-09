@@ -1,3 +1,4 @@
+//cb135d6f-45e8-3e8f-9ea0-7404e6a8a7e1
 namespace Model
 open FSharp.Data.Adaptive
 open Adaptify
@@ -47,9 +48,9 @@ module rec ModelAdaptor =
         let _foo = cval(__initial.foo)
         let _bar = cmap __initial.bar
         let _nested =
-            let inline inita v = v
-            let inline updatea _t v = v
-            let inline viewa v = v
+            let inita v = cval(v)
+            let updatea (t : cval<_>) v = t.Value <- v; t
+            let viewa v = v :> aval<_>
             AdaptiveFoo.create(__initial.nested, inita, updatea, viewa)
         member __.current = __current :> aval<_>
         /// The current value of set as `aset<int>`.
@@ -64,7 +65,7 @@ module rec ModelAdaptor =
         member __.foo = _foo :> aval<_>
         /// The current value of bar as `amap<int, string>`.
         member __.bar = _bar :> amap<_,_>
-        /// The current value of nested as `AdaptiveFoo`.
+        /// The current value of nested as `AdaptiveFoo<_, _, _>`.
         member __.nested = _nested
         /// Updates all values in the `AdaptiveModel` to the given `Model`.
         /// Note that it expects a Transaction to be current.

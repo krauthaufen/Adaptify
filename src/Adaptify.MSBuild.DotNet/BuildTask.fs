@@ -69,6 +69,8 @@ type AdaptifyTask() =
         if debug then
             System.Diagnostics.Debugger.Launch() |> ignore
             
+        let modelTypeRx = System.Text.RegularExpressions.Regex @"ModelType(Attribute)?"
+
         match Path.GetExtension projectFile with
             | ".fsproj" -> 
                 try
@@ -79,7 +81,6 @@ type AdaptifyTask() =
                             | _ -> Target.Library
 
                     let isNetFramework = references |> Array.exists (fun r -> Path.GetFileNameWithoutExtension(r).ToLower() = "mscorlib")
-                    let checker = FSharpChecker.Create(keepAssemblyContents = true)
                     
                     let inFiles =
                         let rec appendGenerated (f : list<string>) =
@@ -125,107 +126,141 @@ type AdaptifyTask() =
                         | None -> Map.empty
 
                     let mutable newHashes = Map.empty
-
-                    let options = 
-                        checker.GetProjectOptionsFromCommandLineArgs(
-                            projectFile, 
-                            ProjectInfo.toFscArgs projInfo |> List.toArray
-                        )
+                    
                     let projDir = Path.GetDirectoryName projectFile
                     let newFiles = System.Collections.Generic.List<string>()
 
                     let md5 = System.Security.Cryptography.MD5.Create()
                     let inline hash (str : string) = 
                         md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes str) |> System.Guid |> string
-
+                    
+                    let checker = 
+                        lazy (
+                            let sw = System.Diagnostics.Stopwatch.StartNew()
+                            let res = FSharpChecker.Create(keepAssemblyContents = true)
+                            sw.Stop()
+                            x.info "[Adaptify] creating FSharpChecker took: %.0fm" sw.Elapsed.TotalMilliseconds
+                            res
+                        )
+                    
+                    let options = 
+                        lazy (
+                            checker.Value.GetProjectOptionsFromCommandLineArgs(
+                                projectFile, 
+                                ProjectInfo.toFscArgs projInfo |> List.toArray
+                            )
+                        )
                     for file in files do
-                        let path = Path.Combine(projDir, file)
-                        let content = File.ReadAllText path
-                        let fileHash = hash content
+                        if not (file.EndsWith ".g.fs") then
+                            let path = Path.Combine(projDir, file)
+                            let content = File.ReadAllText path
+                            let fileHash = hash content
+
+                            let mayDefineModelTypes = modelTypeRx.IsMatch content
 
 
-                        let needsUpdate =
-                            if projectChanged then 
-                                true
-                            else
-                                match Map.tryFind file oldHashes with
-                                | Some (oldHash, hasModels) ->
-                                    if oldHash = fileHash then
-                                        if hasModels then
-                                            let generated = Path.ChangeExtension(path, ".g.fs")
-                                            if File.Exists(generated) then
-                                                newFiles.Add file
-                                                newFiles.Add generated
-                                                false
-                                            else
-                                                true
-                                        else
-                                            newFiles.Add file
-                                            false
-                                    else
-                                        true
-
-                                | None ->   
-                                    true
-                                
-                        if needsUpdate then
-                            x.info "[Adaptify] update file %s" file
-                            let text = FSharp.Compiler.Text.SourceText.ofString content
-                            let (_parseResult, answer) = checker.ParseAndCheckFileInProject(file, 0, text, options) |> Async.RunSynchronously
-        
-                            match answer with
-                            | FSharpCheckFileAnswer.Succeeded res ->
-                                let rec allEntities (d : FSharpImplementationFileDeclaration) =
-                                    match d with
-                                    | FSharpImplementationFileDeclaration.Entity(e, ds) ->
-                                        e :: List.collect allEntities ds
-                                    | _ ->
-                                        []
-
-                                let entities = 
-                                    res.ImplementationFile.Value.Declarations
-                                    |> Seq.toList
-                                    |> List.collect allEntities
-
-
-                                let adaptors = 
-                                    entities
-                                    |> List.collect (fun e -> Adaptor.generate { qualifiedPath = Option.toList e.Namespace; file = path } e)
-                                    |> List.groupBy (fun (f, _, _) -> f)
-                                    |> List.map (fun (f, els) -> 
-                                        f, els |> List.map (fun (_,m,c) -> m, c) |> List.groupBy fst |> List.map (fun (m,ds) -> m, List.map snd ds) |> Map.ofList
-                                    )
-                                    |> Map.ofList
-
-                                let builder = System.Text.StringBuilder()
-
-                                for (ns, modules) in Map.toSeq adaptors do
-                                    sprintf "namespace %s" ns |> builder.AppendLine |> ignore
-                                    sprintf "open FSharp.Data.Adaptive" |> builder.AppendLine |> ignore
-                                    sprintf "open Adaptify" |> builder.AppendLine |> ignore
-                                    for (m, def) in Map.toSeq modules do
-                                        sprintf "[<AutoOpen>]" |> builder.AppendLine |> ignore
-                                        sprintf "module rec %s =" m |> builder.AppendLine |> ignore
-                                        for d in def do
-                                            for l in d do
-                                                sprintf "    %s" l |> builder.AppendLine |> ignore
-
-                                let generated = not (System.String.IsNullOrWhiteSpace(string builder))
-                                newHashes <- Map.add file (fileHash, generated) newHashes
-                                newFiles.Add file
-                                if generated then
-                                    let file = Path.ChangeExtension(path, ".g.fs")
-                                    File.WriteAllText(file, builder.ToString())
+                            let needsUpdate =
+                                if not mayDefineModelTypes then
                                     newFiles.Add file
-                                    x.info "[Adaptify] generated %s" file
+                                    newHashes <- Map.add file (fileHash, false) newHashes
+                                    false
+                                elif projectChanged then 
+                                    true
                                 else
-                                    x.info "[Adaptify] no models in %s" file
+                                    match Map.tryFind file oldHashes with
+                                    | Some (oldHash, hasModels) ->
+                                        if oldHash = fileHash then
+                                            if hasModels then
+                                                let generated = Path.ChangeExtension(path, ".g.fs")
 
-                            | FSharpCheckFileAnswer.Aborted ->
-                                x.warn "[Adaptify] could not parse %s" file
-                                ()
-                        else
-                            x.info "[Adaptify] skipping %s" file
+                                                let readGeneratedHash (file : string) =
+                                                    use s = File.OpenRead file
+                                                    use r = new StreamReader(s)
+                                                    try
+                                                        let line = r.ReadLine()
+                                                        if line.StartsWith "//" then line.Substring 2
+                                                        else ""
+                                                    with _ ->
+                                                        ""
+
+                                                if File.Exists(generated) && readGeneratedHash generated = fileHash then
+                                                    newFiles.Add file
+                                                    newFiles.Add generated
+                                                    newHashes <- Map.add file (fileHash, true) newHashes
+                                                    false
+                                                else
+                                                    true
+                                            else
+                                                newFiles.Add file
+                                                newHashes <- Map.add file (fileHash, false) newHashes
+                                                false
+                                        else
+                                            true
+
+                                    | None ->   
+                                        true
+                                
+                            if needsUpdate then
+                                x.info "[Adaptify] update file %s" file
+                                let text = FSharp.Compiler.Text.SourceText.ofString content
+                                let (_parseResult, answer) = checker.Value.ParseAndCheckFileInProject(file, 0, text, options.Value) |> Async.RunSynchronously
+        
+                                match answer with
+                                | FSharpCheckFileAnswer.Succeeded res ->
+                                    let rec allEntities (d : FSharpImplementationFileDeclaration) =
+                                        match d with
+                                        | FSharpImplementationFileDeclaration.Entity(e, ds) ->
+                                            e :: List.collect allEntities ds
+                                        | _ ->
+                                            []
+
+                                    let entities = 
+                                        res.ImplementationFile.Value.Declarations
+                                        |> Seq.toList
+                                        |> List.collect allEntities
+
+
+                                    let adaptors = 
+                                        entities
+                                        |> List.collect (fun e -> Adaptor.generate { qualifiedPath = Option.toList e.Namespace; file = path } e)
+                                        |> List.groupBy (fun (f, _, _) -> f)
+                                        |> List.map (fun (f, els) -> 
+                                            f, els |> List.map (fun (_,m,c) -> m, c) |> List.groupBy fst |> List.map (fun (m,ds) -> m, List.map snd ds) |> Map.ofList
+                                        )
+                                        |> Map.ofList
+
+                                    let builder = System.Text.StringBuilder()
+
+                                    for (ns, modules) in Map.toSeq adaptors do
+                                        sprintf "namespace %s" ns |> builder.AppendLine |> ignore
+                                        sprintf "open FSharp.Data.Adaptive" |> builder.AppendLine |> ignore
+                                        sprintf "open Adaptify" |> builder.AppendLine |> ignore
+                                        for (m, def) in Map.toSeq modules do
+                                            sprintf "[<AutoOpen>]" |> builder.AppendLine |> ignore
+                                            sprintf "module rec %s =" m |> builder.AppendLine |> ignore
+                                            for d in def do
+                                                for l in d do
+                                                    sprintf "    %s" l |> builder.AppendLine |> ignore
+
+                                    let generated = not (System.String.IsNullOrWhiteSpace(string builder))
+                                    newHashes <- Map.add file (fileHash, generated) newHashes
+                                    newFiles.Add file
+                                    if generated then
+                                        let file = Path.ChangeExtension(path, ".g.fs")
+
+                                        let result = sprintf "//%s\r\n" fileHash + builder.ToString()
+
+                                        File.WriteAllText(file, result)
+                                        newFiles.Add file
+                                        x.info "[Adaptify] generated %s" file
+                                    else
+                                        x.info "[Adaptify] no models in %s" file
+
+                                | FSharpCheckFileAnswer.Aborted ->
+                                    x.warn "[Adaptify] could not parse %s" file
+                                    ()
+                            else
+                                x.info "[Adaptify] skipping %s" file
 
                     CacheFile.save { projectHash = projHash; fileHashes = newHashes } cacheFile
                     results <- Seq.toArray newFiles
