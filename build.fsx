@@ -151,19 +151,6 @@ Target.create "Push" (fun _ ->
     ()
 )
 
-Target.create "RunTest" (fun _ ->
-    let options (o : DotNet.TestOptions) =
-        { (o.WithRedirectOutput false) with
-            NoBuild = true
-            NoRestore = true
-            Configuration = DotNet.BuildConfiguration.Release
-            Logger = Some "console;verbosity=normal"
-        }
-    DotNet.test options "FSharp.Data.Adaptive.sln"
-)
-
-Target.create "Test" (fun _ -> ())
-
 Target.create "Default" ignore
 
 Target.create "Docs" (fun _ ->
@@ -355,15 +342,11 @@ Target.create "Merge" (fun _ ->
     "GenerateDocs" ==> 
     "ReleaseDocs"
 
-"RunTest" ==> "Test"
-
-"Compile" ==> 
-    "Test" ==> 
+"Merge" ==> 
     "Pack" ==>
     "Push"
 
-"Compile" ==> 
-    "Test" ==>
+"Merge" ==> 
     "Default"
 
 

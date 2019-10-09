@@ -321,6 +321,7 @@ module DomainTypeDescription =
     
     let private updateMemberName = "update"
     let private createMemberName = "create"
+    let private currentMemberName = "current"
     let private typeFormat = sprintf "Adaptive%s"
 
     let private cache = System.Collections.Generic.Dictionary<FSharpType, DomainTypeDescription>()
@@ -1077,6 +1078,7 @@ module DomainTypeDescription =
             String.concat "\r\n" [
                 yield sprintf "/// Adaptive representation for `%s`" entity.DisplayName
                 yield sprintf "type %s%s private(__initial : %s%s) =" (typeFormat name) tparDef fullName tparArgDef
+                yield sprintf "    let __current = cval __initial"
                 for (name, desc) in fields do
                     let initCode = desc.init targs (sprintf "__initial.%s" name)
                     let initLines = initCode.Split([|"\r\n"|], StringSplitOptions.None)
@@ -1088,6 +1090,7 @@ module DomainTypeDescription =
                         for l in initLines do
                             yield "        " + l
 
+                yield sprintf "    member __.%s = __current :> aval<_>" currentMemberName
                 for (name, desc) in fields do
                     let view = desc.view targs (sprintf "_%s" name)
                     let viewLines = view.Split([|"\r\n"|], System.StringSplitOptions.None)
@@ -1098,16 +1101,19 @@ module DomainTypeDescription =
                         yield sprintf "    member __.%s = " name
                         for l in viewLines do
                             yield sprintf "        %s" l
-                                
+                             
+                
                 yield sprintf "    /// Updates all values in the `%s` to the given `%s`." (typeFormat name) entity.DisplayName
                 yield sprintf "    /// Note that it expects a Transaction to be current." 
                 yield sprintf "    member __.%s(value : %s) : unit =" updateMemberName fullName
-                yield sprintf "        let __value = value"
+                yield sprintf "        if not (System.Object.ReferenceEquals(__current.Value, value)) then"
+                yield sprintf "            __current.Value <- value"
+                yield sprintf "            let __value = value"
                 for (name, desc) in fields do
                     let updateCode = desc.update targs false (sprintf "_%s" name) (sprintf "__value.%s" name)
                     let updateLines = updateCode.Split([|"\r\n"|], StringSplitOptions.None)
                     for l in updateLines do
-                        yield sprintf "        %s" l
+                        yield sprintf "            %s" l
 
                 yield sprintf "    /// Creates a new `%s` using the given `%s`." (typeFormat name) entity.DisplayName
                 yield sprintf "    static member %s(value : %s%s) : %s%s = " createMemberName fullName tparArgDef (typeFormat name) tparDef

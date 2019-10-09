@@ -14,7 +14,6 @@ let main _argv =
             foo     = "asdasda"
             bar     = HashMap.empty
         }
-
     let _list   : alist<AdaptiveModel> = model.test
     let _value  : aval<int> = model.value
     let _all    : amap<int, AdaptiveModel> = model.all

@@ -5,11 +5,13 @@ open Adaptify
 module rec ModelAdaptor =
     /// Adaptive representation for `Model`
     type AdaptiveModel private(__initial : Model.Model) =
+        let __current = cval __initial
         let _all = ChangeableModelMap(__initial.all, (fun v -> AdaptiveModel.create(v)), (fun (t : AdaptiveModel) v -> t.update(v); t), (fun v -> v))
         let _value = cval(__initial.value)
         let _test = ChangeableModelList(__initial.test, (fun v -> AdaptiveModel.create(v)), (fun (t : AdaptiveModel) v -> t.update(v); t), (fun v -> v))
         let _foo = cval(__initial.foo)
         let _bar = cmap __initial.bar
+        member __.Current = __current :> aval<_>
         /// The current value of all as `amap<_,_>`.
         member __.all = _all :> amap<_,_>
         /// The current value of value as `aval<int>`.
@@ -23,12 +25,14 @@ module rec ModelAdaptor =
         /// Updates all values in the `AdaptiveModel` to the given `Model`.
         /// Note that it expects a Transaction to be current.
         member __.update(value : Model.Model) : unit =
-            let __value = value
-            _all.update(__value.all)
-            _value.Value <- __value.value
-            _test.update(__value.test)
-            _foo.Value <- __value.foo
-            _bar.Value <- __value.bar
+            if not (System.Object.ReferenceEquals(__current.Value, value)) then
+                __current.Value <- value
+                let __value = value
+                _all.update(__value.all)
+                _value.Value <- __value.value
+                _test.update(__value.test)
+                _foo.Value <- __value.foo
+                _bar.Value <- __value.bar
         /// Creates a new `AdaptiveModel` using the given `Model`.
         static member create(value : Model.Model) : AdaptiveModel = 
             AdaptiveModel(value)
