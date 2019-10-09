@@ -1,5 +1,6 @@
 ﻿namespace Model
 
+
 open FSharp.Data.Adaptive
 open Adaptify
 
@@ -12,9 +13,9 @@ type Thing =
 [<ModelType>]
 type Foo<'a> =
     {
+        value : 'a
         list : IndexList<'a>
     }
-
 
 [<ModelType>]
 type Model =

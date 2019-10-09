@@ -70,7 +70,6 @@ type ChangeableModelList<'T, 'C, 'A>(initial : IndexList<'T>, init : 'T -> 'C, u
                 )
     member x.GetReader() =
         ChangeableModelListReader((store :> alist<_>).GetReader(), view) :> IIndexListReader<_>
-        
 
     interface alist<'A> with
         member x.IsConstant = false
@@ -78,3 +77,9 @@ type ChangeableModelList<'T, 'C, 'A>(initial : IndexList<'T>, init : 'T -> 'C, u
         member x.GetReader() = x.GetReader()
         
 
+type ChangeableModelList =
+    static member Create(list : IndexList<'a>, init : 'a -> cval<'a>, update : cval<'a> -> 'a -> cval<'a>, view : cval<'a> -> aval<'a>) =
+        ChangeableModelList<'a, 'a, 'a>(list, id, (fun _ v -> v), id)
+        
+    static member Create(list : IndexList<'a>, init : 'a -> 'b, update : 'b-> 'a -> 'b, view : 'b -> 'c) =
+        ChangeableModelList<'a, 'b, 'c>(list, init, update, view)

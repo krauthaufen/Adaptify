@@ -182,7 +182,11 @@ let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
             if builder.Length > 0 then
                 let file = Path.ChangeExtension(path, ".g.fs")
                 
-                let result = sprintf "//%s\r\n" (hash content) + builder.ToString()
+                
+                let generated = builder.ToString()
+                let result = sprintf "//%s\r\n//%s\r\n" (hash content) (hash generated) + content
+
+
 
                 File.WriteAllText(file, result)
 

@@ -173,13 +173,28 @@ type AdaptifyTask() =
                                             if hasModels then
                                                 let generated = Path.ChangeExtension(path, ".g.fs")
 
-                                                let readGeneratedHash (file : string) =
+                                                let readGeneratedHash (file : string) = 
                                                     use s = File.OpenRead file
                                                     use r = new StreamReader(s)
                                                     try
-                                                        let line = r.ReadLine()
-                                                        if line.StartsWith "//" then line.Substring 2
-                                                        else ""
+                                                        let inputHash = 
+                                                            let line = r.ReadLine()
+                                                            if line.StartsWith "//" then line.Substring 2
+                                                            else ""
+
+                                                        let selfHash =
+                                                            let line = r.ReadLine()
+                                                            if line.StartsWith "//" then line.Substring 2
+                                                            else ""
+
+                                                        let restHash = 
+                                                            let str = r.ReadToEnd()
+                                                            hash str
+
+                                                        if selfHash = restHash then
+                                                            inputHash
+                                                        else
+                                                            ""
                                                     with _ ->
                                                         ""
 
@@ -248,7 +263,8 @@ type AdaptifyTask() =
                                     if generated then
                                         let file = Path.ChangeExtension(path, ".g.fs")
 
-                                        let result = sprintf "//%s\r\n" fileHash + builder.ToString()
+                                        let content = builder.ToString()
+                                        let result = sprintf "//%s\r\n//%s\r\n" fileHash (hash content) + content
 
                                         File.WriteAllText(file, result)
                                         newFiles.Add file

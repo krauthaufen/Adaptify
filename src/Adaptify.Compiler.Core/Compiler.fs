@@ -583,7 +583,7 @@ module DomainTypeDescription =
                 let def, viewCode = helper id "viewValue" ["v", None] viewCode
                 yield! def
 
-                yield sprintf "ChangeableModelList(%s, %s, %s, %s)" value initCode updateCode viewCode
+                yield sprintf "ChangeableModelList.Create(%s, %s, %s, %s)" value initCode updateCode viewCode
             ]
 
         let update (gen : GenericArguments) (retValue : bool) (target : string) (value : string) =

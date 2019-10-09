@@ -1,4 +1,5 @@
-//cb135d6f-45e8-3e8f-9ea0-7404e6a8a7e1
+//fb7a4f46-72e2-87d7-0cf1-62726254f712
+//ee9af235-81fc-2cc2-c9da-4a82779d11d3
 namespace Model
 open FSharp.Data.Adaptive
 open Adaptify
@@ -24,8 +25,11 @@ module rec ModelAdaptor =
     /// Adaptive representation for `Foo`
     type AdaptiveFoo<'a, 'aAdaptive, 'aView> private(__initial : Model.Foo<'a>, inita : 'a -> 'aAdaptive, updatea : 'aAdaptive -> 'a -> 'aAdaptive, viewa : 'aAdaptive -> 'aView) =
         let __current = cval __initial
-        let _list = ChangeableModelList(__initial.list, (fun v -> inita(v)), (fun (t : 'aAdaptive) v -> updatea (t) (v)), (fun v -> viewa (v)))
+        let _value = inita(__initial.value)
+        let _list = ChangeableModelList.Create(__initial.list, (fun v -> inita(v)), (fun (t : 'aAdaptive) v -> updatea (t) (v)), (fun v -> viewa (v)))
         member __.current = __current :> aval<_>
+        /// The current value of value as `'aView`.
+        member __.value = viewa (_value)
         /// The current value of list as `alist<_>`.
         member __.list = _list :> alist<_>
         /// Updates all values in the `AdaptiveFoo` to the given `Foo`.
@@ -34,6 +38,7 @@ module rec ModelAdaptor =
             if not (System.Object.ReferenceEquals(__current.Value, value)) then
                 __current.Value <- value
                 let __value = value
+                ignore (updatea (_value) (__value.value))
                 _list.update(__value.list)
         /// Creates a new `AdaptiveFoo` using the given `Foo`.
         static member create(value : Model.Foo<'a>, inita : 'a -> 'aAdaptive, updatea : 'aAdaptive -> 'a -> 'aAdaptive, viewa : 'aAdaptive -> 'aView) : AdaptiveFoo<'a, 'aAdaptive, 'aView> = 
@@ -44,7 +49,7 @@ module rec ModelAdaptor =
         let _set = cset(__initial.set)
         let _all = ChangeableModelMap(__initial.all, (fun v -> AdaptiveModel.create(v)), (fun (t : AdaptiveModel) v -> t.update(v); t), (fun v -> v))
         let _value = cval(__initial.value)
-        let _test = ChangeableModelList(__initial.test, (fun v -> AdaptiveModel.create(v)), (fun (t : AdaptiveModel) v -> t.update(v); t), (fun v -> v))
+        let _test = ChangeableModelList.Create(__initial.test, (fun v -> AdaptiveModel.create(v)), (fun (t : AdaptiveModel) v -> t.update(v); t), (fun v -> v))
         let _foo = cval(__initial.foo)
         let _bar = cmap __initial.bar
         let _nested =

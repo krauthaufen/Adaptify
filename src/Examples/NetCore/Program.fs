@@ -18,10 +18,10 @@ let main _argv =
         }
 
     let res = AdaptiveMyUnion.create (CaseA(10, 0.2))
-
+    
     match AVal.force res with
-    | AdaptiveCaseA a -> ()
-    | AdaptiveCaseB v -> ()
+    | AdaptiveCaseA(_int, _float) -> ()
+    | AdaptiveCaseB _model -> ()
 
     let _list   : alist<AdaptiveModel> = model.test
     let _value  : aval<int> = model.value
