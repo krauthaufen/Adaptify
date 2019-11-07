@@ -6,8 +6,20 @@ open FSharp.Data.Adaptive
 let main _argv =
     printfn "hi there"
 
-    let a : RecyAdaptive = failwith ""
-    a.g.y
+    
+
+    let ff : Adaptivefff = failwith ""
+    match AVal.force ff with
+    | AdaptiveAaa a -> ()
+    | AdaptiveGgg g -> ()
+    | AdaptiveYYY -> ()
+
+    let a : AdaptiveRecy = failwith ""
+    match AVal.force a.g.x with
+    | AdaptiveCaseA(a, b) ->
+        ()
+    | AdaptiveCaseB(x) ->
+        ()
     //let a = a.g.a.GetValue(Unchecked.defaultof<_>)
 
     //match a with

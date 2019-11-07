@@ -3,6 +3,18 @@
 open System
 open FSharp.Compiler.SourceCodeServices
 
+
+let lines (str : string) =
+    str.Split([|"\r\n"|], StringSplitOptions.None)
+
+let indent (lines : string[]) =
+    lines |> Array.map (fun s -> "    " + s)
+        
+let indentStr (str : string) =
+    str |> lines |> indent |> String.concat "\r\n"
+
+
+
 module Map =
     let union (l : Map<_,_>) (r : Map<_,_>) =
         let mutable res = l
@@ -634,15 +646,6 @@ module Expr =
             | _ -> Some (l, [v])
         | _ -> 
             None
-
-    let private lines (str : string) =
-        str.Split([|"\r\n"|], StringSplitOptions.None)
-
-    let indent (lines : string[]) =
-        lines |> Array.map (fun s -> "    " + s)
-        
-    let indentStr (str : string) =
-        str |> lines |> indent |> String.concat "\r\n"
 
     let private argDef (scope : Scope) (args : list<list<Var>>) =
         args 
@@ -1525,7 +1528,7 @@ module Adaptify =
             | Generic _ -> failwith "unreachable"
 
             | Union(scope, name, _, _) ->
-                let newName = name + "Adaptive"
+                let newName = "Adaptive" + name
                 let newScope = adaptorScope scope
                 
                 let adaptors =
@@ -1542,7 +1545,7 @@ module Adaptify =
                         [a.vType; pat; at]
                     )
                     
-                let mt = TExtRef(newScope, sprintf "%sAdaptiveCase" name, tAdaptiveArgs)
+                let mt = TExtRef(newScope, sprintf "Adaptive%sCase" name, tAdaptiveArgs)
                 let at = TExtRef(newScope, newName, tAdaptiveArgs)
 
                 let ctorArgs =
@@ -1623,7 +1626,7 @@ module Adaptify =
 
                 
             | ProductType(_, scope, name, _) ->
-                let newName = name + "Adaptive"
+                let newName = "Adaptive" + name 
                 let newScope = adaptorScope scope
 
                 let adaptors =
@@ -1694,11 +1697,15 @@ module Adaptify =
             if mutableScope then Adaptor.identity typ
             else Adaptor.aval typ
 
-
+    [<RequireQualifiedAccess>]
+    type TypeKind =
+        | Class
+        | Interface
+        | Module
 
     type TypeDefinition =
         {
-            isInterface : bool
+            kind        : TypeKind
             baseType    : Option<TypeRef>
             scope       : Scope
             name        : string
@@ -1724,53 +1731,13 @@ module Adaptify =
                 str |> lines |> indent |> String.concat "\r\n"
 
         let toString (d : TypeDefinition) =
-            let defaultOpens =
-                [|
-                    "open System"
-                    "open FSharp.Data.Adaptive"
-                    "open Adaptify"
-                |]
-            let rec wrap (s : Scope) (str : string[]) =
-                match s with
-                | Global ->
-                    
-                    sprintf "namespace global\r\n\r\n%s" (String.concat "\r\n" (Array.append defaultOpens str))
-                    
-                | Namespace ns ->
-                    sprintf "namespace %s\r\n\r\n%s" ns (String.concat "\r\n" (Array.append defaultOpens str))
-
-                | Module(parent, name, autoOpen, moduleSuffix) ->
-
-                    let attrs =
-                        [
-                            if autoOpen then "AutoOpen"
-                            if moduleSuffix then "CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)"
-                        ]
-
-                    match attrs with
-                    | [] ->
-                        let code =
-                            [|
-                                yield sprintf "module %s =" name
-                                yield! indent str
-                            |]
-                        wrap parent code
-                    | atts ->
-                        let atts = atts |> String.concat "; " |> sprintf "[<%s>]" 
-                        let code =
-                            [|
-                                yield atts
-                                yield sprintf "module %s =" name
-                                yield! indent str
-                            |]
-                        wrap parent code
-                      
+   
             let tpars =
                 match d.tpars with
                 | [] -> ""
                 | ts -> ts |> Seq.map string |> String.concat ", " |> sprintf "<%s>"
 
-            if d.isInterface then
+            if d.kind = TypeKind.Interface then
 
                 let code =
                     [|
@@ -1789,7 +1756,20 @@ module Adaptify =
                                 
                     |]
             
-                wrap d.scope code
+                code
+
+            elif d.kind = TypeKind.Module then
+                [|
+                    yield sprintf "[<AutoOpen>]"
+                    yield sprintf "module %s = " d.name
+                    for (name, args, b) in d.statics do
+                        let typ = b.Type
+                        let args = args |> List.map (fun a -> sprintf "(%s : %s)" a.Name (TypeRef.toString d.scope a.Type))
+                        yield sprintf "    let %s %s =" name (String.concat " " args) 
+                        yield! Expr.toString d.scope b |> lines |> indent |> indent
+                |]
+
+
             else
 
 
@@ -1861,7 +1841,8 @@ module Adaptify =
 
                     |]
                 
-                wrap d.scope code
+                code
+
         let rec isValueType (t : FSharpEntity) =
             if t.IsFSharpAbbreviation then
                 let t = t.AbbreviatedType
@@ -1906,7 +1887,7 @@ module Adaptify =
                 adaptorScope s
 
             let newName = 
-                n + "Adaptive"
+                "Adaptive" + n
                         
 
             let cache = args |> List.map (fun v -> new Var(sprintf "__%s" v.Name, v.Type, true))
@@ -1992,7 +1973,7 @@ module Adaptify =
                 )
 
             {
-                isInterface = false
+                kind        = TypeKind.Class
                 baseType    = None
                 scope       = newScope
                 name        = newName
@@ -2030,7 +2011,7 @@ module Adaptify =
                     adaptorScope scope
 
                 let newName = 
-                    name + "Adaptive"
+                    "Adaptive" + name 
                     
                 let tAdaptivePars =
                     tpars |> List.collect (fun t -> [t; TypeVar("pa" + t.Name); TypeVar("a" + t.Name)])
@@ -2055,15 +2036,15 @@ module Adaptify =
                     )
 
 
-                let ctorTypeRef = TExtRef(newScope, sprintf "%sAdaptiveCase" name, List.map TVar tAdaptivePars)
+                let ctorTypeRef = TExtRef(newScope, sprintf "Adaptive%sCase" name, List.map TVar tAdaptivePars)
                 let valueType = TExtRef(scope, name, List.map TVar tpars)
 
                 let ctorType =
                     {
-                        isInterface     = true
+                        kind            = TypeKind.Interface
                         baseType        = None
                         scope           = newScope
-                        name            = sprintf "%sAdaptiveCase" name
+                        name            = sprintf "Adaptive%sCase" name
                         tpars           = tAdaptivePars
                         ctorArgs        = []
                         ctor            = Expr.Unit
@@ -2109,7 +2090,7 @@ module Adaptify =
                         {
                             declaringType   = Choice1Of2 newScope
                             isStatic        = true
-                            name            = sprintf "%s%sAdaptive" name caseName
+                            name            = sprintf "Adaptive%s%s" name caseName
                             parameters      = 
                                 List.append
                                     (props |> List.map (fun v -> v.typ))
@@ -2181,7 +2162,7 @@ module Adaptify =
                             name = "update"
                         }
 
-                    let selfType = TExtRef(newScope, sprintf "%sAdaptive" name, List.map TVar tAdaptivePars)
+                    let selfType = TExtRef(newScope, sprintf "Adaptive%s" name, List.map TVar tAdaptivePars)
 
                     let markOutdated =
                         {
@@ -2223,10 +2204,10 @@ module Adaptify =
 
 
                     {
-                        isInterface     = false
+                        kind            = TypeKind.Class
                         baseType        = Some AdaptiveObject.typ
                         scope           = newScope
-                        name            = sprintf "%sAdaptive" name
+                        name            = sprintf "Adaptive%s" name
                         tpars           = tAdaptivePars
                         ctorArgs        = value :: ctorArgs
                         ctor            = Expr.Let(false, [current], ctor, Expr.Unit)
@@ -2264,20 +2245,120 @@ module Adaptify =
                     
 
 
-                [ctorType] @ caseTypes @ [adaptiveType]
+                let patterns =
+
+                    let patternName =  cases |> List.map (fun (n,_) -> sprintf "Adaptive%s" n) |> String.concat "|" |> sprintf "(|%s|)"
+
+                    let value = new Var("value", ctorTypeRef)
+
+                    {
+                        kind            = TypeKind.Module
+                        baseType        = None
+                        scope           = newScope
+                        name            = sprintf "Adaptive%sPatterns" name
+                        tpars           = []
+                        ctorArgs        = []
+                        ctor            = Expr.Unit
+                        members = []
+                        interfaces = []
+                            
+                        statics =
+                            [
+                                patternName, [value], 
+                                    Expr.Match(Var value, [
+                                        for (c, props) in cases do
+                                            let n = TExtRef(newScope, sprintf "Adaptive%s%s" name c, List.map TVar tAdaptivePars)
+                                            let ctor = 
+                                                {
+                                                    isStatic = true
+                                                    declaringType = Choice1Of2 newScope
+                                                    name = sprintf "Adaptive%s" c
+                                                    parameters = props |> List.map (fun p -> p.typ)
+                                                    returnType = TTuple(false, [])
+                                                }
+                                            let self = new Var(c, n)
+                                            let pat = TypeTest(n, self)
+                                            match props with
+                                            | [] ->
+                                                yield pat, Expr.Var(new Var(sprintf "Adaptive%s" c, TTuple(false, [])))
+
+                                            | _ ->
+                                                let body = Call(None, ctor, props |> List.map (fun p -> Expr.PropertyGet(Var self, p)))
+                                                yield pat, body
+
+                                        yield Any, Fail(TTuple(false, []), "unreachable")
+                                    ])
+                            ]
+
+                    }
+
+
+
+
+                [ctorType] @ caseTypes @ [adaptiveType; patterns]
             
+    let defaultOpens =
+        [|
+            "open System"
+            "open FSharp.Data.Adaptive"
+            "open Adaptify"
+        |]
 
+    let rec wrap (s : Scope) (str : string[]) =
+        match s with
+        | Global ->
+                    
+            sprintf "namespace rec global\r\n\r\n%s" (String.concat "\r\n" (Array.append defaultOpens str))
+                    
+        | Namespace ns ->
+            sprintf "namespace rec %s\r\n\r\n%s" ns (String.concat "\r\n" (Array.append defaultOpens str))
+
+        | Module(parent, name, autoOpen, moduleSuffix) ->
+
+            let attrs =
+                [
+                    if autoOpen then "AutoOpen"
+                    if moduleSuffix then "CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)"
+                ]
+
+            match attrs with
+            | [] ->
+                let code =
+                    [|
+                        yield sprintf "module rec %s =" name
+                        yield! indent str
+                    |]
+                wrap parent code
+            | atts ->
+                let atts = atts |> String.concat "; " |> sprintf "[<%s>]" 
+                let code =
+                    [|
+                        yield atts
+                        yield sprintf "module rec %s =" name
+                        yield! indent str
+                    |]
+                wrap parent code
+                   
     let test (defs : list<TypeDef>) =
-        let all = defs |> List.collect (TypeDefinition.ofTypeDef [])
-        printfn "#nowarn \"49\" // upper case patterns"
-        printfn "#nowarn \"66\" // upcast is unncecessary"
+        let all = 
+            String.concat "\r\n" [
 
-        for a in all do 
-            let str = TypeDefinition.toString a
-            printfn "%s" str
-            printfn ""
-            printfn ""
-            printfn ""
+                let all = defs |> List.collect (TypeDefinition.ofTypeDef [])
+                yield "#nowarn \"49\" // upper case patterns"
+                yield "#nowarn \"66\" // upcast is unncecessary"
+
+
+                let groups = all |> List.groupBy (fun d -> d.scope)
+
+                for (scope, ts) in groups do 
+                    let code = ts |> Seq.mapi( fun i t -> TypeDefinition.toString t) |> Array.concat
+                    let str = wrap scope code
+                    yield str
+                    yield ""
+                    yield ""
+                    yield ""
+            ]
+        System.IO.File.WriteAllText(@"C:\Users\Schorsch\Development\Adaptify\src\Examples\NetCore\Test.fs", all)
 
 
 
