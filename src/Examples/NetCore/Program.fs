@@ -6,27 +6,25 @@ open FSharp.Data.Adaptive
 let main _argv =
     printfn "hi there"
 
-    let model = 
-        AdaptiveModel.create {
-            set     = HashSet.empty
-            all     = HashMap.empty
-            value   = 0
-            test    = IndexList.empty
-            foo     = "asdasda"
-            bar     = HashMap.empty
-            nested  = Unchecked.defaultof<_>
-        }
+    let a : RecyAdaptive = failwith ""
+    a.g.y
+    //let a = a.g.a.GetValue(Unchecked.defaultof<_>)
 
-    let res = AdaptiveMyUnion.create (CaseA(10, 0.2))
+    //match a with
+    //| :? MyUnionCaseAAdaptive<Recy,RecyAdaptive,RecyAdaptive> as a -> 
+    //    a.
+
+
+    //let x = a.a
+    //let y = a.b
+    //a.a
+
+    //let a : ModelAdaptive = failwith ""
+
+    //let (_ : alist<int>) = a.nested.list
+    //let (_ : aval<int>) = a.nested.value
     
-    match AVal.force res with
-    | AdaptiveCaseA(_int, _float) -> ()
-    | AdaptiveCaseB _model -> ()
-
-    let _list   : alist<AdaptiveModel> = model.test
-    let _value  : aval<int> = model.value
-    let _all    : amap<int, AdaptiveModel> = model.all
-    let _foo    : aval<string> = model.foo
-    let _bar    : amap<int, string> = model.bar
+    //let (_ : alist<ThingAdaptive>) = a.nested2.list
+    //let (_ : ThingAdaptive) = a.nested2.value
 
     0

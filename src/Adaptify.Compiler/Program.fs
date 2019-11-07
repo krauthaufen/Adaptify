@@ -141,15 +141,16 @@ let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
         let content = File.ReadAllText path
         let text = FSharp.Compiler.Text.SourceText.ofString content
         let (_parseResult, answer) = checker.ParseAndCheckFileInProject(file, 0, text, options) |> Async.RunSynchronously
-        
+
         match answer with
         | FSharpCheckFileAnswer.Succeeded res ->
-            let adaptors = 
 
+            let adaptors = 
                 let rec allEntities (d : FSharpImplementationFileDeclaration) =
                     match d with
                     | FSharpImplementationFileDeclaration.Entity(e, ds) ->
                         e :: List.collect allEntities ds
+
                     | _ ->
                         []
 
@@ -157,6 +158,15 @@ let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
                     res.ImplementationFile.Value.Declarations
                     |> Seq.toList
                     |> List.collect allEntities
+
+                let definitions = 
+                    entities 
+                    |> List.choose Ast.TypeDef.ofEntity 
+                    |> List.map (fun l -> l.Value)
+
+                Ast.Adaptify.test definitions
+
+                System.Environment.Exit 0
 
                 entities
                 |> List.collect (fun e -> Adaptor.generate { qualifiedPath = Option.toList e.Namespace; file = path } e)
@@ -208,6 +218,9 @@ let main argv =
             keepAssemblyContents = true, 
             keepAllBackgroundResolutions = false
         )
+
+
+
 
     for projFile in projFiles do
         match ProjectInfo.tryOfProject [] projFile with

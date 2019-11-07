@@ -39,8 +39,7 @@ type ChangeableModelMap<'K, 'V, 'C, 'A>(initial : HashMap<'K, 'V>, init : 'V -> 
         member x.IsConstant = false
         member x.Content = content
         member x.GetReader() = x.GetReader()
-        
- 
+
 type private ChangeableModelListReader<'C, 'A>(inner : IIndexListReader<'C>, view : 'C -> 'A) =
     inherit AbstractReader<IndexList<'A>, IndexListDelta<'A>>(IndexList.trace)
 
@@ -76,10 +75,76 @@ type ChangeableModelList<'T, 'C, 'A>(initial : IndexList<'T>, init : 'T -> 'C, u
         member x.Content = content
         member x.GetReader() = x.GetReader()
         
-
 type ChangeableModelList =
     static member Create(list : IndexList<'a>, init : 'a -> cval<'a>, update : cval<'a> -> 'a -> cval<'a>, view : cval<'a> -> aval<'a>) =
         ChangeableModelList<'a, 'a, 'a>(list, id, (fun _ v -> v), id)
         
     static member Create(list : IndexList<'a>, init : 'a -> 'b, update : 'b-> 'a -> 'b, view : 'b -> 'c) =
         ChangeableModelList<'a, 'b, 'c>(list, init, update, view)
+
+
+type ChangeableModelOption<'A, 'CA, 'AA>(initial : option<'A>, init : 'A -> 'CA, update : 'CA -> 'A -> 'CA, view : 'CA -> 'AA) =
+    inherit AdaptiveObject()
+
+    let mutable current = initial
+    let mutable store = 
+        initial |> Option.map (fun v -> 
+            let c = init v
+            let a = view c
+            c, a
+        )
+
+    member x.update(v : option<'A>) =
+        if not (System.Object.ReferenceEquals(current, v)) then
+            current <- v
+            match store with
+            | Some (c, a) ->
+                match v with
+                | Some v -> 
+                    let c' = update c v
+                    if not (Unchecked.equals c' c) then
+                        store <- Some(c', view c')
+                        x.MarkOutdated()
+                | None ->
+                    store <- None
+                    x.MarkOutdated()
+            | None ->
+                match v with
+                | None -> ()
+                | Some v ->
+                    let c = init v
+                    store <- Some (c, view c)
+                    x.MarkOutdated()                                                
+
+    member x.GetValue(token : AdaptiveToken) =
+        x.EvaluateAlways token (fun token ->
+            match store with
+            | Some(_, a) -> Some a
+            | None -> None
+        )
+
+    interface AdaptiveValue<option<'AA>> with
+        member x.GetValue t = x.GetValue t
+
+type Instance<'a, 'ca, 'aa> =
+    {
+        ainit    : 'a -> 'ca
+        aupdate  : 'ca -> 'a -> 'ca
+        aview    : 'ca -> 'aa
+    }
+
+module Instance =
+    let box (i : Instance<'a, 'ca, 'aa>) : Instance<'a, obj, 'aa> =
+        {
+            ainit = fun a -> i.ainit a :> obj
+            aupdate = fun o a -> i.aupdate (unbox o) a :> obj
+            aview = fun o -> i.aview (unbox o)
+        }
+
+
+
+
+
+
+
+
