@@ -11,7 +11,12 @@
     <OutputPath>..\..\bin\Release\</OutputPath>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Utilities.fs" />
+    <Compile Include="Scope.fs" />
+    <Compile Include="Types.fs" />
     <Compile Include="Ast.fs" />
+    <Compile Include="CoreTypes.fs" />
+    <Compile Include="Adaptor.fs" />
     <Compile Include="Compiler.fs" />
     <Compile Include="ProjectInfo.fs" />
   </ItemGroup>

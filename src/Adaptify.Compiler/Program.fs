@@ -145,59 +145,32 @@ let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
         match answer with
         | FSharpCheckFileAnswer.Succeeded res ->
 
-            let adaptors = 
-                let rec allEntities (d : FSharpImplementationFileDeclaration) =
-                    match d with
-                    | FSharpImplementationFileDeclaration.Entity(e, ds) ->
-                        e :: List.collect allEntities ds
+            let rec allEntities (d : FSharpImplementationFileDeclaration) =
+                match d with
+                | FSharpImplementationFileDeclaration.Entity(e, ds) ->
+                    e :: List.collect allEntities ds
 
-                    | _ ->
-                        []
+                | _ ->
+                    []
 
-                let entities = 
-                    res.ImplementationFile.Value.Declarations
-                    |> Seq.toList
-                    |> List.collect allEntities
+            let entities = 
+                res.ImplementationFile.Value.Declarations
+                |> Seq.toList
+                |> List.collect allEntities
 
-                let definitions = 
-                    entities 
-                    |> List.choose Ast.TypeDef.ofEntity 
-                    |> List.map (fun l -> l.Value)
+            let definitions = 
+                entities 
+                |> List.choose TypeDef.ofEntity 
+                |> List.map (fun l -> l.Value)
+                |> List.collect (TypeDefinition.ofTypeDef [])
 
-                Ast.Adaptify.test definitions
-
-                System.Environment.Exit 0
-
-                entities
-                |> List.collect (fun e -> Adaptor.generate { qualifiedPath = Option.toList e.Namespace; file = path } e)
-                |> List.groupBy (fun (f, _, _) -> f)
-                |> List.map (fun (f, els) -> 
-                    f, els |> List.map (fun (_,m,c) -> m, c) |> List.groupBy fst |> List.map (fun (m,ds) -> m, List.map snd ds) |> Map.ofList
-                )
-                |> Map.ofList
-
-            let builder = System.Text.StringBuilder()
-
-            for (ns, modules) in Map.toSeq adaptors do
-                sprintf "namespace %s" ns |> builder.AppendLine |> ignore
-                sprintf "open FSharp.Data.Adaptive" |> builder.AppendLine |> ignore
-                sprintf "open Adaptify" |> builder.AppendLine |> ignore
-                for (m, def) in Map.toSeq modules do
-                    sprintf "[<AutoOpen>]" |> builder.AppendLine |> ignore
-                    sprintf "module rec %s =" m |> builder.AppendLine |> ignore
-                    for d in def do
-                        for l in d do
-                            sprintf "    %s" l |> builder.AppendLine |> ignore
-
-            if builder.Length > 0 then
+            match definitions with
+            | [] ->
+                ()
+            | defs ->
+                let generated = TypeDefinition.toFile defs
                 let file = Path.ChangeExtension(path, ".g.fs")
-                
-                
-                let generated = builder.ToString()
-                let result = sprintf "//%s\r\n//%s\r\n" (hash content) (hash generated) + content
-
-
-
+                let result = sprintf "//%s\r\n//%s\r\n" (hash content) (hash generated) + generated
                 File.WriteAllText(file, result)
 
 

@@ -233,44 +233,27 @@ type AdaptifyTask() =
                                         res.ImplementationFile.Value.Declarations
                                         |> Seq.toList
                                         |> List.collect allEntities
+                                        
+                                    let definitions = 
+                                        entities 
+                                        |> List.choose TypeDef.ofEntity 
+                                        |> List.map (fun l -> l.Value)
+                                        |> List.collect (TypeDefinition.ofTypeDef [])
 
-
-                                    let adaptors = 
-                                        entities
-                                        |> List.collect (fun e -> Adaptor.generate { qualifiedPath = Option.toList e.Namespace; file = path } e)
-                                        |> List.groupBy (fun (f, _, _) -> f)
-                                        |> List.map (fun (f, els) -> 
-                                            f, els |> List.map (fun (_,m,c) -> m, c) |> List.groupBy fst |> List.map (fun (m,ds) -> m, List.map snd ds) |> Map.ofList
-                                        )
-                                        |> Map.ofList
-
-                                    let builder = System.Text.StringBuilder()
-
-                                    for (ns, modules) in Map.toSeq adaptors do
-                                        sprintf "namespace %s" ns |> builder.AppendLine |> ignore
-                                        sprintf "open FSharp.Data.Adaptive" |> builder.AppendLine |> ignore
-                                        sprintf "open Adaptify" |> builder.AppendLine |> ignore
-                                        for (m, def) in Map.toSeq modules do
-                                            sprintf "[<AutoOpen>]" |> builder.AppendLine |> ignore
-                                            sprintf "module rec %s =" m |> builder.AppendLine |> ignore
-                                            for d in def do
-                                                for l in d do
-                                                    sprintf "    %s" l |> builder.AppendLine |> ignore
-
-                                    let generated = not (System.String.IsNullOrWhiteSpace(string builder))
-                                    newHashes <- Map.add file (fileHash, generated) newHashes
+                                    newHashes <- Map.add file (fileHash, not (List.isEmpty definitions)) newHashes
                                     newFiles.Add file
-                                    if generated then
+                                    match definitions with
+                                    | [] ->
+                                        x.info "[Adaptify] no models in %s" file
+                                    | defs ->
                                         let file = Path.ChangeExtension(path, ".g.fs")
 
-                                        let content = builder.ToString()
+                                        let content = TypeDefinition.toFile defs
                                         let result = sprintf "//%s\r\n//%s\r\n" fileHash (hash content) + content
 
                                         File.WriteAllText(file, result)
                                         newFiles.Add file
                                         x.info "[Adaptify] generated %s" file
-                                    else
-                                        x.info "[Adaptify] no models in %s" file
 
                                 | FSharpCheckFileAnswer.Aborted ->
                                     x.warn "[Adaptify] could not parse %s" file

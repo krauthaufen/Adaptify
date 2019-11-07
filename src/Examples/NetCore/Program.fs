@@ -4,8 +4,6 @@ open FSharp.Data.Adaptive
 
 [<EntryPoint>]
 let main _argv =
-    printfn "hi there"
-
     let ff : Adaptivefff = failwith ""
     let a : AdaptiveRecy = failwith ""
 
