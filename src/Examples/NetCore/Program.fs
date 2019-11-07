@@ -10,13 +10,13 @@ let main _argv =
 
     let ff : Adaptivefff = failwith ""
     match AVal.force ff with
-    | AdaptiveAaa a -> ()
-    | AdaptiveGgg g -> ()
-    | AdaptiveYYY -> ()
+    | Adaptivefff.AdaptiveAaa a -> ()
+    | Adaptivefff.AdaptiveGgg g -> ()
+    | Adaptivefff.AdaptiveYYY -> ()
 
     let a : AdaptiveRecy = failwith ""
     match AVal.force a.g.x with
-    | AdaptiveCaseA(a, b) ->
+    | AdaptiveMyUnion.AdaptiveCaseA(a, b) ->
         ()
     | AdaptiveCaseB(x) ->
         ()

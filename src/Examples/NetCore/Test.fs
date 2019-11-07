@@ -7,7 +7,7 @@ open FSharp.Data.Adaptive
 open Adaptify
 type AdaptiveMyUnionCase<'a, 'paa, 'aa, 'b, 'pab, 'ab> =
     abstract member update : MyUnion<'a, 'b> -> AdaptiveMyUnionCase<'a, 'paa, 'aa, 'b, 'pab, 'ab>
-type AdaptiveMyUnionCaseA<'a, 'paa, 'aa, 'b, 'pab, 'ab>(value : Microsoft.FSharp.Core.int, dst : 'a, primainit : 'a -> System.Object, primaupdate : System.Object -> 'a -> System.Object, primaview : System.Object -> 'paa, ainit : 'a -> System.Object, aupdate : System.Object -> 'a -> System.Object, aview : System.Object -> 'aa, primbinit : 'b -> System.Object, primbupdate : System.Object -> 'b -> System.Object, primbview : System.Object -> 'pab, binit : 'b -> System.Object, bupdate : System.Object -> 'b -> System.Object, bview : System.Object -> 'ab) =
+type private AdaptiveMyUnionCaseA<'a, 'paa, 'aa, 'b, 'pab, 'ab>(value : Microsoft.FSharp.Core.int, dst : 'a, primainit : 'a -> System.Object, primaupdate : System.Object -> 'a -> System.Object, primaview : System.Object -> 'paa, ainit : 'a -> System.Object, aupdate : System.Object -> 'a -> System.Object, aview : System.Object -> 'aa, primbinit : 'b -> System.Object, primbupdate : System.Object -> 'b -> System.Object, primbview : System.Object -> 'pab, binit : 'b -> System.Object, bupdate : System.Object -> 'b -> System.Object, bview : System.Object -> 'ab) =
     let _value_ = FSharp.Data.Adaptive.cval(value)
     let _dst_ = ainit dst
     let mutable __dst = dst
@@ -34,7 +34,7 @@ type AdaptiveMyUnionCaseA<'a, 'paa, 'aa, 'b, 'pab, 'ab>(value : Microsoft.FSharp
                     ignore (bupdate (unbox<System.Object> o) v)
                     o
                 AdaptiveMyUnionCaseB(Item, (fun (v : 'a) -> primainit v :> System.Object), (fun (o : System.Object) (v : 'a) -> primaupdate (unbox<System.Object> o) v :> System.Object), (fun (o : System.Object) -> primaview (unbox<System.Object> o)), (fun (v : 'a) -> ainit v :> System.Object), __arg5, (fun (o : System.Object) -> aview (unbox<System.Object> o)), (fun (v : 'b) -> primbinit v :> System.Object), (fun (o : System.Object) (v : 'b) -> primbupdate (unbox<System.Object> o) v :> System.Object), (fun (o : System.Object) -> primbview (unbox<System.Object> o)), (fun (v : 'b) -> binit v :> System.Object), __arg11, (fun (o : System.Object) -> bview (unbox<System.Object> o))) :> AdaptiveMyUnionCase<'a, 'paa, 'aa, 'b, 'pab, 'ab>
-type AdaptiveMyUnionCaseB<'a, 'paa, 'aa, 'b, 'pab, 'ab>(Item : 'b, primainit : 'a -> System.Object, primaupdate : System.Object -> 'a -> System.Object, primaview : System.Object -> 'paa, ainit : 'a -> System.Object, aupdate : System.Object -> 'a -> System.Object, aview : System.Object -> 'aa, primbinit : 'b -> System.Object, primbupdate : System.Object -> 'b -> System.Object, primbview : System.Object -> 'pab, binit : 'b -> System.Object, bupdate : System.Object -> 'b -> System.Object, bview : System.Object -> 'ab) =
+type private AdaptiveMyUnionCaseB<'a, 'paa, 'aa, 'b, 'pab, 'ab>(Item : 'b, primainit : 'a -> System.Object, primaupdate : System.Object -> 'a -> System.Object, primaview : System.Object -> 'paa, ainit : 'a -> System.Object, aupdate : System.Object -> 'a -> System.Object, aview : System.Object -> 'aa, primbinit : 'b -> System.Object, primbupdate : System.Object -> 'b -> System.Object, primbview : System.Object -> 'pab, binit : 'b -> System.Object, bupdate : System.Object -> 'b -> System.Object, bview : System.Object -> 'ab) =
     let _Item_ = binit Item
     let mutable __Item = Item
     member __.update(Item : 'b) =
@@ -102,7 +102,7 @@ type AdaptiveMyUnion<'a, 'paa, 'aa, 'b, 'pab, 'ab>(value : MyUnion<'a, 'b>, prim
     interface FSharp.Data.Adaptive.aval<AdaptiveMyUnionCase<'a, 'paa, 'aa, 'b, 'pab, 'ab>> with
         member x.GetValue(t : FSharp.Data.Adaptive.AdaptiveToken) = x.EvaluateAlways t (fun (t : FSharp.Data.Adaptive.AdaptiveToken) -> __value)
 [<AutoOpen>]
-module AdaptiveMyUnionPatterns = 
+module AdaptiveMyUnion = 
     let (|AdaptiveCaseA|AdaptiveCaseB|) (value : AdaptiveMyUnionCase<'a, 'paa, 'aa, 'b, 'pab, 'ab>) =
         match value with
         | (:? AdaptiveMyUnionCaseA<'a, 'paa, 'aa, 'b, 'pab, 'ab> as CaseA) ->
@@ -189,7 +189,7 @@ type AdaptiveRecy(value : Recy) =
     member __.g = _g_
 type AdaptivefffCase =
     abstract member update : fff -> AdaptivefffCase
-type AdaptivefffGgg(Item : Microsoft.FSharp.Core.int) =
+type private AdaptivefffGgg(Item : Microsoft.FSharp.Core.int) =
     let _Item_ = FSharp.Data.Adaptive.cval(Item)
     let mutable __Item = Item
     member __.update(Item : Microsoft.FSharp.Core.int) =
@@ -207,7 +207,7 @@ type AdaptivefffGgg(Item : Microsoft.FSharp.Core.int) =
                 AdaptivefffAaa(Item) :> AdaptivefffCase
             | fff.YYY ->
                 AdaptivefffYYY() :> AdaptivefffCase
-type AdaptivefffAaa(Item : Microsoft.FSharp.Core.string) =
+type private AdaptivefffAaa(Item : Microsoft.FSharp.Core.string) =
     let _Item_ = FSharp.Data.Adaptive.cval(Item)
     let mutable __Item = Item
     member __.update(Item : Microsoft.FSharp.Core.string) =
@@ -225,7 +225,7 @@ type AdaptivefffAaa(Item : Microsoft.FSharp.Core.string) =
                 x :> AdaptivefffCase
             | fff.YYY ->
                 AdaptivefffYYY() :> AdaptivefffCase
-type AdaptivefffYYY() =
+type private AdaptivefffYYY() =
     member __.update() = ()
     interface AdaptivefffCase with
         member x.update(value : fff) =
@@ -263,7 +263,7 @@ type Adaptivefff(value : fff) =
     interface FSharp.Data.Adaptive.aval<AdaptivefffCase> with
         member x.GetValue(t : FSharp.Data.Adaptive.AdaptiveToken) = x.EvaluateAlways t (fun (t : FSharp.Data.Adaptive.AdaptiveToken) -> __value)
 [<AutoOpen>]
-module AdaptivefffPatterns = 
+module Adaptivefff = 
     let (|AdaptiveGgg|AdaptiveAaa|AdaptiveYYY|) (value : AdaptivefffCase) =
         match value with
         | (:? AdaptivefffGgg as Ggg) ->

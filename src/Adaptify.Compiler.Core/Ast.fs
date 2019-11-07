@@ -1706,6 +1706,7 @@ module Adaptify =
     type TypeDefinition =
         {
             kind        : TypeKind
+            priv        : bool
             baseType    : Option<TypeRef>
             scope       : Scope
             name        : string
@@ -1736,32 +1737,31 @@ module Adaptify =
                 match d.tpars with
                 | [] -> ""
                 | ts -> ts |> Seq.map string |> String.concat ", " |> sprintf "<%s>"
+            let priv =
+                if d.priv then "private "
+                else ""
 
             if d.kind = TypeKind.Interface then
-
-                let code =
-                    [|
-                        yield sprintf "type %s%s =" d.name tpars 
-                        for (name, args, b) in d.members do
-                            let typ = b.Type
-                            if args = [] && name.StartsWith "get_" then
-                                yield sprintf "    abstract member %s : %s" (name.Substring 4) (TypeRef.toString d.scope typ)
-                            else
-                                let args = 
-                                    List.concat [
-                                        args |> List.map (fun a -> TypeRef.toString d.scope a.Type)
-                                        [TypeRef.toString d.scope typ]
-                                    ]
-                                yield sprintf "    abstract member %s : %s" name (String.concat " -> " args)
+                [|
+                    yield sprintf "type %s%s%s =" priv d.name tpars 
+                    for (name, args, b) in d.members do
+                        let typ = b.Type
+                        if args = [] && name.StartsWith "get_" then
+                            yield sprintf "    abstract member %s : %s" (name.Substring 4) (TypeRef.toString d.scope typ)
+                        else
+                            let args = 
+                                List.concat [
+                                    args |> List.map (fun a -> TypeRef.toString d.scope a.Type)
+                                    [TypeRef.toString d.scope typ]
+                                ]
+                            yield sprintf "    abstract member %s : %s" name (String.concat " -> " args)
                                 
-                    |]
-            
-                code
+                |]
 
             elif d.kind = TypeKind.Module then
                 [|
                     yield sprintf "[<AutoOpen>]"
-                    yield sprintf "module %s = " d.name
+                    yield sprintf "module %s%s = " priv d.name
                     for (name, args, b) in d.statics do
                         let typ = b.Type
                         let args = args |> List.map (fun a -> sprintf "(%s : %s)" a.Name (TypeRef.toString d.scope a.Type))
@@ -1788,7 +1788,7 @@ module Adaptify =
 
                 let code =
                     [|
-                        yield sprintf "type %s%s(%s) =" d.name tpars ctorArgs
+                        yield sprintf "type %s%s%s(%s) =" priv d.name tpars ctorArgs
                         match d.baseType with
                         | Some b -> yield sprintf "    inherit %s()" (TypeRef.toString d.scope b)
                         | None -> ()
@@ -1974,6 +1974,7 @@ module Adaptify =
 
             {
                 kind        = TypeKind.Class
+                priv        = false
                 baseType    = None
                 scope       = newScope
                 name        = newName
@@ -2042,6 +2043,7 @@ module Adaptify =
                 let ctorType =
                     {
                         kind            = TypeKind.Interface
+                        priv            = false
                         baseType        = None
                         scope           = newScope
                         name            = sprintf "Adaptive%sCase" name
@@ -2105,6 +2107,7 @@ module Adaptify =
                     (cases, caseTypes) ||> List.map2 (fun (selfCase,_) ct ->
                         let value = new Var("value", valueType)
                         { ct with
+                            priv = true
                             interfaces =
                                 [
                                     ctorTypeRef, [
@@ -2205,6 +2208,7 @@ module Adaptify =
 
                     {
                         kind            = TypeKind.Class
+                        priv            = false
                         baseType        = Some AdaptiveObject.typ
                         scope           = newScope
                         name            = sprintf "Adaptive%s" name
@@ -2253,9 +2257,10 @@ module Adaptify =
 
                     {
                         kind            = TypeKind.Module
+                        priv            = false
                         baseType        = None
                         scope           = newScope
-                        name            = sprintf "Adaptive%sPatterns" name
+                        name            = sprintf "Adaptive%s" name
                         tpars           = []
                         ctorArgs        = []
                         ctor            = Expr.Unit
