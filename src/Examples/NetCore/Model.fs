@@ -6,6 +6,14 @@ open Adaptify
     
 
 [<ModelType>]
+type Record =
+    {
+        fa : int
+        fb : IndexList<Record>
+    }
+
+
+[<ModelType>]
 type MyUnion<'a, 'b> =
     | CaseA of value : int * dst : 'a
     | CaseB of 'b

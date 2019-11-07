@@ -1,5 +1,5 @@
-//dc55f503-8332-08ea-3b06-c6811a815089
-//f3d0ee79-6beb-d135-a56c-59002bdf4102
+//8144793d-bfd2-a95a-161f-05c0de768fdd
+//6f6facbe-fc53-ebb3-42d2-69e1bac49349
 #nowarn "49" // upper case patterns
 #nowarn "66" // upcast is unncecessary
 namespace rec Model
@@ -7,6 +7,21 @@ namespace rec Model
 open System
 open FSharp.Data.Adaptive
 open Adaptify
+type AdaptiveRecord(value : Record) =
+    let _fa_ = FSharp.Data.Adaptive.cval(value.fa)
+    let _fb_ =
+        let inline __arg2 (m : AdaptiveRecord) (v : Record) =
+            m.update(v)
+            m
+        Adaptify.ChangeableModelList(value.fb, (fun (v : Record) -> AdaptiveRecord(v)), __arg2, (fun (m : AdaptiveRecord) -> m))
+    let mutable __value = value
+    member __.update(value : Record) =
+        if Microsoft.FSharp.Core.Operators.not((System.Object.ReferenceEquals(value, __value))) then
+            __value <- value
+            _fa_.Value <- value.fa
+            _fb_.update(value.fb)
+    member __.fa = _fa_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.int>
+    member __.fb = _fb_ :> FSharp.Data.Adaptive.alist<AdaptiveRecord>
 type AdaptiveMyUnionCase<'a, 'paa, 'aa, 'b, 'pab, 'ab> =
     abstract member update : MyUnion<'a, 'b> -> AdaptiveMyUnionCase<'a, 'paa, 'aa, 'b, 'pab, 'ab>
 type private AdaptiveMyUnionCaseA<'a, 'paa, 'aa, 'b, 'pab, 'ab>(value : Microsoft.FSharp.Core.int, dst : 'a, primainit : 'a -> System.Object, primaupdate : System.Object -> 'a -> System.Object, primaview : System.Object -> 'paa, ainit : 'a -> System.Object, aupdate : System.Object -> 'a -> System.Object, aview : System.Object -> 'aa, primbinit : 'b -> System.Object, primbupdate : System.Object -> 'b -> System.Object, primbview : System.Object -> 'pab, binit : 'b -> System.Object, bupdate : System.Object -> 'b -> System.Object, bview : System.Object -> 'ab) =
