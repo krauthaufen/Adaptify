@@ -1,5 +1,6 @@
 ﻿namespace Adaptify
 
+#nowarn "1337"
 open FSharp.Data.Adaptive
 open FSharp.Data.Traceable
 
@@ -15,6 +16,18 @@ type private ChangeableModelMapReader<'K, 'C, 'A>(inner : IHashMapReader<'K, 'C>
             | Remove -> Remove
         ) |> HashMapDelta.ofHashMap
 
+type private ChangeableModelListReader<'C, 'A>(inner : IIndexListReader<'C>, view : 'C -> 'A) =
+    inherit AbstractReader<IndexList<'A>, IndexListDelta<'A>>(IndexList.trace)
+
+    override x.Compute(token : AdaptiveToken) =
+        inner.GetChanges(token) 
+        |> IndexListDelta.map (fun _i op ->
+            match op with
+            | Set v -> Set (view v)
+            | Remove -> Remove
+        )
+   
+[<CompilerMessage("ChangeableModelMap should not be used directly", 1337, IsHidden = true)>]
 type ChangeableModelMap<'K, 'V, 'C, 'A>(initial : HashMap<'K, 'V>, init : 'V -> 'C, update : 'C -> 'V -> 'C, view : 'C -> 'A) =
     let _current = cval initial
     let store = cmap (initial |> HashMap.map (fun _ v -> init v))
@@ -39,19 +52,8 @@ type ChangeableModelMap<'K, 'V, 'C, 'A>(initial : HashMap<'K, 'V>, init : 'V -> 
         member x.IsConstant = false
         member x.Content = content
         member x.GetReader() = x.GetReader()
-        
- 
-type private ChangeableModelListReader<'C, 'A>(inner : IIndexListReader<'C>, view : 'C -> 'A) =
-    inherit AbstractReader<IndexList<'A>, IndexListDelta<'A>>(IndexList.trace)
 
-    override x.Compute(token : AdaptiveToken) =
-        inner.GetChanges(token) 
-        |> IndexListDelta.map (fun _i op ->
-            match op with
-            | Set v -> Set (view v)
-            | Remove -> Remove
-        )
-   
+[<CompilerMessage("ChangeableModelList should not be used directly", 1337, IsHidden = true)>]
 type ChangeableModelList<'T, 'C, 'A>(initial : IndexList<'T>, init : 'T -> 'C, update : 'C -> 'T -> 'C, view : 'C -> 'A) =
     let _current = cval initial
     let store = clist (initial |> IndexList.map init)
@@ -75,11 +77,30 @@ type ChangeableModelList<'T, 'C, 'A>(initial : IndexList<'T>, init : 'T -> 'C, u
         member x.IsConstant = false
         member x.Content = content
         member x.GetReader() = x.GetReader()
-        
+ 
+[<AbstractClass; CompilerMessage("AdaptiveValue should not be used directly", 1337, IsHidden = true)>]
+type AdaptiveValue<'T>() =
+    inherit AdaptiveObject()
+    let mutable lastValue = Unchecked.defaultof<'T>
 
-type ChangeableModelList =
-    static member Create(list : IndexList<'a>, init : 'a -> cval<'a>, update : cval<'a> -> 'a -> cval<'a>, view : cval<'a> -> aval<'a>) =
-        ChangeableModelList<'a, 'a, 'a>(list, id, (fun _ v -> v), id)
-        
-    static member Create(list : IndexList<'a>, init : 'a -> 'b, update : 'b-> 'a -> 'b, view : 'b -> 'c) =
-        ChangeableModelList<'a, 'b, 'c>(list, init, update, view)
+    abstract member Compute : AdaptiveToken -> 'T
+
+    member x.GetValue(token : AdaptiveToken) =
+        x.EvaluateAlways token (fun token ->
+            if x.OutOfDate then
+                lastValue <- x.Compute token
+            lastValue
+        )
+
+    interface AdaptiveValue with
+        member x.GetValueUntyped t = x.GetValue t :> obj
+        member x.ContentType =
+            #if FABLE_COMPILER
+            typeof<obj>
+            #else
+            typeof<'T>
+            #endif
+            
+    interface aval<'T> with
+        member x.GetValue t = x.GetValue t
+

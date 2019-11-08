@@ -13,17 +13,19 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Model.fs" />
+    <Compile Include="Model.g.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FSharp.Data.Adaptive" Version="0.0.4" />
+    <PackageReference Include="FSharp.Data.Adaptive" Version="0.0.5-prerelease06" />
+    <PackageReference Include="System.Reflection.Emit.Lightweight" Version="4.6.0" />
   </ItemGroup>
 
   <ItemGroup>
     <Reference Include="Adaptify.Core">
-      <HintPath>..\..\..\bin\Release\netstandard2.0\Adaptify.Core.dll</HintPath>
+      <HintPath>..\..\..\bin\Debug\netstandard2.0\Adaptify.Core.dll</HintPath>
     </Reference>
   </ItemGroup>
-  <Import Project="$(MSBuildThisFileDirectory)..\..\..\bin\Release\Adaptify.MSBuild.targets" />
+  <!--<Import Project="$(MSBuildThisFileDirectory)..\..\..\bin\Release\Adaptify.MSBuild.targets" />-->
 </Project>

@@ -1,142 +1,54 @@
-//fb7a4f46-72e2-87d7-0cf1-62726254f712
-//ee9af235-81fc-2cc2-c9da-4a82779d11d3
-namespace Model
+//681d0e7d-358a-d203-c26c-890ea38dcd45
+//3d6ec6c9-ffdb-b8a6-ac76-07d7d47bb6fd
+#nowarn "49" // upper case patterns
+#nowarn "66" // upcast is unncecessary
+#nowarn "1337" // internal types
+namespace rec Model
+
+open System
 open FSharp.Data.Adaptive
 open Adaptify
-[<AutoOpen>]
-module rec ModelAdaptor =
-    /// Adaptive representation for `Thing`
-    type AdaptiveThing private(__initial : Model.Thing) =
-        let __current = cval __initial
-        let _name = cval(__initial.name)
-        member __.current = __current :> aval<_>
-        /// The current value of name as `aval<string>`.
-        member __.name = _name :> aval<_>
-        /// Updates all values in the `AdaptiveThing` to the given `Thing`.
-        /// Note that it expects a Transaction to be current.
-        member __.update(value : Model.Thing) : unit =
-            if not (System.Object.ReferenceEquals(__current.Value, value)) then
-                __current.Value <- value
-                let __value = value
-                _name.Value <- __value.name
-        /// Creates a new `AdaptiveThing` using the given `Thing`.
-        static member create(value : Model.Thing) : AdaptiveThing = 
-            AdaptiveThing(value)
-    /// Adaptive representation for `Foo`
-    type AdaptiveFoo<'a, 'aAdaptive, 'aView> private(__initial : Model.Foo<'a>, inita : 'a -> 'aAdaptive, updatea : 'aAdaptive -> 'a -> 'aAdaptive, viewa : 'aAdaptive -> 'aView) =
-        let __current = cval __initial
-        let _value = inita(__initial.value)
-        let _list = ChangeableModelList.Create(__initial.list, (fun v -> inita(v)), (fun (t : 'aAdaptive) v -> updatea (t) (v)), (fun v -> viewa (v)))
-        member __.current = __current :> aval<_>
-        /// The current value of value as `'aView`.
-        member __.value = viewa (_value)
-        /// The current value of list as `alist<_>`.
-        member __.list = _list :> alist<_>
-        /// Updates all values in the `AdaptiveFoo` to the given `Foo`.
-        /// Note that it expects a Transaction to be current.
-        member __.update(value : Model.Foo<'a>) : unit =
-            if not (System.Object.ReferenceEquals(__current.Value, value)) then
-                __current.Value <- value
-                let __value = value
-                ignore (updatea (_value) (__value.value))
-                _list.update(__value.list)
-        /// Creates a new `AdaptiveFoo` using the given `Foo`.
-        static member create(value : Model.Foo<'a>, inita : 'a -> 'aAdaptive, updatea : 'aAdaptive -> 'a -> 'aAdaptive, viewa : 'aAdaptive -> 'aView) : AdaptiveFoo<'a, 'aAdaptive, 'aView> = 
-            AdaptiveFoo(value, inita, updatea, viewa)
-    /// Adaptive representation for `Model`
-    type AdaptiveModel private(__initial : Model.Model) =
-        let __current = cval __initial
-        let _set = cset(__initial.set)
-        let _all = ChangeableModelMap(__initial.all, (fun v -> AdaptiveModel.create(v)), (fun (t : AdaptiveModel) v -> t.update(v); t), (fun v -> v))
-        let _value = cval(__initial.value)
-        let _test = ChangeableModelList.Create(__initial.test, (fun v -> AdaptiveModel.create(v)), (fun (t : AdaptiveModel) v -> t.update(v); t), (fun v -> v))
-        let _foo = cval(__initial.foo)
-        let _bar = cmap __initial.bar
-        let _nested =
-            let inita v = cval(v)
-            let updatea (t : cval<_>) v = t.Value <- v; t
-            let viewa v = v :> aval<_>
-            AdaptiveFoo.create(__initial.nested, inita, updatea, viewa)
-        member __.current = __current :> aval<_>
-        /// The current value of set as `aset<int>`.
-        member __.set = _set :> aset<_>
-        /// The current value of all as `amap<_,_>`.
-        member __.all = _all :> amap<_,_>
-        /// The current value of value as `aval<int>`.
-        member __.value = _value :> aval<_>
-        /// The current value of test as `alist<_>`.
-        member __.test = _test :> alist<_>
-        /// The current value of foo as `aval<string>`.
-        member __.foo = _foo :> aval<_>
-        /// The current value of bar as `amap<int, string>`.
-        member __.bar = _bar :> amap<_,_>
-        /// The current value of nested as `AdaptiveFoo<_, _, _>`.
-        member __.nested = _nested
-        /// Updates all values in the `AdaptiveModel` to the given `Model`.
-        /// Note that it expects a Transaction to be current.
-        member __.update(value : Model.Model) : unit =
-            if not (System.Object.ReferenceEquals(__current.Value, value)) then
-                __current.Value <- value
-                let __value = value
-                _set.Value <- __value.set
-                _all.update(__value.all)
-                _value.Value <- __value.value
-                _test.update(__value.test)
-                _foo.Value <- __value.foo
-                _bar.Value <- __value.bar
-                _nested.update(__value.nested)
-        /// Creates a new `AdaptiveModel` using the given `Model`.
-        static member create(value : Model.Model) : AdaptiveModel = 
-            AdaptiveModel(value)
-    type AdaptiveMyUnion private(__current : Model.MyUnion, __value : AdaptiveMyUnionConstructor) = 
-        inherit AdaptiveObject()
-        let mutable __current = __current
-        let mutable __value = __value
-        member x.GetValue(token: AdaptiveToken) = 
-            x.EvaluateAlways token (fun _ -> __value)
-        interface aval<AdaptiveMyUnionConstructor> with
-            member x.IsConstant = false
-            member x.GetValue t = x.GetValue t
-        static member create(value : Model.MyUnion) =
-            match value with
-            |  CaseA(_value, _dst) -> AdaptiveMyUnion(value, AdaptiveMyUnionCaseA(_value, _dst))
-            |  CaseB(_Item) -> AdaptiveMyUnion(value, AdaptiveMyUnionCaseB(_Item))
-        member x.update(value : Model.MyUnion) =
-            if not (System.Object.ReferenceEquals(__current, value)) then
-                __current <- value
-                match __value, value with
-                | (:? AdaptiveMyUnionCaseA as __dst), CaseA(_value, _dst) -> __dst.update(_value, _dst)
-                | (:? AdaptiveMyUnionCaseB as __dst), CaseB(_Item) -> __dst.update(_Item)
-                | _, CaseA(_value, _dst) -> __value <- AdaptiveMyUnionCaseA(_value, _dst); x.MarkOutdated()
-                | _, CaseB(_Item) -> __value <- AdaptiveMyUnionCaseB(_Item); x.MarkOutdated()
-    and AdaptiveMyUnionConstructor =
-        abstract member Tag : int
-        abstract member IsCaseA : bool
-        abstract member IsCaseB : bool
-    and private AdaptiveMyUnionCaseA(_value : int, _dst : float) =
-        let _value = cval(_value)
-        let _dst = cval(_dst)
-        member x.value = _value :> aval<_>
-        member x.dst = _dst :> aval<_>
-        member x.update(_nvalue : int, _ndst : float) =
-             _value.Value <- _nvalue
-             _dst.Value <- _ndst
-        interface AdaptiveMyUnionConstructor with
-            member x.Tag = 0
-            member x.IsCaseA = true
-            member x.IsCaseB = false
-    and private AdaptiveMyUnionCaseB(_Item : Model) =
-        let _Item = AdaptiveModel.create(_Item)
-        member x.Item = _Item
-        member x.update(_nItem : Model) =
-             _Item.update(_nItem)
-        interface AdaptiveMyUnionConstructor with
-            member x.Tag = 1
-            member x.IsCaseA = false
-            member x.IsCaseB = true
-    
-    let (|AdaptiveCaseA|AdaptiveCaseB|) (value : AdaptiveMyUnionConstructor) = 
-        match value with
-        | :? AdaptiveMyUnionCaseA as value -> AdaptiveCaseA(value.value, value.dst)
-        | :? AdaptiveMyUnionCaseB as value -> AdaptiveCaseB(value.Item)
-        | _ -> failwith "not a union case"
+type AdaptiveIFace(value : IFace) =
+    let _Sepp_ = FSharp.Data.Adaptive.cval(value.Sepp)
+    let mutable __value = value
+    member __.update(value : IFace) =
+        if Microsoft.FSharp.Core.Operators.not((Adaptify.ShallowEqualityComparer<IFace>.ShallowEquals(value, __value))) then
+            __value <- value
+            _Sepp_.Value <- value.Sepp
+    member __.Sepp = _Sepp_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.int>
+type AdaptiveRecord(value : Record) =
+    let _fa_ =
+        let inline __arg5 (o : System.Object) (v : IFace) =
+            (unbox<AdaptiveIFace> o).update(v)
+            o
+        let inline __arg11 (o : System.Object) (v : Record) =
+            (unbox<AdaptiveRecord> o).update(v)
+            o
+        Adaptify.FSharp.Core.AdaptiveChoice<Model.IFace, Model.AdaptiveIFace, Model.AdaptiveIFace, Model.Record, Model.AdaptiveRecord, Model.AdaptiveRecord>(value.fa, (fun (v : IFace) -> AdaptiveIFace(v) :> System.Object), (fun (o : System.Object) (v : IFace) -> (unbox<AdaptiveIFace> o).update(v) :> System.Object), (fun (o : System.Object) -> unbox<AdaptiveIFace> o), (fun (v : IFace) -> AdaptiveIFace(v) :> System.Object), __arg5, (fun (o : System.Object) -> unbox<AdaptiveIFace> o), (fun (v : Record) -> AdaptiveRecord(v) :> System.Object), (fun (o : System.Object) (v : Record) -> (unbox<AdaptiveRecord> o).update(v) :> System.Object), (fun (o : System.Object) -> unbox<AdaptiveRecord> o), (fun (v : Record) -> AdaptiveRecord(v) :> System.Object), __arg11, (fun (o : System.Object) -> unbox<AdaptiveRecord> o))
+    let _fb_ =
+        let inline __arg2 (m : AdaptiveRecord) (v : Record) =
+            m.update(v)
+            m
+        Adaptify.ChangeableModelList(value.fb, (fun (v : Record) -> AdaptiveRecord(v)), __arg2, (fun (m : AdaptiveRecord) -> m))
+    let _fc_ =
+        let inline __arg2 (m : AdaptiveIFace) (v : IFace) =
+            m.update(v)
+            m
+        Adaptify.ChangeableModelList(value.fc, (fun (v : IFace) -> AdaptiveIFace(v)), __arg2, (fun (m : AdaptiveIFace) -> m))
+    let _x_ = FSharp.Data.Adaptive.cval(value.x)
+    let _test_ = FSharp.Data.Adaptive.cval(value.test)
+    let mutable __value = value
+    member __.update(value : Record) =
+        if Microsoft.FSharp.Core.Operators.not((Adaptify.ShallowEqualityComparer<Record>.ShallowEquals(value, __value))) then
+            __value <- value
+            _fa_.update(value.fa)
+            _fb_.update(value.fb)
+            _fc_.update(value.fc)
+            _x_.Value <- value.x
+            _test_.Value <- value.test
+    member __.fa = _fa_ :> FSharp.Data.Adaptive.aval<Adaptify.FSharp.Core.AdaptiveChoiceCase<IFace, AdaptiveIFace, AdaptiveIFace, Record, AdaptiveRecord, AdaptiveRecord>>
+    member __.fb = _fb_ :> FSharp.Data.Adaptive.alist<AdaptiveRecord>
+    member __.fc = _fc_ :> FSharp.Data.Adaptive.alist<AdaptiveIFace>
+    member __.x = _x_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.Option<Microsoft.FSharp.Core.int>>
+    member __.test = _test_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.Choice<Record, Microsoft.FSharp.Core.int>>
+

@@ -11,7 +11,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Attributes.fs" />
+    <Compile Include="ShallowEquality.fs" />
     <Compile Include="Helpers.fs" />
+    <Compile Include="CoreInstances.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

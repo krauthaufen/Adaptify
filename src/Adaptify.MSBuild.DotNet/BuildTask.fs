@@ -5,6 +5,7 @@ open Microsoft.Build.Utilities
 open Microsoft.Build.Framework
 open System.IO
 open FSharp.Compiler.SourceCodeServices
+open FSharp.Compiler.Range
 
 type CacheFile =
     {
@@ -50,20 +51,60 @@ type AdaptifyTask() =
     let mutable framework : string = ""
     let mutable outputType : string = ""
 
-    member x.info fmt =
-        fmt |> Printf.kprintf (fun str ->
-            x.Log.LogMessage(MessageImportance.Normal, str)
-        )
+    let mutable log : option<ILog> = None
 
-        
-    member x.warn fmt =
-        fmt |> Printf.kprintf (fun str ->
-            x.Log.LogWarning(str)
-        )
-    member x.error fmt =
-        fmt |> Printf.kprintf (fun str ->
-            x.Log.LogError(str)
-        )
+
+    member x.Logger =
+        match log with
+        | Some l -> l
+        | None ->
+            let msg (range : FSharp.Compiler.Range.range) imp fmt =
+                fmt |> Printf.kprintf (fun str ->
+                    x.Log.LogMessage(
+                        "", 
+                        "", 
+                        "", 
+                        range.FileName, 
+                        range.StartLine, range.StartColumn + 1, 
+                        range.EndLine, range.EndColumn + 1, 
+                        imp, 
+                        str,
+                        [||]
+                    )
+                )
+            let l =
+                { new ILog with
+                    member __.debug range fmt = msg range MessageImportance.Low fmt
+                    member __.info range fmt = msg range MessageImportance.Normal fmt
+                    member __.warn (range : FSharp.Compiler.Range.range) code fmt =
+                        fmt |> Printf.kprintf (fun str ->
+                            x.Log.LogWarning(
+                                "Adaptify", 
+                                code, 
+                                "", 
+                                range.FileName, 
+                                range.StartLine, range.StartColumn + 1, 
+                                range.EndLine, range.EndColumn + 1, 
+                                str,
+                                [||]
+                            )
+                        )
+                    member __.error range code fmt =
+                        fmt |> Printf.kprintf (fun str ->
+                            x.Log.LogError(
+                                "Adaptify", 
+                                code,  
+                                "", 
+                                range.FileName, 
+                                range.StartLine, range.StartColumn + 1, 
+                                range.EndLine, range.EndColumn + 1, 
+                                str,
+                                [||]
+                            )
+                        )
+                }
+            log <- Some l
+            l
 
     override x.Execute() =
         if debug then
@@ -139,7 +180,7 @@ type AdaptifyTask() =
                             let sw = System.Diagnostics.Stopwatch.StartNew()
                             let res = FSharpChecker.Create(keepAssemblyContents = true)
                             sw.Stop()
-                            x.info "[Adaptify] creating FSharpChecker took: %.0fm" sw.Elapsed.TotalMilliseconds
+                            x.Logger.info range0 "[Adaptify] creating FSharpChecker took: %.0fm" sw.Elapsed.TotalMilliseconds
                             res
                         )
                     
@@ -216,7 +257,7 @@ type AdaptifyTask() =
                                         true
                                 
                             if needsUpdate then
-                                x.info "[Adaptify] update file %s" file
+                                x.Logger.info range0 "[Adaptify] update file %s" file
                                 let text = FSharp.Compiler.Text.SourceText.ofString content
                                 let (_parseResult, answer) = checker.Value.ParseAndCheckFileInProject(file, 0, text, options.Value) |> Async.RunSynchronously
         
@@ -233,56 +274,41 @@ type AdaptifyTask() =
                                         res.ImplementationFile.Value.Declarations
                                         |> Seq.toList
                                         |> List.collect allEntities
+                                        
 
 
-                                    let adaptors = 
-                                        entities
-                                        |> List.collect (fun e -> Adaptor.generate { qualifiedPath = Option.toList e.Namespace; file = path } e)
-                                        |> List.groupBy (fun (f, _, _) -> f)
-                                        |> List.map (fun (f, els) -> 
-                                            f, els |> List.map (fun (_,m,c) -> m, c) |> List.groupBy fst |> List.map (fun (m,ds) -> m, List.map snd ds) |> Map.ofList
-                                        )
-                                        |> Map.ofList
+                                    let definitions = 
+                                        entities 
+                                        |> List.choose (TypeDef.ofEntity x.Logger)
+                                        |> List.map (fun l -> l.Value)
+                                        |> List.collect (TypeDefinition.ofTypeDef x.Logger [])
 
-                                    let builder = System.Text.StringBuilder()
-
-                                    for (ns, modules) in Map.toSeq adaptors do
-                                        sprintf "namespace %s" ns |> builder.AppendLine |> ignore
-                                        sprintf "open FSharp.Data.Adaptive" |> builder.AppendLine |> ignore
-                                        sprintf "open Adaptify" |> builder.AppendLine |> ignore
-                                        for (m, def) in Map.toSeq modules do
-                                            sprintf "[<AutoOpen>]" |> builder.AppendLine |> ignore
-                                            sprintf "module rec %s =" m |> builder.AppendLine |> ignore
-                                            for d in def do
-                                                for l in d do
-                                                    sprintf "    %s" l |> builder.AppendLine |> ignore
-
-                                    let generated = not (System.String.IsNullOrWhiteSpace(string builder))
-                                    newHashes <- Map.add file (fileHash, generated) newHashes
+                                    newHashes <- Map.add file (fileHash, not (List.isEmpty definitions)) newHashes
                                     newFiles.Add file
-                                    if generated then
+                                    match definitions with
+                                    | [] ->
+                                        x.Logger.info range0 "[Adaptify] no models in %s" file
+                                    | defs ->
                                         let file = Path.ChangeExtension(path, ".g.fs")
 
-                                        let content = builder.ToString()
+                                        let content = TypeDefinition.toFile defs
                                         let result = sprintf "//%s\r\n//%s\r\n" fileHash (hash content) + content
 
                                         File.WriteAllText(file, result)
                                         newFiles.Add file
-                                        x.info "[Adaptify] generated %s" file
-                                    else
-                                        x.info "[Adaptify] no models in %s" file
+                                        x.Logger.info range0 "[Adaptify] generated %s" file
 
                                 | FSharpCheckFileAnswer.Aborted ->
-                                    x.warn "[Adaptify] could not parse %s" file
+                                    x.Logger.warn range0 "587" "[Adaptify] could not parse %s" file
                                     ()
                             else
-                                x.info "[Adaptify] skipping %s" file
+                                x.Logger.info range0 "[Adaptify] skipping %s" file
 
                     CacheFile.save { projectHash = projHash; fileHashes = newHashes } cacheFile
                     results <- Seq.toArray newFiles
                     true
                 with e ->
-                    x.error "failed: %A" e
+                    x.Logger.error range0 "587" "failed: %A" e
                     false
               
             | _other -> 
