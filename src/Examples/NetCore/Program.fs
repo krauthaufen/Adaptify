@@ -5,17 +5,24 @@ open FSharp.Data.Adaptive
 [<EntryPoint>]
 let main _argv =
 
+
+    let face1 = { new Blubber with member x.Sepp = 100 }
+    let face2 = { new Blubber with member x.Sepp = 56 }
+
     let r = 
         AdaptiveRecord { 
-            fa = 1
+            fa = face1
             fb = IndexList.empty 
+            fc = struct (1.0, "")
+            x = 10
+            test = []
         }
 
-    let a = r.fa |> AVal.map id
+    let a = r.fa.Sepp |> AVal.map id
     printfn "%A: %A" a.OutOfDate (AVal.force a)
 
     transact (fun () ->
-        r.update { fa = 3; fb = IndexList.empty }
+        r.update { fa = face2; fb = IndexList.empty; fc = struct (2.0, "abc"); x = 123; test = [] }
     )
     printfn "%A: %A" a.OutOfDate (AVal.force a)
 

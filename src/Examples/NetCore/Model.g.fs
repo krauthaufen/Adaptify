@@ -1,5 +1,5 @@
-//8144793d-bfd2-a95a-161f-05c0de768fdd
-//6f6facbe-fc53-ebb3-42d2-69e1bac49349
+//689ec699-b3c3-a38d-6d44-802caf74ef2e
+//9fcabedd-90b9-7d7a-01bc-7d4688222d7a
 #nowarn "49" // upper case patterns
 #nowarn "66" // upcast is unncecessary
 namespace rec Model
@@ -7,36 +7,57 @@ namespace rec Model
 open System
 open FSharp.Data.Adaptive
 open Adaptify
+type AdaptiveIFace(value : IFace) =
+    let _Sepp_ = FSharp.Data.Adaptive.cval(value.Sepp)
+    let mutable __value = value
+    member __.update(value : IFace) =
+        if Microsoft.FSharp.Core.Operators.not((System.Object.ReferenceEquals(value, __value))) then
+            __value <- value
+            _Sepp_.Value <- value.Sepp
+    member __.Sepp = _Sepp_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.int>
 type AdaptiveRecord(value : Record) =
-    let _fa_ = FSharp.Data.Adaptive.cval(value.fa)
+    let _fa_ = AdaptiveIFace(value.fa)
     let _fb_ =
         let inline __arg2 (m : AdaptiveRecord) (v : Record) =
             m.update(v)
             m
         Adaptify.ChangeableModelList(value.fb, (fun (v : Record) -> AdaptiveRecord(v)), __arg2, (fun (m : AdaptiveRecord) -> m))
+    let _fc_ =
+        let struct(__v0 : Microsoft.FSharp.Core.float, __v1 : Microsoft.FSharp.Core.string) = value.fc
+        ((FSharp.Data.Adaptive.cval(__v0)), (FSharp.Data.Adaptive.cval(__v1)))
+    let _x_ = FSharp.Data.Adaptive.cval(value.x)
+    let _test_ = FSharp.Data.Adaptive.cval(value.test)
     let mutable __value = value
     member __.update(value : Record) =
         if Microsoft.FSharp.Core.Operators.not((System.Object.ReferenceEquals(value, __value))) then
             __value <- value
-            _fa_.Value <- value.fa
+            _fa_.update(value.fa)
             _fb_.update(value.fb)
-    member __.fa = _fa_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.int>
+            let (__c0 : FSharp.Data.Adaptive.cval<Microsoft.FSharp.Core.float>, __c1 : FSharp.Data.Adaptive.cval<Microsoft.FSharp.Core.string>) = _fc_
+            let struct(__v0 : Microsoft.FSharp.Core.float, __v1 : Microsoft.FSharp.Core.string) = value.fc
+            __c0.Value <- __v0
+            __c1.Value <- __v1
+            _x_.Value <- value.x
+            _test_.Value <- value.test
+    member __.fa = _fa_
     member __.fb = _fb_ :> FSharp.Data.Adaptive.alist<AdaptiveRecord>
+    member __.fc =
+        let (__c0 : FSharp.Data.Adaptive.cval<Microsoft.FSharp.Core.float>, __c1 : FSharp.Data.Adaptive.cval<Microsoft.FSharp.Core.string>) = _fc_
+        ((__c0 :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.float>), (__c1 :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>))
+    member __.x = _x_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.int>
+    member __.test = _test_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.Choice<Record, Microsoft.FSharp.Core.int>>
 type AdaptiveMyUnionCase<'a, 'paa, 'aa, 'b, 'pab, 'ab> =
     abstract member update : MyUnion<'a, 'b> -> AdaptiveMyUnionCase<'a, 'paa, 'aa, 'b, 'pab, 'ab>
 type private AdaptiveMyUnionCaseA<'a, 'paa, 'aa, 'b, 'pab, 'ab>(value : Microsoft.FSharp.Core.int, dst : 'a, primainit : 'a -> System.Object, primaupdate : System.Object -> 'a -> System.Object, primaview : System.Object -> 'paa, ainit : 'a -> System.Object, aupdate : System.Object -> 'a -> System.Object, aview : System.Object -> 'aa, primbinit : 'b -> System.Object, primbupdate : System.Object -> 'b -> System.Object, primbview : System.Object -> 'pab, binit : 'b -> System.Object, bupdate : System.Object -> 'b -> System.Object, bview : System.Object -> 'ab) =
-    let _value_ = FSharp.Data.Adaptive.cval(value)
-    let _dst_ = ainit dst
     let mutable __dst = dst
     let mutable __value = value
     member __.update(value : Microsoft.FSharp.Core.int, dst : 'a) =
         if Microsoft.FSharp.Core.Operators.not((Microsoft.FSharp.Core.Operators.Unchecked.equals value __value && System.Object.ReferenceEquals(dst, __dst))) then
             __value <- value
             __dst <- dst
-            _value_.Value <- value
-            ignore (aupdate _dst_ dst)
-    member __.value = _value_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.int>
-    member __.dst = aview _dst_
+            ()
+    member __.value = __value
+    member __.dst = __dst
     interface AdaptiveMyUnionCase<'a, 'paa, 'aa, 'b, 'pab, 'ab> with
         member x.update(value : MyUnion<'a, 'b>) =
             match value with
@@ -122,12 +143,9 @@ type AdaptiveMyUnion<'a, 'paa, 'aa, 'b, 'pab, 'ab>(value : MyUnion<'a, 'b>, prim
 module AdaptiveMyUnion = 
     let (|AdaptiveCaseA|AdaptiveCaseB|) (value : AdaptiveMyUnionCase<'a, 'paa, 'aa, 'b, 'pab, 'ab>) =
         match value with
-        | (:? AdaptiveMyUnionCaseA<'a, 'paa, 'aa, 'b, 'pab, 'ab> as CaseA) ->
-            AdaptiveCaseA(CaseA.value, CaseA.dst)
-        | (:? AdaptiveMyUnionCaseB<'a, 'paa, 'aa, 'b, 'pab, 'ab> as CaseB) ->
-            AdaptiveCaseB(CaseB.Item)
-        | _ ->
-            failwith "unreachable"
+        | (:? AdaptiveMyUnionCaseA<'a, 'paa, 'aa, 'b, 'pab, 'ab> as CaseA) -> AdaptiveCaseA(CaseA.value, CaseA.dst)
+        | (:? AdaptiveMyUnionCaseB<'a, 'paa, 'aa, 'b, 'pab, 'ab> as CaseB) -> AdaptiveCaseB(CaseB.Item)
+        | _ -> failwith "unreachable"
 type AdaptiveGeny<'a, 'paa, 'aa, 'b, 'pab, 'ab>(value : Geny<'a, 'b>, primainit : 'a -> System.Object, primaupdate : System.Object -> 'a -> System.Object, primaview : System.Object -> 'paa, ainit : 'a -> System.Object, aupdate : System.Object -> 'a -> System.Object, aview : System.Object -> 'aa, primbinit : 'b -> System.Object, primbupdate : System.Object -> 'b -> System.Object, primbview : System.Object -> 'pab, binit : 'b -> System.Object, bupdate : System.Object -> 'b -> System.Object, bview : System.Object -> 'ab) =
     let _a_ =
         let inline __arg5 (o : System.Object) (v : 'a) =
@@ -220,10 +238,8 @@ type private AdaptivefffGgg(Item : Microsoft.FSharp.Core.int) =
             | fff.Ggg(Item) ->
                 x.update(Item)
                 x :> AdaptivefffCase
-            | fff.Aaa(Item) ->
-                AdaptivefffAaa(Item) :> AdaptivefffCase
-            | fff.YYY ->
-                AdaptivefffYYY() :> AdaptivefffCase
+            | fff.Aaa(Item) -> AdaptivefffAaa(Item) :> AdaptivefffCase
+            | fff.YYY -> AdaptivefffYYY() :> AdaptivefffCase
 type private AdaptivefffAaa(Item : Microsoft.FSharp.Core.string) =
     let _Item_ = FSharp.Data.Adaptive.cval(Item)
     let mutable __Item = Item
@@ -235,22 +251,18 @@ type private AdaptivefffAaa(Item : Microsoft.FSharp.Core.string) =
     interface AdaptivefffCase with
         member x.update(value : fff) =
             match value with
-            | fff.Ggg(Item) ->
-                AdaptivefffGgg(Item) :> AdaptivefffCase
+            | fff.Ggg(Item) -> AdaptivefffGgg(Item) :> AdaptivefffCase
             | fff.Aaa(Item) ->
                 x.update(Item)
                 x :> AdaptivefffCase
-            | fff.YYY ->
-                AdaptivefffYYY() :> AdaptivefffCase
+            | fff.YYY -> AdaptivefffYYY() :> AdaptivefffCase
 type private AdaptivefffYYY() =
     member __.update() = ()
     interface AdaptivefffCase with
         member x.update(value : fff) =
             match value with
-            | fff.Ggg(Item) ->
-                AdaptivefffGgg(Item) :> AdaptivefffCase
-            | fff.Aaa(Item) ->
-                AdaptivefffAaa(Item) :> AdaptivefffCase
+            | fff.Ggg(Item) -> AdaptivefffGgg(Item) :> AdaptivefffCase
+            | fff.Aaa(Item) -> AdaptivefffAaa(Item) :> AdaptivefffCase
             | fff.YYY ->
                 x.update()
                 x :> AdaptivefffCase
@@ -258,20 +270,14 @@ type Adaptivefff(value : fff) =
     inherit FSharp.Data.Adaptive.AdaptiveObject()
     let mutable __value =
         match value with
-        | fff.Ggg(Item) ->
-            AdaptivefffGgg(Item) :> AdaptivefffCase
-        | fff.Aaa(Item) ->
-            AdaptivefffAaa(Item) :> AdaptivefffCase
-        | fff.YYY ->
-            AdaptivefffYYY() :> AdaptivefffCase
+        | fff.Ggg(Item) -> AdaptivefffGgg(Item) :> AdaptivefffCase
+        | fff.Aaa(Item) -> AdaptivefffAaa(Item) :> AdaptivefffCase
+        | fff.YYY -> AdaptivefffYYY() :> AdaptivefffCase
     static member CreateAdaptiveCase(value : fff) =
         match value with
-        | fff.Ggg(Item) ->
-            AdaptivefffGgg(Item) :> AdaptivefffCase
-        | fff.Aaa(Item) ->
-            AdaptivefffAaa(Item) :> AdaptivefffCase
-        | fff.YYY ->
-            AdaptivefffYYY() :> AdaptivefffCase
+        | fff.Ggg(Item) -> AdaptivefffGgg(Item) :> AdaptivefffCase
+        | fff.Aaa(Item) -> AdaptivefffAaa(Item) :> AdaptivefffCase
+        | fff.YYY -> AdaptivefffYYY() :> AdaptivefffCase
     member __.update(value : fff) =
         let __n = __value.update(value)
         if Microsoft.FSharp.Core.Operators.not((System.Object.ReferenceEquals(__n, __value))) then
@@ -283,12 +289,8 @@ type Adaptivefff(value : fff) =
 module Adaptivefff = 
     let (|AdaptiveGgg|AdaptiveAaa|AdaptiveYYY|) (value : AdaptivefffCase) =
         match value with
-        | (:? AdaptivefffGgg as Ggg) ->
-            AdaptiveGgg(Ggg.Item)
-        | (:? AdaptivefffAaa as Aaa) ->
-            AdaptiveAaa(Aaa.Item)
-        | (:? AdaptivefffYYY as YYY) ->
-            AdaptiveYYY
-        | _ ->
-            failwith "unreachable"
+        | (:? AdaptivefffGgg as Ggg) -> AdaptiveGgg(Ggg.Item)
+        | (:? AdaptivefffAaa as Aaa) -> AdaptiveAaa(Aaa.Item)
+        | (:? AdaptivefffYYY as YYY) -> AdaptiveYYY
+        | _ -> failwith "unreachable"
 

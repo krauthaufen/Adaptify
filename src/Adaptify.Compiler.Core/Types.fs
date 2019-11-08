@@ -3,6 +3,7 @@
 
 open System
 open FSharp.Compiler.SourceCodeServices
+open FSharp.Compiler.Range
 open Adaptify.Compiler
 
 type TypeVar(name : string) =
@@ -15,28 +16,42 @@ type TypeRef =
     | TTuple of isStruct : bool * elements : TypeRef list
     | TFunc of domain : TypeRef * codomain : TypeRef
     | TArray of element : TypeRef * rank : int
-    | TModel of def : Lazy<TypeDef> * targs : list<TypeRef>
+    | TModel of range : range * def : Lazy<TypeDef> * targs : list<TypeRef>
     | TExtRef of scope : Scope * name : string * targs : list<TypeRef>
-    | TRef of ent : FSharpEntity * targs : list<TypeRef>
+    | TRef of range : range * ent : FSharpEntity * targs : list<TypeRef>
     | TVar of var : TypeVar
-
+    
+    member private x.AsString = x.ToString()
+    override x.ToString() = TypeRef.toString Global x
+    
+[<StructuredFormatDisplay("{AsString}")>]
 type TypeDef =
-    | ProductType of isValueType : bool * scope : Scope * name : string * properties : list<Prop>
-    | Union of scope : Scope * name : string * properties : list<Prop> * cases : list<string * list<Prop>>
+    | ProductType of range : range * isValueType : bool * scope : Scope * name : string * properties : list<Prop>
+    | Union of range : range * scope : Scope * name : string * properties : list<Prop> * cases : list<string * list<Prop>>
     | Generic of tpars : list<TypeVar> * def : TypeDef
+    
+    member private x.AsString = x.ToString()
+    override x.ToString() = 
+        let rec print (targs : list<TypeVar>) (t : TypeDef) =
+            match t with
+            | Generic(t, d) -> print (targs @ t) d
+            | _ ->  
+                TModel(range0, lazy x, List.map TVar targs)
+                |> TypeRef.toString Global
+        print [] x
 
     member x.Name =
         match x with
-        | ProductType(_, _, n, _)
-        | Union(_, n, _, _) ->
+        | ProductType(_, _, _, n, _)
+        | Union(_, _, n, _, _) ->
             n
         | Generic(_,d) ->
             d.Name
             
     member x.RelativeName (scope : Scope) =
         match x with
-        | ProductType(_, s, n, _)
-        | Union(s, n, _, _) ->
+        | ProductType(_, _, s, n, _)
+        | Union(_, s, n, _, _) ->
             match Scope.relativeName scope s with
             | Some s -> sprintf "%s.%s" s n
             | None -> n
@@ -47,8 +62,8 @@ type TypeDef =
 
     member x.FullName =
         match x with
-        | ProductType(_, s, n, _)
-        | Union(s, n, _, _) ->
+        | ProductType(_, _, s, n, _)
+        | Union(_, s, n, _, _) ->
             match Scope.fullName s with
             | Some s -> sprintf "%s.%s" s n
             | None -> n
@@ -61,8 +76,16 @@ type AdaptifyMode =
     | Value
     | NonAdaptive
 
+module AdaptifyMode =
+    let ofAttributes (atts : seq<FSharpAttribute>) =
+        if atts |> Seq.exists FSharpAttribute.isNonAdaptive then AdaptifyMode.NonAdaptive
+        elif atts |> Seq.exists FSharpAttribute.isTreatAsValue then AdaptifyMode.Value
+        else AdaptifyMode.Default
+
+
 type Prop =
     {
+        range           : FSharp.Compiler.Range.range
         name            : string
         typ             : TypeRef
         mode            : AdaptifyMode
@@ -77,30 +100,28 @@ module TypeRefPatterns =
 
 
 module Prop =
-    let ofFSharpField (targs : Map<_,_>) (f : FSharpField) =
-        let mode = 
-            if f.PropertyAttributes |> Seq.exists FSharpAttribute.isNonAdaptive then NonAdaptive
-            elif f.PropertyAttributes |> Seq.exists FSharpAttribute.isTreatAsValue then Value
-            else Default
-
-        let typ = TypeRef.ofType targs f.FieldType
+    let ofFSharpField (log : ILog)(targs : Map<_,_>) (f : FSharpField) =
+        let mode = AdaptifyMode.ofAttributes f.PropertyAttributes
+        let typ = TypeRef.ofType log targs f.FieldType
         let name = f.Name
         {
+            range = f.DeclarationLocation
             name = name
             typ = typ
             mode = mode
         }
 
-    let ofMemberOrFunctionOrValue (targs : Map<_,_>) (mfv : FSharpMemberOrFunctionOrValue) =
-        if mfv.IsProperty && mfv.HasGetterMethod && not mfv.HasSetterMethod then
+    let ofMemberOrFunctionOrValue (log : ILog) (targs : Map<_,_>) (mfv : FSharpMemberOrFunctionOrValue) =
+        if mfv.IsProperty && mfv.HasGetterMethod && mfv.IsInstanceMember then
             let mode = 
                 if mfv.Attributes |> Seq.exists FSharpAttribute.isNonAdaptive then NonAdaptive
                 elif mfv.Attributes |> Seq.exists FSharpAttribute.isTreatAsValue then Value
                 else Default
 
-            let typ = TypeRef.ofType targs mfv.GetterMethod.ReturnParameter.Type
+            let typ = TypeRef.ofType log targs mfv.GetterMethod.ReturnParameter.Type
             let name = mfv.DisplayName
             Some {
+                range = mfv.DeclarationLocation
                 name = name
                 typ = typ
                 mode = mode
@@ -118,10 +139,9 @@ module Prop =
 
 module TypeRef =
     
-    let rec ofType (args : Map<string, TypeRef>) (t : FSharpType) =
+    let rec ofType (log : ILog) (args : Map<string, TypeRef>) (t : FSharpType) =
         if t.IsGenericParameter then
             let name = t.GenericParameter.DisplayName
-            //let name = t.Format(FSharpDisplayContext.Empty).Substring(1)
             match Map.tryFind name args with
             | Some t -> t
             | None -> failwithf "generic parameter '%s not found" name
@@ -130,23 +150,23 @@ module TypeRef =
             let els = 
                 t.GenericArguments 
                 |> Seq.toList
-                |> List.map (ofType args)
+                |> List.map (ofType log args)
             TTuple(true, els)
 
         elif t.IsTupleType then
             let els = 
                 t.GenericArguments 
                 |> Seq.toList
-                |> List.map (ofType args)
+                |> List.map (ofType log args)
             TTuple(false, els)
 
-        elif t.IsAbbreviation && not (t.Format(FSharpDisplayContext.Empty).StartsWith "Microsoft.FSharp.") then
-            ofType args t.AbbreviatedType
+        //elif t.IsAbbreviation && not (t.Format(FSharpDisplayContext.Empty).StartsWith "Microsoft.FSharp.") then
+        //    ofType log args t.AbbreviatedType
 
         elif t.IsFunctionType then
             let targs = t.GenericArguments
-            let cd = targs.[targs.Count - 1] |> ofType args
-            let d = Seq.take (targs.Count - 1) targs |> Seq.map (ofType args) |> Seq.toList
+            let cd = targs.[targs.Count - 1] |> ofType log args
+            let d = Seq.take (targs.Count - 1) targs |> Seq.map (ofType log args) |> Seq.toList
 
             let rec build (d : list<TypeRef>) (cd : TypeRef) =
                 match d with
@@ -157,21 +177,21 @@ module TypeRef =
 
         elif t.HasTypeDefinition then
             let def = t.TypeDefinition
-
+            let range = def.DeclarationLocation
             if def.IsArrayType then
-                let el = ofType args t.GenericArguments.[0]
+                let el = ofType log args t.GenericArguments.[0]
                 TArray(el, def.ArrayRank)
             else
                 let targs = 
                     t.GenericArguments
                     |> Seq.toList
-                    |> List.map (ofType args)
+                    |> List.map (ofType log args)
 
-                match TypeDef.ofEntity def with
+                match TypeDef.ofEntity log def with
                 | Some def ->
-                    TModel(def, targs) 
+                    TModel(range, def, targs) 
                 | None ->
-                    TRef(def, targs)
+                    TRef(range, def, targs)
 
         else
             failwithf "could not find definition for %s" (t.Format(FSharpDisplayContext.Empty))
@@ -193,20 +213,20 @@ module TypeRef =
         | TFunc(a, b) ->
             sprintf "%s -> %s" (toString currentScope a) (toString currentScope b)
 
-        | TModel(def, []) ->
+        | TModel(_, def, []) ->
             sprintf "%s" (def.Value.RelativeName currentScope)
 
-        | TModel(def, targs) ->
+        | TModel(_, def, targs) ->
             let targs = targs |> Seq.map (toString currentScope) |> String.concat ", "
             sprintf "%s<%s>" (def.Value.RelativeName currentScope) targs
 
-        | TRef(r, []) ->
+        | TRef(_, r, []) ->
             let s = Scope.ofFSharpEntityOpt r.DeclaringEntity r.Namespace
             match Scope.relativeName currentScope s with
             | Some n -> n + "." + r.DisplayName
             | None -> r.DisplayName
 
-        | TRef(r, targs) ->
+        | TRef(_, r, targs) ->
             let targs = targs |> Seq.map (toString currentScope) |> String.concat ", "
             
             let s = Scope.ofFSharpEntityOpt r.DeclaringEntity r.Namespace
@@ -227,10 +247,28 @@ module TypeRef =
         | TVar v ->
             v.ToString()
 
+    let rec containedModelTypes (t : TypeRef) =
+        match t with
+        | TBool -> []
+        | TFunc _ -> []
+        | TTuple(_, els) -> els |> List.collect containedModelTypes
+        | TArray(e, _) -> containedModelTypes e
+        | TExtRef(_, _, targs) -> targs |> List.collect containedModelTypes
+        | TRef(_, _, targs) -> targs |> List.collect containedModelTypes
+        | TModel(_, _, _) -> [t]
+        | TVar _ -> []
+
 module TypeDef =
     let dict = System.Collections.Concurrent.ConcurrentDictionary<FSharpEntity, Lazy<TypeDef>>()
 
-    let rec private create (e : FSharpEntity) =
+    let rec private withInfo (range : range) (scope : Scope) (name : string) (d : TypeDef) =
+        match d with
+        | ProductType(_, v, _, _, p) -> ProductType(range, v, scope, name, p)
+        | Union(_, _, _, p, c) -> Union(range, scope, name, p, c)
+        | Generic(pars, t) -> Generic(pars, withInfo range scope name t)
+        
+
+    let rec private create (log : ILog) (e : FSharpEntity) =
         let tpars = 
             e.GenericParameters 
             |> Seq.toList
@@ -249,18 +287,20 @@ module TypeDef =
         let props = 
             e.MembersFunctionsAndValues
             |> Seq.toList
-            |> List.choose (Prop.ofMemberOrFunctionOrValue parMap)
+            |> List.choose (Prop.ofMemberOrFunctionOrValue log parMap)
+
+        let range = e.DeclarationLocation
 
         if e.IsFSharpRecord then
             let fields = 
                 e.FSharpFields
                 |> Seq.toList
-                |> List.map (Prop.ofFSharpField parMap)
+                |> List.map (Prop.ofFSharpField log parMap)
 
             let parent = 
                 Scope.ofFSharpEntityOpt e.DeclaringEntity e.Namespace
 
-            ProductType(e.IsValueType, parent, e.DisplayName, props @ fields) |> ret
+            ProductType(range, e.IsValueType, parent, e.DisplayName, props @ fields) |> ret
 
         elif e.IsFSharpUnion then
             let cases = 
@@ -268,28 +308,47 @@ module TypeDef =
                 |> Seq.toList
                 |> List.map (fun c ->
                     let name = c.DisplayName
+
+                    let mode = 
+                        AdaptifyMode.ofAttributes c.Attributes
+
                     let fields = 
                         c.UnionCaseFields
                         |> Seq.toList
-                        |> List.map (Prop.ofFSharpField parMap)
+                        |> List.map (Prop.ofFSharpField log parMap)
+                        |> List.map (fun p -> { p with mode = mode })
 
                     name, fields
                 )
                 
             let parent = Scope.ofFSharpEntityOpt e.DeclaringEntity e.Namespace
 
-            Union(parent, e.DisplayName, props, cases) |> ret
+            Union(range, parent, e.DisplayName, props, cases) |> ret
 
-        elif e.IsClass || e.IsValueType then
+        elif e.IsFSharpAbbreviation then
             let parent = Scope.ofFSharpEntityOpt e.DeclaringEntity e.Namespace
-            ProductType(e.IsValueType, parent, e.DisplayName, props) |> ret
 
+            let real = e.AbbreviatedType
+            if real.HasTypeDefinition then
+                let def = create log real.TypeDefinition
+                withInfo range parent e.DisplayName def |> ret
+            else
+                ProductType(range, e.IsValueType, parent, e.DisplayName, props) |> ret
         else
-            failwith "asdasdsad"
+            let parent = Scope.ofFSharpEntityOpt e.DeclaringEntity e.Namespace
+            ProductType(range, e.IsValueType, parent, e.DisplayName, props) |> ret
 
-    and ofEntity (e : FSharpEntity) : option<Lazy<TypeDef>> =
-        if e.Attributes |> Seq.exists FSharpAttribute.isModelType then
-            dict.GetOrAdd(e, fun e -> lazy (create e)) |> Some
+    and ofEntity (log : ILog) (e : FSharpEntity) : option<Lazy<TypeDef>> =
+        if e.Attributes |> Seq.exists FSharpAttribute.isModelType then 
+            if e.IsArrayType then log.warn e.DeclarationLocation "arrays cannot be model types"; None
+            elif e.IsByRef then log.warn e.DeclarationLocation "byrefs cannot be model types"; None
+            elif e.IsDelegate then log.warn e.DeclarationLocation "delegates cannot be model types"; None
+            elif e.IsEnum then log.warn e.DeclarationLocation "enums cannot be model types"; None
+            //elif e.IsFSharpAbbreviation then log.warn e.DeclarationLocation "abbreviations cannot be model types"; None
+            elif e.IsFSharpExceptionDeclaration then log.warn e.DeclarationLocation "exceptions cannot be model types"; None
+            elif e.IsFSharpModule then log.warn e.DeclarationLocation "modules cannot be model types"; None
+            elif e.IsMeasure then log.warn e.DeclarationLocation "measures cannot be model types"; None
+            else dict.GetOrAdd(e, fun e -> lazy (create log e)) |> Some
         else    
             None
 

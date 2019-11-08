@@ -3,6 +3,52 @@
 open FSharp.Data.Adaptive
 open FSharp.Data.Traceable
 
+type Adaptor<'a, 'ca, 'aa> =
+    {
+        init    : 'a -> 'ca
+        update  : 'ca -> 'a -> 'ca
+        view    : 'ca -> 'aa
+    }
+
+    member x.IsTrivial = typeof<'a> = typeof<'ca> && typeof<'aa> = typeof<'ca>
+    member x.HasView = typeof<'aa> <> typeof<'ca>
+    member x.HasTrivialView = typeof<'aa>.IsAssignableFrom typeof<'ca>
+
+module Adaptor =
+
+    let identity<'a> : Adaptor<'a, 'a, 'a> =
+        {
+            init = id
+            update = fun _ v -> v
+            view = id
+        }
+        
+    let ref<'a> : Adaptor<'a, ref<'a>, 'a> =
+        {
+            init = ref
+            update = fun r v -> r := v; r
+            view = fun r -> !r
+        }
+
+    let create (init : 'a -> 'ca) (update : 'ca -> 'a -> 'ca) (view : 'ca -> 'aa) =
+        {
+            init = init
+            update = update
+            view = view
+        }
+
+    let box (i : Adaptor<'a, 'ca, 'aa>) : Adaptor<'a, obj, 'aa> =
+        {
+            init = fun a -> i.init a :> obj
+            update = fun o a -> i.update (unbox o) a :> obj
+            view = fun o -> i.view (unbox o)
+        }
+
+    let inline instance< ^a, ^c, ^v when (^a or ^c or ^v) : (static member Adaptor : Adaptor< ^a, ^c, ^v>) > =
+        ((^a or ^c or ^v) : (static member Adaptor : Adaptor< ^a, ^c, ^v>) ())
+
+
+
 type private ChangeableModelMapReader<'K, 'C, 'A>(inner : IHashMapReader<'K, 'C>, view : 'C -> 'A) =
     inherit AbstractReader<HashMap<'K, 'A>, HashMapDelta<'K, 'A>>(HashMap.trace)
 
@@ -14,6 +60,18 @@ type private ChangeableModelMapReader<'K, 'C, 'A>(inner : IHashMapReader<'K, 'C>
             | Set v -> Set (view v)
             | Remove -> Remove
         ) |> HashMapDelta.ofHashMap
+
+type private ChangeableModelListReader<'C, 'A>(inner : IIndexListReader<'C>, view : 'C -> 'A) =
+    inherit AbstractReader<IndexList<'A>, IndexListDelta<'A>>(IndexList.trace)
+
+    override x.Compute(token : AdaptiveToken) =
+        inner.GetChanges(token) 
+        |> IndexListDelta.map (fun _i op ->
+            match op with
+            | Set v -> Set (view v)
+            | Remove -> Remove
+        )
+   
 
 type ChangeableModelMap<'K, 'V, 'C, 'A>(initial : HashMap<'K, 'V>, init : 'V -> 'C, update : 'C -> 'V -> 'C, view : 'C -> 'A) =
     let _current = cval initial
@@ -40,17 +98,9 @@ type ChangeableModelMap<'K, 'V, 'C, 'A>(initial : HashMap<'K, 'V>, init : 'V -> 
         member x.Content = content
         member x.GetReader() = x.GetReader()
 
-type private ChangeableModelListReader<'C, 'A>(inner : IIndexListReader<'C>, view : 'C -> 'A) =
-    inherit AbstractReader<IndexList<'A>, IndexListDelta<'A>>(IndexList.trace)
+    new(initial : HashMap<'K, 'V>, a : Adaptor<'V, 'C, 'A>) =
+        ChangeableModelMap(initial, a.init, a.update, a.view)
 
-    override x.Compute(token : AdaptiveToken) =
-        inner.GetChanges(token) 
-        |> IndexListDelta.map (fun _i op ->
-            match op with
-            | Set v -> Set (view v)
-            | Remove -> Remove
-        )
-   
 type ChangeableModelList<'T, 'C, 'A>(initial : IndexList<'T>, init : 'T -> 'C, update : 'C -> 'T -> 'C, view : 'C -> 'A) =
     let _current = cval initial
     let store = clist (initial |> IndexList.map init)
@@ -74,15 +124,7 @@ type ChangeableModelList<'T, 'C, 'A>(initial : IndexList<'T>, init : 'T -> 'C, u
         member x.IsConstant = false
         member x.Content = content
         member x.GetReader() = x.GetReader()
-        
-type ChangeableModelList =
-    static member Create(list : IndexList<'a>, init : 'a -> cval<'a>, update : cval<'a> -> 'a -> cval<'a>, view : cval<'a> -> aval<'a>) =
-        ChangeableModelList<'a, 'a, 'a>(list, id, (fun _ v -> v), id)
-        
-    static member Create(list : IndexList<'a>, init : 'a -> 'b, update : 'b-> 'a -> 'b, view : 'b -> 'c) =
-        ChangeableModelList<'a, 'b, 'c>(list, init, update, view)
-
-
+ 
 type ChangeableModelOption<'A, 'CA, 'AA>(initial : option<'A>, init : 'A -> 'CA, update : 'CA -> 'A -> 'CA, view : 'CA -> 'AA) =
     inherit AdaptiveObject()
 
@@ -126,20 +168,6 @@ type ChangeableModelOption<'A, 'CA, 'AA>(initial : option<'A>, init : 'A -> 'CA,
     interface AdaptiveValue<option<'AA>> with
         member x.GetValue t = x.GetValue t
 
-type Instance<'a, 'ca, 'aa> =
-    {
-        ainit    : 'a -> 'ca
-        aupdate  : 'ca -> 'a -> 'ca
-        aview    : 'ca -> 'aa
-    }
-
-module Instance =
-    let box (i : Instance<'a, 'ca, 'aa>) : Instance<'a, obj, 'aa> =
-        {
-            ainit = fun a -> i.ainit a :> obj
-            aupdate = fun o a -> i.aupdate (unbox o) a :> obj
-            aview = fun o -> i.aview (unbox o)
-        }
 
 
 

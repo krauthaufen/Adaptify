@@ -3,10 +3,12 @@
 
 open System
 open FSharp.Compiler.SourceCodeServices
+open FSharp.Compiler.Range
 open Adaptify.Compiler
 
 type Adaptor =
     {
+        trivial : bool
         vType   : TypeRef
         mType   : TypeRef
         aType   : TypeRef
@@ -19,7 +21,7 @@ type Adaptor =
 module TypePatterns =
     let (|Option|_|) (t : TypeRef) =
         match t with
-        | TRef(e, [t]) ->
+        | TRef(_, e, [t]) ->
             match e.TryFullName with
             | Some "Microsoft.FSharp.Core.Option`1" -> Some t
             | _ -> None
@@ -28,7 +30,7 @@ module TypePatterns =
 
     let (|HashSet|_|) (t : TypeRef) =
         match t with
-        | TRef(e, [t]) ->
+        | TRef(_, e, [t]) ->
             match e.TryFullName with
             | Some "FSharp.Data.Adaptive.HashSet`1" -> Some t
             | _ -> None
@@ -37,7 +39,7 @@ module TypePatterns =
                 
     let (|HashMap|_|) (t : TypeRef) =
         match t with
-        | TRef(e, [k;v]) ->
+        | TRef(_, e, [k;v]) ->
             match e.TryFullName with
             | Some "FSharp.Data.Adaptive.HashMap`2" -> Some(k,v)
             | _ -> None
@@ -46,7 +48,7 @@ module TypePatterns =
 
     let (|IndexList|_|) (t : TypeRef) =
         match t with
-        | TRef(e, [t]) ->
+        | TRef(_, e, [t]) ->
             match e.TryFullName with
             | Some "FSharp.Data.Adaptive.IndexList`1" -> Some t
             | _ -> None
@@ -55,7 +57,7 @@ module TypePatterns =
                 
     let (|AVal|_|) (t : TypeRef) =
         match t with
-        | TRef(e, [t]) ->
+        | TRef(_, e, [t]) ->
             match e.TryFullName with
             | Some "FSharp.Data.Adaptive.AdaptiveValue`1" -> Some t
             | Some "FSharp.Data.Adaptive.aval`1" -> Some t
@@ -103,6 +105,7 @@ module Adaptor =
         let tview = new Var(sprintf "prim%sview" t.Name, TFunc(Object.typ, TVar mat))
 
         {
+            trivial = false
             vType = TVar t
             mType = Object.typ
             aType = TVar mat
@@ -120,6 +123,7 @@ module Adaptor =
         let tview = new Var(sprintf "%sview" t.Name, TFunc(Object.typ, TVar at))
 
         {
+            trivial = false
             vType = TVar t
             mType = Object.typ
             aType = TVar at
@@ -130,6 +134,7 @@ module Adaptor =
 
     let identity (t : TypeRef) =
         {
+            trivial = true
             vType = t
             mType = t
             aType = t
@@ -140,6 +145,7 @@ module Adaptor =
 
     let aval (t : TypeRef) =
         {
+            trivial = true
             vType = t
             mType = CVal.typ t
             aType = AVal.typ t
@@ -150,6 +156,7 @@ module Adaptor =
             
     let asetPrimitive (t : TypeRef) =
         {
+            trivial = false
             vType = HashSet.typ t
             mType = CSet.typ t
             aType = ASet.typ t
@@ -160,6 +167,7 @@ module Adaptor =
             
     let alistPrimitive (t : TypeRef) =
         {
+            trivial = false
             vType = IndexList.typ t
             mType = CList.typ t
             aType = AList.typ t
@@ -183,6 +191,7 @@ module Adaptor =
             Expr.Lambda([m], a.view (Var m))
 
         {
+            trivial = false
             vType = IndexList.typ a.vType
             mType = ChangeableModelList.typ a.vType a.mType a.aType
             aType = AList.typ a.aType
@@ -193,6 +202,7 @@ module Adaptor =
 
     let amapPrimitive (k : TypeRef) (v : TypeRef) =
         {
+            trivial = false
             vType = HashMap.typ k v
             mType = CMap.typ k v
             aType = AMap.typ k v
@@ -210,6 +220,7 @@ module Adaptor =
         let view = Expr.Lambda([m], a.view (Var m))
 
         {
+            trivial = false
             vType = HashMap.typ k a.vType
             mType = ChangeableModelMap.typ k a.vType a.mType a.aType
             aType = AMap.typ k a.aType
@@ -227,6 +238,7 @@ module Adaptor =
         let view = Expr.Lambda([m], a.view (Var m))
 
         {
+            trivial = false
             vType = Option.typ a.vType
             mType = ChangeableModelOption.typ a.vType a.mType a.aType
             aType = AVal.typ (Option.typ a.aType)
@@ -271,6 +283,7 @@ module Adaptor =
             )
 
         {
+            trivial = false
             vType = v.Type
             mType = m.Type
             aType = a.Type
@@ -292,7 +305,7 @@ module Adaptor =
         | o ->
             o
 
-    let rec get (mutableScope : bool) (typ : TypeRef) : Adaptor =
+    let rec get (log : ILog) (range : FSharp.Compiler.Range.range) (mutableScope : bool) (typ : TypeRef) : Adaptor =
         match typ with
         | TVar v ->
             if mutableScope then varPrimitive v
@@ -303,7 +316,7 @@ module Adaptor =
             else aval t
 
         | Option t ->
-            let a = get mutableScope t
+            let a = get log range mutableScope t
             if mutableScope then failwith ""
             else optionModel a
 
@@ -317,17 +330,28 @@ module Adaptor =
             alistPrimitive t
 
         | IndexList t ->
-            let a = get true t
+            let a = get log range true t
             alistModel a
 
         | HashMap (k, PlainValue v) ->
             amapPrimitive k v
 
         | HashMap(k, v) ->
-            let a = get true v
+            let a = get log range true v
             amapModel k a
 
-        | TModel(def, targs) ->
+        | TRef(_, e, targs) when e.IsFSharpAbbreviation ->
+            let pars = e.GenericParameters |> Seq.map (fun p -> p.Name) |> Seq.toList
+            let inst = Map.ofList (List.zip pars targs)
+            let r = TypeRef.ofType log inst e.AbbreviatedType
+            let res = get log range mutableScope r
+            if res.trivial then 
+                if mutableScope then identity typ
+                else aval typ
+            else
+                res
+
+        | TModel(_, def, targs) ->
             let rec parsAndDef (def : TypeDef) =
                 match def with
                 | Generic(tpars, def) ->
@@ -340,14 +364,14 @@ module Adaptor =
             match def with
             | Generic _ -> failwith "unreachable"
 
-            | Union(scope, name, _, _) ->
+            | Union(_range, scope, name, _, _) ->
                 let newName = "Adaptive" + name
                 let newScope = adaptorScope scope
                 
                 let adaptors =
                     targs |> List.map (fun a ->
-                        let pat = get true a
-                        let at = get false a
+                        let pat = get log range true a
+                        let at = get log range false a
                         pat, at
                     )
 
@@ -399,6 +423,7 @@ module Adaptor =
 
 
                     {
+                        trivial = false
                         vType = typ
                         mType = mt
                         aType = mt
@@ -429,6 +454,7 @@ module Adaptor =
                         }
 
                     {
+                        trivial = false
                         vType = typ
                         mType = at
                         aType = AVal.typ mt
@@ -437,15 +463,14 @@ module Adaptor =
                         view = fun c -> Expr.Upcast(c, AVal.typ mt)
                     } 
 
-                
-            | ProductType(_, scope, name, _) ->
+            | ProductType(_range, _, scope, name, _) ->
                 let newName = "Adaptive" + name 
                 let newScope = adaptorScope scope
 
                 let adaptors =
                     targs |> List.map (fun a ->
-                        let pat = get true a
-                        let at = get false a
+                        let pat = get log range true a
+                        let at = get log range false a
                         pat, at
                     )
 
@@ -492,6 +517,7 @@ module Adaptor =
                     }
 
                 {
+                    trivial = false
                     vType = typ
                     mType = at
                     aType = at
@@ -501,12 +527,19 @@ module Adaptor =
                 } 
 
         | TTuple(isStruct, els) ->
-            let adaptors = els |> List.map (get false)
-
+            let adaptors = els |> List.map (get log range false)
             tuple isStruct adaptors
 
 
         | _ -> 
+            let inner = TypeRef.containedModelTypes typ
+            match inner with 
+            | [] -> ()
+            | inner -> 
+                let inner = inner |> List.map (TypeRef.toString Global) |> String.concat ", "
+                log.warn 
+                    range
+                    "found model types in opaque scope %s: %s" (TypeRef.toString Global typ) inner
             if mutableScope then identity typ
             else aval typ
 
@@ -673,10 +706,10 @@ module TypeDefinition =
     let private eq (a : Expr) (b : Expr) = 
         let isValueType =
             match a.Type with
-            | TRef(e,_) -> isValueType e
-            | TModel(d, _) -> 
+            | TRef(_, e,_) -> isValueType e
+            | TModel(_range, d, _) -> 
                 match d.Value with
-                | ProductType(isValueType, _, _, _) -> isValueType
+                | ProductType(_range, isValueType, _, _, _) -> isValueType
                 | _ -> false
             | _ ->
                 false
@@ -691,52 +724,66 @@ module TypeDefinition =
         else 
             Expr.Call(None, Object.refEquals, [a; b])
 
-    let private productType (args : list<Var>) (tpars : list<TypeVar>) (s : Scope) (n : string) (props : list<Prop * Expr>) =
-
+    let private productType (log : ILog) (args : list<Var>) (tpars : list<TypeVar>) (s : Scope) (n : string) (props : list<Prop * Expr>) =
         let adaptors = 
-            props |> List.map (fun (p,b) -> new Var("_" + p.name + "_", p.typ), p, b, Adaptor.get false p.typ)
+            props |> List.map (fun (prop, get) -> 
+                let local = 
+                    new Var("_" + prop.name + "_", prop.typ)
+
+                match prop.mode with
+                | AdaptifyMode.NonAdaptive -> 
+                    local, prop, get, None
+                | AdaptifyMode.Value -> 
+                    local, prop, get, Some (Adaptor.aval prop.typ)
+                | AdaptifyMode.Default -> 
+                    local, prop, get, Some (Adaptor.get log prop.range false prop.typ)
+            )
+        let props = ()
 
         let newScope = 
             adaptorScope s
 
         let newName = 
             "Adaptive" + n
-                        
-
+                   
         let cache = args |> List.map (fun v -> new Var(sprintf "__%s" v.Name, v.Type, true))
 
-        //let currentVar = new Var("__current", valueType, true)
-        //let initialVar = new Var("value", valueType)
-
-        let rec ctor (adaptors : list<Var * Prop * Expr * Adaptor>) =
+        let rec ctor (adaptors : list<Var * Prop * Expr * Option<Adaptor>>) =
             match adaptors with
             | [] -> 
                 (Expr.Unit, cache, args) |||> List.fold2 (fun s c a ->
                     Expr.Let(false, [c], Var a, s)
                 )
             | (v, p, get, a) :: rest ->
-                Expr.Let(
-                    false, [v], a.init get,
+                match a with
+                | Some a -> 
+                    Expr.Let(
+                        false, [v], a.init get,
+                        ctor rest
+                    )
+                | None ->
                     ctor rest
-                )
                     
         let ctor = ctor adaptors
-        let rec update (adaptors : list<Var * Prop * Expr * Adaptor>) =
+        let rec update (adaptors : list<Var * Prop * Expr * Option<Adaptor>>) =
             match adaptors with
             | [] -> 
                 Expr.Unit
 
             | [(v, p, get, a)] -> 
-                a.update (Var v) get
+                match a with
+                | Some a -> a.update (Var v) get
+                | None -> Expr.Unit
 
             | (v, p, get, a) :: rest ->
-                Expr.Seq(
-                    a.update (Var v) get,
+                match a with
+                | Some a ->
+                    Expr.Seq(
+                        a.update (Var v) get,
+                        update rest
+                    )
+                | None ->
                     update rest
-                )
-
-            
-         
 
 
         let update =
@@ -755,13 +802,34 @@ module TypeDefinition =
                     ],
                     Expr.Unit
                 )
-                        
+                  
+                 
+        let getCache (v : Var) =    
+            let rec find (a : list<Var>) (b : list<Var>) =
+                match a, b with
+                | [], _ | _, [] -> None
+                | a :: ra, b :: rb ->
+                    if a = v then Some b
+                    else find ra rb
+            find args cache
+
         let members =
             [
                 yield "update", args, update
 
-                for (v, p, _, a) in adaptors do
-                    yield sprintf "get_%s" p.name, [], a.view (Var v)
+                for (v, p, get, a) in adaptors do
+                    match a with
+                    | Some a ->
+                        yield sprintf "get_%s" p.name, [], a.view (Var v)
+                    | None ->
+                        let get = 
+                            get |> Expr.substitute (fun vi -> 
+                                match getCache vi with
+                                | Some v -> Some (Var v)
+                                | None -> None
+                            )
+                        yield sprintf "get_%s" p.name, [], get
+                        
             ]
                     
 
@@ -799,13 +867,16 @@ module TypeDefinition =
             interfaces  = []
         }
 
-    let rec ofTypeDef (tpars : list<TypeVar>) (d : TypeDef) =
+    let rec ofTypeDef (log : ILog) (tpars : list<TypeVar>) (d : TypeDef) =
         match d with
         | Generic(tpars, def) ->
-            ofTypeDef tpars def
+            ofTypeDef log tpars def
 
-        | ProductType(_, s, n, props) ->
-            let valueType = TModel(lazy d, List.map TVar tpars)
+        | ProductType(_, _, _, _, []) ->
+            []
+
+        | ProductType(range, _, s, n, props) ->
+            let valueType = TModel(range, lazy d, List.map TVar tpars)
             let arg = new Var("value", valueType)
 
             let props =
@@ -813,26 +884,30 @@ module TypeDefinition =
                     (p, Expr.PropertyGet(Var arg, p))
                 )
 
-            [ productType [arg] tpars s n props ]
+            [ productType log [arg] tpars s n props ]
               
             
-        | Union(scope, name, props, cases) ->
+        | Union(_range, scope, name, props, cases) ->
             //if props <> [] then failwith ""
             // TODO: props
 
+            // the scope where our new type is going to be defined
             let newScope = 
                 adaptorScope scope
 
-            let newName = 
-                "Adaptive" + name 
-                    
+            // replicate the type parameters
+            // * 'a     -> the original type parameter
+            // * 'paa   -> the new type when nested in a *changeable* scope (e.g. in an alist)
+            // * 'aa    -> the new type when not in a *changeable* scope (e.g. record field)
             let tAdaptivePars =
                 tpars |> List.collect (fun t -> [t; TypeVar("pa" + t.Name); TypeVar("a" + t.Name)])
 
-
+            // create types for each union case
+            // example:
+            //   `type Foo = | Bar of int | Baz of int * float`
+            //   case-types will be called `AdaptiveFooBar` and `AdaptiveFooBaz`
             let caseTypes =
                 cases |> List.map (fun (caseName, props) ->
-
                     let args =
                         props |> List.map (fun p ->
                             new Var(p.name, p.typ)
@@ -843,15 +918,13 @@ module TypeDefinition =
                             p, Var a
                         )
 
-                    //let valueType = TTuple(false, props |> List.map (fun p -> p.typ))
                     let typeName = sprintf "%s%s" name caseName
-                    productType args tpars scope typeName props
+                    productType log args tpars scope typeName props
                 )
 
-
+            // define an interface-type for all case types. (`AdaptiveFooCase`)
             let ctorTypeRef = TExtRef(newScope, sprintf "Adaptive%sCase" name, List.map TVar tAdaptivePars)
             let valueType = TExtRef(scope, name, List.map TVar tpars)
-
             let ctorType =
                 {
                     kind            = TypeKind.Interface
@@ -870,6 +943,9 @@ module TypeDefinition =
                     interfaces = []
                 }
 
+            // utility creating a match case and a construction
+            // for the given case.
+            // `Baz(a,b) -> AdaptiveFooBaz(a, b) :> AdaptiveFooCase
             let createNew (caseName : string) =
 
                 let props = cases |> List.pick (fun (n, p) -> if n = caseName then Some p else None)
@@ -878,8 +954,8 @@ module TypeDefinition =
 
                 let adaptors =
                     tpars |> List.map (fun a ->
-                        let pat = Adaptor.get true (TVar a)
-                        let at = Adaptor.get false (TVar a)
+                        let pat = Adaptor.get log range0 true (TVar a)
+                        let at = Adaptor.get log range0 false (TVar a)
                         pat, at
                     )
 
@@ -905,58 +981,59 @@ module TypeDefinition =
                         declaringType   = Choice1Of2 newScope
                         isStatic        = true
                         name            = sprintf "Adaptive%s%s" name caseName
-                        parameters      = 
-                            List.append
-                                (props |> List.map (fun v -> v.typ))
-                                (ctorArgs |> List.map (fun v -> v.Type))
+                        parameters      = (props |> List.map (fun v -> v.typ)) @ (ctorArgs |> List.map (fun v -> v.Type))
                         returnType      = otherType
                     }
 
 
                 pat, Expr.Upcast(Expr.Call(None, meth, (List.map Var vars) @ ctorArgs), ctorTypeRef)
 
+            // create an interface implementation for the interface-type (`AdaptiveFooCase`)
+            let implementCtorType (selfCase : string) =
+                let value = new Var("value", valueType)
+                ctorTypeRef, [
+                    "update", [value], (fun (this : Var) ->
+                        Expr.Match(
+                            Var value,
+                            [
+                                for (caseName, props) in cases do
+                                    let vars = props |> List.map (fun p -> new Var(p.name, p.typ))
+                                    let pat = UnionCaseTest(valueType, caseName, vars)
+                                    if caseName = selfCase then
+
+                                        let meth =     
+                                            {
+                                                declaringType   = Choice2Of2 this.Type
+                                                isStatic        = false
+                                                name            = "update"
+                                                parameters      = vars |> List.map (fun v -> v.Type)
+                                                returnType      = TTuple(false, [])
+                                            }
+
+                                        let update =    
+                                            Expr.Seq(
+                                                Expr.Call(Some (Var this), meth, List.map Var vars),
+                                                Expr.Upcast(Var this, ctorTypeRef)
+                                            )
+                                        yield pat, update
+                                    else
+                                        yield createNew caseName
+                            ]    
+                        )
+                    )
+                ]
+
+            // add the interface implementations to all case-types and make them private
             let caseTypes =
                 (cases, caseTypes) ||> List.map2 (fun (selfCase,_) ct ->
-                    let value = new Var("value", valueType)
                     { ct with
                         priv = true
-                        interfaces =
-                            [
-                                ctorTypeRef, [
-                                    "update", [value], (fun this ->
-                                        Expr.Match(
-                                            Var value,
-                                            [
-                                                for (caseName, props) in cases do
-                                                    let vars = props |> List.map (fun p -> new Var(p.name, p.typ))
-                                                    let pat = UnionCaseTest(valueType, caseName, vars)
-                                                    if caseName = selfCase then
-
-                                                        let meth =     
-                                                            {
-                                                                declaringType   = Choice2Of2 this.Type
-                                                                isStatic        = false
-                                                                name            = "update"
-                                                                parameters      = vars |> List.map (fun v -> v.Type)
-                                                                returnType      = TTuple(false, [])
-                                                            }
-
-                                                        let update =    
-                                                            Expr.Seq(
-                                                                Expr.Call(Some (Var this), meth, List.map Var vars),
-                                                                Expr.Upcast(Var this, ctorTypeRef)
-                                                            )
-                                                        yield pat, update
-                                                    else
-                                                        yield createNew caseName
-                                            ]    
-                                        )
-                                    )
-                                ]
-                            ]
+                        interfaces = [ implementCtorType selfCase ]
                     }
                 )
 
+            // create the *container* type (`AdaptiveFoo`) that
+            // internally changes and implements `aval<AdaptiveFooCase>`
             let adaptiveType =
                 let value = new Var("value", valueType)
                 let current = new Var("__value", ctorTypeRef, true)
@@ -998,9 +1075,6 @@ module TypeDefinition =
                     }
 
                 let token = new Var("t", AdaptiveToken.typ)
-
-                //let tAdaptivePars =
-                //    tpars |> List.collect (fun t -> [t; TypeVar("pa" + t.Name); TypeVar("a" + t.Name)])
 
                 let ctorArgs = 
                     tpars |> List.collect (fun t ->
@@ -1058,9 +1132,9 @@ module TypeDefinition =
                             ]
                         ]
                 }
-                    
-
-
+                   
+            // define a module containg active-patterns
+            // for the new union-type. `(|AdaptiveBar|AdaptiveBaz|)`
             let patterns =
 
                 let patternName =  cases |> List.map (fun (n,_) -> sprintf "Adaptive%s" n) |> String.concat "|" |> sprintf "(|%s|)"
@@ -1110,11 +1184,7 @@ module TypeDefinition =
                 }
 
 
-
-
             [ctorType] @ caseTypes @ [adaptiveType; patterns]
-         
-
 
 
     let private defaultOpens =
@@ -1173,69 +1243,3 @@ module TypeDefinition =
                 yield ""
                 yield ""
         ]
-
-
-
-//module Adaptify =
-//    let private defaultOpens =
-//        [|
-//            "open System"
-//            "open FSharp.Data.Adaptive"
-//            "open Adaptify"
-//        |]
-
-//    let rec private wrap (s : Scope) (str : string[]) =
-//        match s with
-//        | Global ->
-                    
-//            sprintf "namespace rec global\r\n\r\n%s" (String.concat "\r\n" (Array.append defaultOpens str))
-                    
-//        | Namespace ns ->
-//            sprintf "namespace rec %s\r\n\r\n%s" ns (String.concat "\r\n" (Array.append defaultOpens str))
-
-//        | Module(parent, name, autoOpen, moduleSuffix) ->
-
-//            let attrs =
-//                [
-//                    if autoOpen then "AutoOpen"
-//                    if moduleSuffix then "CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)"
-//                ]
-
-//            match attrs with
-//            | [] ->
-//                let code =
-//                    [|
-//                        yield sprintf "module rec %s =" name
-//                        yield! indent str
-//                    |]
-//                wrap parent code
-//            | atts ->
-//                let atts = atts |> String.concat "; " |> sprintf "[<%s>]" 
-//                let code =
-//                    [|
-//                        yield atts
-//                        yield sprintf "module rec %s =" name
-//                        yield! indent str
-//                    |]
-//                wrap parent code
-                   
-//    let test (defs : list<TypeDef>) =
-//        let all = 
-//            String.concat "\r\n" [
-
-//                let all = defs |> List.collect (TypeDefinition.ofTypeDef [])
-//                yield "#nowarn \"49\" // upper case patterns"
-//                yield "#nowarn \"66\" // upcast is unncecessary"
-
-
-//                let groups = all |> List.groupBy (fun d -> d.scope)
-
-//                for (scope, ts) in groups do 
-//                    let code = ts |> Seq.mapi( fun i t -> TypeDefinition.toString t) |> Array.concat
-//                    let str = wrap scope code
-//                    yield str
-//                    yield ""
-//                    yield ""
-//                    yield ""
-//            ]
-//        System.IO.File.WriteAllText(@"C:\Users\Schorsch\Development\Adaptify\src\Examples\NetCore\Test.fs", all)

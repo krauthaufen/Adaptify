@@ -172,6 +172,22 @@ module Expr =
         else
             "", args
 
+    let private patternString (scope : Scope) (p : Pattern) =
+        match p with
+        | Any -> "_"
+        | TypeTest(t, v) -> sprintf "(:? %s as %s)" (TypeRef.toString scope t) v.Name
+        | UnionCaseTest(t, n, vs) ->
+            let t = 
+                match t with
+                | TExtRef(s, n, _) -> TExtRef(s, n, []) |> TypeRef.toString scope
+                | TRef(r, e, _) -> TRef(r, e, []) |> TypeRef.toString scope
+                | TModel(r, d, _) -> TModel(r, d, []) |> TypeRef.toString scope
+                | _ -> t |> TypeRef.toString scope
+            match vs with
+            | [] ->
+                sprintf "%s.%s" t n 
+            | _ -> 
+                sprintf "%s.%s(%s)" t n (vs |> List.map (fun v -> v.Name) |> String.concat ", ")
 
     let rec toString (scope : Scope) (e : Expr) =
         match e with
@@ -179,27 +195,15 @@ module Expr =
             let prefix, e = toOneLineArgs scope [e]
             let e = List.head e
 
-            let pat (p : Pattern) =
-                match p with
-                | Any -> "_"
-                | TypeTest(t, v) -> sprintf "(:? %s as %s)" (TypeRef.toString scope t) v.Name
-                | UnionCaseTest(t, n, vs) ->
-                    let t = 
-                        match t with
-                        | TExtRef(s, n, _) -> TExtRef(s, n, []) |> TypeRef.toString scope
-                        | TRef(e, _) -> TRef(e, []) |> TypeRef.toString scope
-                        | TModel(d, _) -> TModel(d, []) |> TypeRef.toString scope
-                        | _ -> t |> TypeRef.toString scope
-                    match vs with
-                    | [] ->
-                        sprintf "%s.%s" t n 
-                    | _ -> 
-                        sprintf "%s.%s(%s)" t n (vs |> List.map (fun v -> v.Name) |> String.concat ", ")
 
             let cases =
                 cases |> List.map (fun (p, b) ->
-                    let b = toString scope b |> lines |> indent
-                    sprintf "| %s ->\r\n%s" (pat p) (String.concat "\r\n" b)
+                    let b = toString scope b |> lines 
+                    if b.Length = 1 then
+                        sprintf "| %s -> %s" (patternString scope p) b.[0]
+                    else
+                        let b = b |> indent
+                        sprintf "| %s ->\r\n%s" (patternString scope p) (String.concat "\r\n" b)
                 )
 
             sprintf "%smatch %s with\r\n%s" prefix e (String.concat "\r\n" cases)
@@ -388,6 +392,48 @@ module Expr =
                 sprintf "%sstruct(%s)" prefix (String.concat ", " args)
             else
                 sprintf "%s(%s)" prefix (String.concat ", " args)
+
+
+    let rec substitute (mapping : Var -> Option<Expr>) (e : Expr) =
+        match e with
+        | Unit -> e
+        | Var v ->
+            match mapping v with
+            | Some e -> e
+            | None -> e
+        | Lambda(vs, b) ->  
+            Lambda(vs, substitute mapping b)
+        | NewTuple(s, f) ->
+            NewTuple(s, f |> List.map (substitute mapping))
+        | Application(a, b) ->
+            Application(substitute mapping a, substitute mapping b)
+        | Seq(a, b) ->
+            Seq(substitute mapping a, substitute mapping b)
+        | Upcast(e,t) ->
+            Upcast(substitute mapping e, t)
+        | Call(t, m, args) ->
+            let t = t |> Option.map (substitute mapping)
+            let args = args |> List.map (substitute mapping)
+            Call(t, m, args)
+        | Fail _ ->
+            e
+        | Let(s, vs, e, b) ->
+            Let(s, vs, substitute mapping e, substitute mapping b)
+        | PropertyGet(e, p) ->
+            PropertyGet(substitute mapping e, p)
+        | VarSet(v, e) ->
+            VarSet(v, substitute mapping e)
+        | IfThenElse(c,i,e) ->
+            IfThenElse(substitute mapping c, substitute mapping i, substitute mapping e)
+        | Unbox(t, e) ->
+            Unbox(t, substitute mapping e)
+        | Ignore(e) ->
+            Ignore(substitute mapping e)
+        | And(es) ->
+            And(es |> List.map (substitute mapping))
+        | Match(e, pats) ->
+            Match(substitute mapping e, pats |> List.map (fun (h,b) -> h, substitute mapping b))
+        
 
 
 

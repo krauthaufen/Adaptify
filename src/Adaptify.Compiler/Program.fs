@@ -1,6 +1,7 @@
 ﻿open System
 open System.IO
 open FSharp.Compiler.SourceCodeServices
+open FSharp.Compiler.Range
 open FSharp.Core
 open Adaptify.Compiler
 
@@ -123,7 +124,74 @@ module ProjectInfo =
 let md5 = System.Security.Cryptography.MD5.Create()
 let inline hash (str : string) = 
     md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes str) |> System.Guid |> string
-                    
+    
+    
+let log =  
+
+    //let tryReadRange (r : FSharp.Compiler.Range.range) =    
+    //    match Map.tryFind r.FileName fileContent with
+    //    | Some c ->
+    //        if r.StartLine = r.EndLine then
+    //            let line = c.[r.StartLine - 1]
+    //            line.Substring(r.StartColumn - 1, 1 + r.EndColumn - r.StartColumn) |> Some
+    //        else
+    //            let arr = c.[r.StartLine - 1 .. r.EndLine - 1]
+    //            arr.[0] <- arr.[0].Substring(r.StartColumn - 1)
+    //            arr.[arr.Length-1] <- arr.[arr.Length-1].Substring(r.EndColumn - 1)
+    //            String.concat "\r\n" arr |> Some
+    //    | None ->
+    //        None
+
+    let useColor (c : ConsoleColor) (f : unit -> 'a) =
+        let o = Console.ForegroundColor
+        Console.ForegroundColor <- c
+        try f()
+        finally Console.ForegroundColor <- o
+
+
+    let writeRange (r : FSharp.Compiler.Range.range) =  
+        if r <> range0 then
+            Console.WriteLine(" @ {0} ({1},{2}--{3},{4})", r.FileName, r.StartLine, r.StartColumn, r.EndLine, r.EndColumn)
+        else
+            Console.WriteLine()
+    { new ILog with
+        member x.debug range fmt =
+            fmt |> Printf.kprintf (fun str ->   
+                Console.Write "> "
+                useColor ConsoleColor.DarkGray (fun () ->
+                    Console.Write(str)
+                )
+                writeRange range
+            )
+            
+        member x.info range fmt =
+            fmt |> Printf.kprintf (fun str ->   
+                Console.Write "> " 
+                useColor ConsoleColor.Gray (fun () ->
+                    Console.Write(str)
+                )
+                writeRange range
+            )
+            
+        member x.warn range fmt =
+            fmt |> Printf.kprintf (fun str ->    
+                Console.Write "> "
+                useColor ConsoleColor.DarkYellow (fun () ->
+                    Console.Write(str)
+                )
+                writeRange range
+            )
+            
+        member x.error range fmt =
+            fmt |> Printf.kprintf (fun str ->    
+                Console.Write "> "
+                useColor ConsoleColor.Red (fun () ->
+                    Console.Write(str)
+                )
+                writeRange range
+            )
+    }
+
 let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
         
     let args = ProjectInfo.toFscArgs info
@@ -133,10 +201,9 @@ let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
         checker.GetProjectOptionsFromCommandLineArgs(info.project, List.toArray args, DateTime.Now)
 
 
-
     for file in info.files do
         let name = Path.GetFileNameWithoutExtension file
-
+        log.debug range0 "checking %s" file 
         let path = Path.Combine(projDir, file)
         let content = File.ReadAllText path
         let text = FSharp.Compiler.Text.SourceText.ofString content
@@ -144,12 +211,11 @@ let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
 
         match answer with
         | FSharpCheckFileAnswer.Succeeded res ->
-
+            
             let rec allEntities (d : FSharpImplementationFileDeclaration) =
                 match d with
                 | FSharpImplementationFileDeclaration.Entity(e, ds) ->
                     e :: List.collect allEntities ds
-
                 | _ ->
                     []
 
@@ -160,14 +226,16 @@ let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
 
             let definitions = 
                 entities 
-                |> List.choose TypeDef.ofEntity 
+                |> List.choose (TypeDef.ofEntity log)
                 |> List.map (fun l -> l.Value)
-                |> List.collect (TypeDefinition.ofTypeDef [])
+                |> List.collect (TypeDefinition.ofTypeDef log [])
 
             match definitions with
             | [] ->
+                log.info range0 "%s defines no model types" file 
                 ()
             | defs ->
+                log.info range0 "%s defines model types" file
                 let generated = TypeDefinition.toFile defs
                 let file = Path.ChangeExtension(path, ".g.fs")
                 let result = sprintf "//%s\r\n//%s\r\n" (hash content) (hash generated) + generated
@@ -176,7 +244,7 @@ let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
 
 
         | FSharpCheckFileAnswer.Aborted ->
-            printfn "  aborted"
+            log.warn range0 "aborted"
 
 [<EntryPoint>]
 let main argv =

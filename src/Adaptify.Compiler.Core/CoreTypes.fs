@@ -9,14 +9,6 @@ module AdaptiveTypes =
         let typ (t : TypeRef) =
             TExtRef(Namespace "Microsoft.FSharp.Core", "Option", [t])
             
-        //let map (a : TypeRef) (b : TypeRef) =
-        //    {
-        //        declaringType = Choice1Of2 (Module(Namespace "Microsoft.FSharp.Core", "Option", false, true))
-        //        isStatic = true
-        //        name = "map"
-        //        parameters = [ TFunc(a, b); typ a ]
-        //        returnType = typ b
-        //    }
         let some (t : TypeRef) =
             {
                 declaringType = Choice2Of2 (typ t)

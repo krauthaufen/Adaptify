@@ -5,6 +5,7 @@ open Microsoft.Build.Utilities
 open Microsoft.Build.Framework
 open System.IO
 open FSharp.Compiler.SourceCodeServices
+open FSharp.Compiler.Range
 
 type CacheFile =
     {
@@ -50,20 +51,60 @@ type AdaptifyTask() =
     let mutable framework : string = ""
     let mutable outputType : string = ""
 
-    member x.info fmt =
-        fmt |> Printf.kprintf (fun str ->
-            x.Log.LogMessage(MessageImportance.Normal, str)
-        )
+    let mutable log : option<ILog> = None
 
-        
-    member x.warn fmt =
-        fmt |> Printf.kprintf (fun str ->
-            x.Log.LogWarning(str)
-        )
-    member x.error fmt =
-        fmt |> Printf.kprintf (fun str ->
-            x.Log.LogError(str)
-        )
+
+    member x.Logger =
+        match log with
+        | Some l -> l
+        | None ->
+            let msg (range : FSharp.Compiler.Range.range) imp fmt =
+                fmt |> Printf.kprintf (fun str ->
+                    x.Log.LogMessage(
+                        "", 
+                        "", 
+                        "", 
+                        range.FileName, 
+                        range.StartLine, range.StartColumn, 
+                        range.EndLine, range.EndColumn, 
+                        imp, 
+                        str,
+                        [||]
+                    )
+                )
+            let l =
+                { new ILog with
+                    member __.debug range fmt = msg range MessageImportance.Low fmt
+                    member __.info range fmt = msg range MessageImportance.Normal fmt
+                    member __.warn (range : FSharp.Compiler.Range.range) fmt =
+                        fmt |> Printf.kprintf (fun str ->
+                            x.Log.LogWarning(
+                                "", 
+                                "", 
+                                "", 
+                                range.FileName, 
+                                range.StartLine, range.StartColumn, 
+                                range.EndLine, range.EndColumn, 
+                                str,
+                                [||]
+                            )
+                        )
+                    member __.error range fmt =
+                        fmt |> Printf.kprintf (fun str ->
+                            x.Log.LogError(
+                                "", 
+                                "", 
+                                "", 
+                                range.FileName, 
+                                range.StartLine, range.StartColumn, 
+                                range.EndLine, range.EndColumn, 
+                                str,
+                                [||]
+                            )
+                        )
+                }
+            log <- Some l
+            l
 
     override x.Execute() =
         if debug then
@@ -139,7 +180,7 @@ type AdaptifyTask() =
                             let sw = System.Diagnostics.Stopwatch.StartNew()
                             let res = FSharpChecker.Create(keepAssemblyContents = true)
                             sw.Stop()
-                            x.info "[Adaptify] creating FSharpChecker took: %.0fm" sw.Elapsed.TotalMilliseconds
+                            x.Logger.info range0 "[Adaptify] creating FSharpChecker took: %.0fm" sw.Elapsed.TotalMilliseconds
                             res
                         )
                     
@@ -216,7 +257,7 @@ type AdaptifyTask() =
                                         true
                                 
                             if needsUpdate then
-                                x.info "[Adaptify] update file %s" file
+                                x.Logger.info range0 "[Adaptify] update file %s" file
                                 let text = FSharp.Compiler.Text.SourceText.ofString content
                                 let (_parseResult, answer) = checker.Value.ParseAndCheckFileInProject(file, 0, text, options.Value) |> Async.RunSynchronously
         
@@ -234,17 +275,19 @@ type AdaptifyTask() =
                                         |> Seq.toList
                                         |> List.collect allEntities
                                         
+
+
                                     let definitions = 
                                         entities 
-                                        |> List.choose TypeDef.ofEntity 
+                                        |> List.choose (TypeDef.ofEntity x.Logger)
                                         |> List.map (fun l -> l.Value)
-                                        |> List.collect (TypeDefinition.ofTypeDef [])
+                                        |> List.collect (TypeDefinition.ofTypeDef x.Logger [])
 
                                     newHashes <- Map.add file (fileHash, not (List.isEmpty definitions)) newHashes
                                     newFiles.Add file
                                     match definitions with
                                     | [] ->
-                                        x.info "[Adaptify] no models in %s" file
+                                        x.Logger.info range0 "[Adaptify] no models in %s" file
                                     | defs ->
                                         let file = Path.ChangeExtension(path, ".g.fs")
 
@@ -253,19 +296,19 @@ type AdaptifyTask() =
 
                                         File.WriteAllText(file, result)
                                         newFiles.Add file
-                                        x.info "[Adaptify] generated %s" file
+                                        x.Logger.info range0 "[Adaptify] generated %s" file
 
                                 | FSharpCheckFileAnswer.Aborted ->
-                                    x.warn "[Adaptify] could not parse %s" file
+                                    x.Logger.warn range0 "[Adaptify] could not parse %s" file
                                     ()
                             else
-                                x.info "[Adaptify] skipping %s" file
+                                x.Logger.info range0 "[Adaptify] skipping %s" file
 
                     CacheFile.save { projectHash = projHash; fileHashes = newHashes } cacheFile
                     results <- Seq.toArray newFiles
                     true
                 with e ->
-                    x.error "failed: %A" e
+                    x.Logger.error range0 "failed: %A" e
                     false
               
             | _other -> 

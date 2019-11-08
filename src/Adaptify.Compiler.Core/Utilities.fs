@@ -2,6 +2,7 @@
 
 open System
 open FSharp.Compiler.SourceCodeServices
+open FSharp.Compiler.Range
 
 [<AutoOpen>]
 module StringTools =
@@ -50,3 +51,10 @@ module FSharpAttribute =
             name = "Adaptify.NonAdaptiveAttribute"
         | None ->
             false
+
+type ILog =
+    abstract member debug : range -> Printf.StringFormat<'T, unit> -> 'T
+    abstract member info : range -> Printf.StringFormat<'T, unit> -> 'T
+    abstract member warn : range -> Printf.StringFormat<'T, unit> -> 'T
+    abstract member error : range -> Printf.StringFormat<'T, unit> -> 'T
+

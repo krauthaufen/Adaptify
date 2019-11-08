@@ -3,19 +3,29 @@
 
 open FSharp.Data.Adaptive
 open Adaptify
-    
+
+[<ModelType>]
+type IFace =
+    abstract member Sepp: int
+
+type Blubber = IFace
+type Bar = (struct(float * string))
 
 [<ModelType>]
 type Record =
     {
-        fa : int
+        fa : Blubber
         fb : IndexList<Record>
+        fc : Bar
+        x : int
+        [<TreatAsValue>]
+        test : Choice<Record, int>
     }
 
 
 [<ModelType>]
 type MyUnion<'a, 'b> =
-    | CaseA of value : int * dst : 'a
+    | [<NonAdaptive>] CaseA of value : int * dst : 'a
     | CaseB of 'b
     
 
