@@ -6,3 +6,7 @@ dependencies
   FSharp.Data.Adaptive ~> LOCKEDVERSION
 files
   Release/netstandard2.0/Adaptify.Core.dll => lib/netstandard2.0
+  ../src/Adaptify.Core/**/*.fs => fable
+  ../src/Adaptify.Core/**/*.fsi => fable
+  ../src/Adaptify.Core/**/*.fsproj => fable
+  !../src/Adaptify.Core/obj/**/*
