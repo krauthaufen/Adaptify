@@ -561,7 +561,7 @@ type TypeDefinition =
         ctorArgs    : list<Var>
         ctor        : Expr
         statics     : list<string * list<Var> * Expr>
-        members     : list<string * list<Var> * Expr>
+        members     : list<bool * string * list<Var> * Expr>
         interfaces  : list<TypeRef * list<string * list<Var> * (Var -> Expr)>>
     }
 
@@ -579,7 +579,7 @@ module TypeDefinition =
         if d.kind = TypeKind.Interface then
             [|
                 yield sprintf "type %s%s%s =" priv d.name tpars 
-                for (name, args, b) in d.members do
+                for (_, name, args, b) in d.members do
                     let typ = b.Type
                     if args = [] && name.StartsWith "get_" then
                         yield sprintf "    abstract member %s : %s" (name.Substring 4) (TypeRef.toString d.scope typ)
@@ -642,22 +642,24 @@ module TypeDefinition =
                             yield! body |> indent |> indent
 
                             
-                    for (name, args, body) in d.members do
+                    for (ov, name, args, body) in d.members do
                         let body = Expr.toString d.scope body |> lines
+                        let mem = if ov then "override" else "member"
+
                         if args = [] && name.StartsWith "get_" then
                             
                             if body.Length = 1 then
-                                yield sprintf "    member __.%s = %s" (name.Substring 4) body.[0]
+                                yield sprintf "    %s __.%s = %s" mem (name.Substring 4) body.[0]
                             else
-                                yield sprintf "    member __.%s =" (name.Substring 4)
+                                yield sprintf "    %s __.%s =" mem (name.Substring 4)
                                 yield! body |> indent |> indent
                         else
                             let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
                             
                             if body.Length = 1 then
-                                yield sprintf "    member __.%s(%s) = %s" name args body.[0]
+                                yield sprintf "    %s __.%s(%s) = %s" mem name args body.[0]
                             else
-                                yield sprintf "    member __.%s(%s) =" name args
+                                yield sprintf "    %s __.%s(%s) =" mem name args
                                 yield! body |> indent |> indent
 
                     for (iface, mems) in d.interfaces do
@@ -703,26 +705,8 @@ module TypeDefinition =
         else
             t.IsValueType
 
-    let private eq (a : Expr) (b : Expr) = 
-        let isValueType =
-            match a.Type with
-            | TRef(_, e,_) -> isValueType e
-            | TModel(_range, d, _) -> 
-                match d.Value with
-                | ProductType(_range, isValueType, _, _, _) -> isValueType
-                | _ -> false
-            | _ ->
-                false
-        if isValueType then
-            Expr.Application(
-                Expr.Application(
-                    Expr.Call(None, uncheckedEquals a.Type, []),
-                    a
-                ),
-                b
-            )
-        else 
-            Expr.Call(None, Object.refEquals, [a; b])
+    let private eq (a : Expr) (b : Expr) = Expr.Call(None, shallowEquals a.Type, [a; b])
+       
 
     let private productType (log : ILog) (args : list<Var>) (tpars : list<TypeVar>) (s : Scope) (n : string) (props : list<Prop * Expr>) =
         let adaptors = 
@@ -815,12 +799,12 @@ module TypeDefinition =
 
         let members =
             [
-                yield "update", args, update
+                yield false, "update", args, update
 
                 for (v, p, get, a) in adaptors do
                     match a with
                     | Some a ->
-                        yield sprintf "get_%s" p.name, [], a.view (Var v)
+                        yield false, sprintf "get_%s" p.name, [], a.view (Var v)
                     | None ->
                         let get = 
                             get |> Expr.substitute (fun vi -> 
@@ -828,7 +812,7 @@ module TypeDefinition =
                                 | Some v -> Some (Var v)
                                 | None -> None
                             )
-                        yield sprintf "get_%s" p.name, [], get
+                        yield false, sprintf "get_%s" p.name, [], get
                         
             ]
                     
@@ -938,7 +922,7 @@ module TypeDefinition =
                     statics         = []
                     members =
                         [
-                            "update", [new Var("value", valueType)], Expr.Unbox(ctorTypeRef, Expr.Unit)
+                            false, "update", [new Var("value", valueType)], Expr.Unbox(ctorTypeRef, Expr.Unit)
                         ]
                     interfaces = []
                 }
@@ -1095,7 +1079,7 @@ module TypeDefinition =
                 {
                     kind            = TypeKind.Class
                     priv            = false
-                    baseType        = Some AdaptiveObject.typ
+                    baseType        = Some (AbstractAdaptiveValue.typ ctorTypeRef)
                     scope           = newScope
                     name            = sprintf "Adaptive%s" name
                     tpars           = tAdaptivePars
@@ -1109,7 +1093,7 @@ module TypeDefinition =
 
                     members =
                         [
-                            "update", [value], 
+                            false, "update", [value], 
                                 Expr.Let(false, [n], Expr.Call(Some (Var current), updateMeth, [Var value]), 
                                     Expr.IfThenElse(
                                         Call(None, notMeth, [eq (Var n) (Var current)]),
@@ -1120,17 +1104,18 @@ module TypeDefinition =
                                         Expr.Unit
                                     )
                                 )
+                            true, "Compute", [token], Var current
                         ]
-                    interfaces = 
-                        [
-                            AVal.typ ctorTypeRef, [
-                                "GetValue", [token], (fun this ->
-                                    Application(Application(Expr.Call(Some (Var this), eval, []), Var token),
-                                        Lambda([token], Var current)
-                                    )
-                                )
-                            ]
-                        ]
+                    interfaces = []
+                        //[
+                        //    AVal.typ ctorTypeRef, [
+                        //        "GetValue", [token], (fun this ->
+                        //            Application(Application(Expr.Call(Some (Var this), eval, []), Var token),
+                        //                Lambda([token], Var current)
+                        //            )
+                        //        )
+                        //    ]
+                        //]
                 }
                    
             // define a module containg active-patterns

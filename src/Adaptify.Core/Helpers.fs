@@ -165,10 +165,44 @@ type ChangeableModelOption<'A, 'CA, 'AA>(initial : option<'A>, init : 'A -> 'CA,
             | None -> None
         )
 
+    interface AdaptiveValue with
+        member x.GetValueUntyped t = x.GetValue t :> obj
+        member x.ContentType =
+            #if FABLE_COMPILER
+            typeof<obj>
+            #else
+            typeof<'AA>
+            #endif
+
     interface AdaptiveValue<option<'AA>> with
         member x.GetValue t = x.GetValue t
 
 
+[<AbstractClass>]
+type AdaptiveValue<'T>() =
+    inherit AdaptiveObject()
+    let mutable lastValue = Unchecked.defaultof<'T>
+
+    abstract member Compute : AdaptiveToken -> 'T
+
+    member x.GetValue(token : AdaptiveToken) =
+        x.EvaluateAlways token (fun token ->
+            if x.OutOfDate then
+                lastValue <- x.Compute token
+            lastValue
+        )
+
+    interface AdaptiveValue with
+        member x.GetValueUntyped t = x.GetValue t :> obj
+        member x.ContentType =
+            #if FABLE_COMPILER
+            typeof<obj>
+            #else
+            typeof<'T>
+            #endif
+            
+    interface aval<'T> with
+        member x.GetValue t = x.GetValue t
 
 
 

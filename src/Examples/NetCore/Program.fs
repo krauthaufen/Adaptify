@@ -4,8 +4,6 @@ open FSharp.Data.Adaptive
 
 [<EntryPoint>]
 let main _argv =
-
-
     let face1 = { new Blubber with member x.Sepp = 100 }
     let face2 = { new Blubber with member x.Sepp = 56 }
 
@@ -15,14 +13,14 @@ let main _argv =
             fb = IndexList.empty 
             fc = struct (1.0, "")
             x = 10
-            test = []
+            test = Choice2Of2 2
         }
 
     let a = r.fa.Sepp |> AVal.map id
     printfn "%A: %A" a.OutOfDate (AVal.force a)
 
     transact (fun () ->
-        r.update { fa = face2; fb = IndexList.empty; fc = struct (2.0, "abc"); x = 123; test = [] }
+        r.update { fa = face2; fb = IndexList.empty; fc = struct (2.0, "abc"); x = 123; test = Choice2Of2 2 }
     )
     printfn "%A: %A" a.OutOfDate (AVal.force a)
 

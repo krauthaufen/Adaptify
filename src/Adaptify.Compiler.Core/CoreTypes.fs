@@ -50,6 +50,10 @@ module AdaptiveTypes =
     module AdaptiveObject =
         let typ  =    
             TExtRef(fda, "AdaptiveObject", [])
+            
+    module AbstractAdaptiveValue =
+        let typ (t : TypeRef) =    
+            TExtRef(adaptify, "AdaptiveValue", [t])
 
     module CVal =
         let typ (t : TypeRef) = 
@@ -240,14 +244,14 @@ module AdaptiveTypes =
         let typ =
             TExtRef(Namespace "System", "Object", [])
 
-        let refEquals =
-            {
-                declaringType = Choice2Of2(typ)
-                isStatic = true
-                name = "ReferenceEquals"
-                parameters = [ typ; typ ]
-                returnType = TBool
-            }
+        //let refEquals =
+        //    {
+        //        declaringType = Choice2Of2(typ)
+        //        isStatic = true
+        //        name = "ReferenceEquals"
+        //        parameters = [ typ; typ ]
+        //        returnType = TBool
+        //    }
             
 
     let notMeth =
@@ -258,12 +262,14 @@ module AdaptiveTypes =
             parameters = [ TBool ]
             returnType = TBool
         }
-    
-    let uncheckedEquals (t : TypeRef) =
+  
+    let shallowEquals (t : TypeRef) =
         {
-            declaringType = Choice1Of2(Module(Module(Namespace "Microsoft.FSharp.Core", "Operators", true, false), "Unchecked", false, false))
+            declaringType = Choice2Of2(TExtRef(Namespace "Adaptify", "ShallowEqualityComparer", [t]))
             isStatic = true
-            name = "get_equals"
-            parameters = [ ]
-            returnType = TFunc(t, TFunc(t, TBool))
+            name = "ShallowEquals"
+            parameters = [ t; t ]
+            returnType = TBool
         }
+
+
