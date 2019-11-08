@@ -1,5 +1,30 @@
 ﻿namespace Adaptify
 
+
+#if FABLE_COMPILER
+
+module private ShallowEqualityHelpers =
+    open Fable.Core
+    open Fable.Core.JsInterop
+
+    [<Emit("$0 === $1")>]
+    let equals (a : 'a) (b : 'a) : bool = jsNative
+
+    let inline hash (a : 'a) = (a :> obj).GetHashCode()
+
+type ShallowEqualityComparer<'a> private() =
+    static let instance = ShallowEqualityComparer<'a>() :> System.Collections.Generic.IEqualityComparer<'a>
+
+    static member Instance = instance
+
+    static member ShallowHashCode v = ShallowEqualityHelpers.hash v
+    static member ShallowEquals(a,b) = ShallowEqualityHelpers.equals a b
+
+    interface System.Collections.Generic.IEqualityComparer<'a> with
+        member x.GetHashCode v = ShallowEqualityHelpers.hash v
+        member x.Equals(a,b) = ShallowEqualityHelpers.equals a b
+
+#else
 open System.Reflection.Emit
 open System.Reflection
 open System.Runtime.InteropServices
@@ -152,3 +177,4 @@ type ShallowEqualityComparer<'a> private() =
         member x.GetHashCode v = getHashCode v
         member x.Equals(a,b) = equals a b
 
+#endif

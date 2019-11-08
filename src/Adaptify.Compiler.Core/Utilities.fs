@@ -55,6 +55,14 @@ module FSharpAttribute =
 type ILog =
     abstract member debug : range -> Printf.StringFormat<'T, unit> -> 'T
     abstract member info : range -> Printf.StringFormat<'T, unit> -> 'T
-    abstract member warn : range -> Printf.StringFormat<'T, unit> -> 'T
-    abstract member error : range -> Printf.StringFormat<'T, unit> -> 'T
+    abstract member warn : range -> string -> Printf.StringFormat<'T, unit> -> 'T
+    abstract member error : range -> string -> Printf.StringFormat<'T, unit> -> 'T
 
+module Log =
+    let empty =
+        { new ILog with
+            member x.debug _ fmt = Printf.kprintf ignore fmt
+            member x.info _ fmt = Printf.kprintf ignore fmt
+            member x.warn _ _ fmt = Printf.kprintf ignore fmt
+            member x.error _ _ fmt = Printf.kprintf ignore fmt
+        }

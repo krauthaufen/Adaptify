@@ -173,7 +173,7 @@ let log =
                 writeRange range
             )
             
-        member x.warn range fmt =
+        member x.warn range code fmt =
             fmt |> Printf.kprintf (fun str ->    
                 Console.Write "> "
                 useColor ConsoleColor.DarkYellow (fun () ->
@@ -182,7 +182,7 @@ let log =
                 writeRange range
             )
             
-        member x.error range fmt =
+        member x.error range code fmt =
             fmt |> Printf.kprintf (fun str ->    
                 Console.Write "> "
                 useColor ConsoleColor.Red (fun () ->
@@ -244,7 +244,7 @@ let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
 
 
         | FSharpCheckFileAnswer.Aborted ->
-            log.warn range0 "aborted"
+            log.warn range0 "587" "aborted"
 
 [<EntryPoint>]
 let main argv =

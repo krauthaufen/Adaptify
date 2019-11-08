@@ -21,10 +21,17 @@ type Adaptor =
 module TypePatterns =
     let (|Option|_|) (t : TypeRef) =
         match t with
+        | TModel(_, d, [t]) ->
+            if d.Value.FullName = "Microsoft.FSharp.Core.Option" then Some t
+            elif d.Value.FullName = "Microsoft.FSharp.Core.FSharpOption" then Some t
+            else None
+
         | TRef(_, e, [t]) ->
             match e.TryFullName with
             | Some "Microsoft.FSharp.Core.Option`1" -> Some t
+            | Some "Microsoft.FSharp.Core.FSharpOption`1" -> Some t
             | _ -> None
+
         | _ ->
             None
 
@@ -78,6 +85,13 @@ module TypePatterns =
         match t with
         | Option (AnyAdaptive _) -> 
             Some t
+
+        | TRef(_, e, targs) when e.IsFSharpAbbreviation ->
+            let tpars = e.GenericParameters |> Seq.map (fun p -> p.Name) |> Seq.toList
+            let map = List.zip tpars targs |> Map.ofList
+            match TypeRef.ofType Log.empty map e.AbbreviatedType with
+            | AnyAdaptive t -> Some t
+            | _ -> None
 
         | TTuple (_, ts) ->
             if ts |> List.exists (function AnyAdaptive _ -> true | _ -> false) then Some t
@@ -229,24 +243,6 @@ module Adaptor =
             view = fun c -> Upcast(c, AMap.typ k a.aType)
         } 
 
-    let optionModel (a : Adaptor) =
-        let v = new Var("v", a.vType)
-        let m = new Var("m", a.mType)
-
-        let init = Expr.Lambda([v], a.init (Var v))
-        let update = Expr.Lambda([m], Expr.Lambda([v], Seq(a.update (Var m) (Var v), Var m)))
-        let view = Expr.Lambda([m], a.view (Var m))
-
-        {
-            trivial = false
-            vType = Option.typ a.vType
-            mType = ChangeableModelOption.typ a.vType a.mType a.aType
-            aType = AVal.typ (Option.typ a.aType)
-            init = fun v -> Call(None, ChangeableModelOption.ctor a.vType a.mType a.aType, [v; init; update; view])
-            update = fun c v -> Call(Some c, ChangeableModelOption.setValue a.vType a.mType a.aType, [v])
-            view = fun c -> Upcast(c, AVal.typ (Option.typ a.aType))
-        } 
-
     let tuple (isStruct : bool) (adaptors : list<Adaptor>) =
         let vTypes = adaptors |> List.map (fun a -> a.vType)
         let cTypes = adaptors |> List.map (fun a -> a.mType)
@@ -294,6 +290,8 @@ module Adaptor =
 
     let adaptorScope (o : Scope) =
         match o with
+        | Namespace m when m.StartsWith "Microsoft.FSharp" ->
+            Namespace ("Adaptify.FSharp" + m.Substring 16)
         | Module _ ->
             let rec insert (moduleName : string) (o : Scope) =
                 match o with
@@ -313,12 +311,12 @@ module Adaptor =
 
         | Option (PlainValue t) ->
             if mutableScope then identity typ
-            else aval t
+            else aval typ
 
-        | Option t ->
-            let a = get log range mutableScope t
-            if mutableScope then failwith ""
-            else optionModel a
+        //| Option t ->
+        //    let a = get log range mutableScope t
+        //    if mutableScope then failwith ""
+        //    else optionModel a
 
         | HashSet (PlainValue t) ->
             asetPrimitive t
@@ -538,7 +536,8 @@ module Adaptor =
             | inner -> 
                 let inner = inner |> List.map (TypeRef.toString Global) |> String.concat ", "
                 log.warn 
-                    range
+                    range 
+                    "4565"
                     "found model types in opaque scope %s: %s" (TypeRef.toString Global typ) inner
             if mutableScope then identity typ
             else aval typ
@@ -1217,6 +1216,7 @@ module TypeDefinition =
         String.concat "\r\n" [
             yield "#nowarn \"49\" // upper case patterns"
             yield "#nowarn \"66\" // upcast is unncecessary"
+            yield "#nowarn \"1337\" // internal types"
 
 
             let groups = all |> List.groupBy (fun d -> d.scope)

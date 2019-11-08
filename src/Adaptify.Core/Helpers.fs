@@ -1,53 +1,8 @@
 ﻿namespace Adaptify
 
+#nowarn "1337"
 open FSharp.Data.Adaptive
 open FSharp.Data.Traceable
-
-type Adaptor<'a, 'ca, 'aa> =
-    {
-        init    : 'a -> 'ca
-        update  : 'ca -> 'a -> 'ca
-        view    : 'ca -> 'aa
-    }
-
-    member x.IsTrivial = typeof<'a> = typeof<'ca> && typeof<'aa> = typeof<'ca>
-    member x.HasView = typeof<'aa> <> typeof<'ca>
-    member x.HasTrivialView = typeof<'aa>.IsAssignableFrom typeof<'ca>
-
-module Adaptor =
-
-    let identity<'a> : Adaptor<'a, 'a, 'a> =
-        {
-            init = id
-            update = fun _ v -> v
-            view = id
-        }
-        
-    let ref<'a> : Adaptor<'a, ref<'a>, 'a> =
-        {
-            init = ref
-            update = fun r v -> r := v; r
-            view = fun r -> !r
-        }
-
-    let create (init : 'a -> 'ca) (update : 'ca -> 'a -> 'ca) (view : 'ca -> 'aa) =
-        {
-            init = init
-            update = update
-            view = view
-        }
-
-    let box (i : Adaptor<'a, 'ca, 'aa>) : Adaptor<'a, obj, 'aa> =
-        {
-            init = fun a -> i.init a :> obj
-            update = fun o a -> i.update (unbox o) a :> obj
-            view = fun o -> i.view (unbox o)
-        }
-
-    let inline instance< ^a, ^c, ^v when (^a or ^c or ^v) : (static member Adaptor : Adaptor< ^a, ^c, ^v>) > =
-        ((^a or ^c or ^v) : (static member Adaptor : Adaptor< ^a, ^c, ^v>) ())
-
-
 
 type private ChangeableModelMapReader<'K, 'C, 'A>(inner : IHashMapReader<'K, 'C>, view : 'C -> 'A) =
     inherit AbstractReader<HashMap<'K, 'A>, HashMapDelta<'K, 'A>>(HashMap.trace)
@@ -72,7 +27,7 @@ type private ChangeableModelListReader<'C, 'A>(inner : IIndexListReader<'C>, vie
             | Remove -> Remove
         )
    
-
+[<CompilerMessage("ChangeableModelMap should not be used directly", 1337, IsHidden = true)>]
 type ChangeableModelMap<'K, 'V, 'C, 'A>(initial : HashMap<'K, 'V>, init : 'V -> 'C, update : 'C -> 'V -> 'C, view : 'C -> 'A) =
     let _current = cval initial
     let store = cmap (initial |> HashMap.map (fun _ v -> init v))
@@ -98,9 +53,7 @@ type ChangeableModelMap<'K, 'V, 'C, 'A>(initial : HashMap<'K, 'V>, init : 'V -> 
         member x.Content = content
         member x.GetReader() = x.GetReader()
 
-    new(initial : HashMap<'K, 'V>, a : Adaptor<'V, 'C, 'A>) =
-        ChangeableModelMap(initial, a.init, a.update, a.view)
-
+[<CompilerMessage("ChangeableModelList should not be used directly", 1337, IsHidden = true)>]
 type ChangeableModelList<'T, 'C, 'A>(initial : IndexList<'T>, init : 'T -> 'C, update : 'C -> 'T -> 'C, view : 'C -> 'A) =
     let _current = cval initial
     let store = clist (initial |> IndexList.map init)
@@ -125,60 +78,7 @@ type ChangeableModelList<'T, 'C, 'A>(initial : IndexList<'T>, init : 'T -> 'C, u
         member x.Content = content
         member x.GetReader() = x.GetReader()
  
-type ChangeableModelOption<'A, 'CA, 'AA>(initial : option<'A>, init : 'A -> 'CA, update : 'CA -> 'A -> 'CA, view : 'CA -> 'AA) =
-    inherit AdaptiveObject()
-
-    let mutable current = initial
-    let mutable store = 
-        initial |> Option.map (fun v -> 
-            let c = init v
-            let a = view c
-            c, a
-        )
-
-    member x.update(v : option<'A>) =
-        if not (System.Object.ReferenceEquals(current, v)) then
-            current <- v
-            match store with
-            | Some (c, a) ->
-                match v with
-                | Some v -> 
-                    let c' = update c v
-                    if not (Unchecked.equals c' c) then
-                        store <- Some(c', view c')
-                        x.MarkOutdated()
-                | None ->
-                    store <- None
-                    x.MarkOutdated()
-            | None ->
-                match v with
-                | None -> ()
-                | Some v ->
-                    let c = init v
-                    store <- Some (c, view c)
-                    x.MarkOutdated()                                                
-
-    member x.GetValue(token : AdaptiveToken) =
-        x.EvaluateAlways token (fun token ->
-            match store with
-            | Some(_, a) -> Some a
-            | None -> None
-        )
-
-    interface AdaptiveValue with
-        member x.GetValueUntyped t = x.GetValue t :> obj
-        member x.ContentType =
-            #if FABLE_COMPILER
-            typeof<obj>
-            #else
-            typeof<'AA>
-            #endif
-
-    interface AdaptiveValue<option<'AA>> with
-        member x.GetValue t = x.GetValue t
-
-
-[<AbstractClass>]
+[<AbstractClass; CompilerMessage("AdaptiveValue should not be used directly", 1337, IsHidden = true)>]
 type AdaptiveValue<'T>() =
     inherit AdaptiveObject()
     let mutable lastValue = Unchecked.defaultof<'T>
@@ -203,10 +103,4 @@ type AdaptiveValue<'T>() =
             
     interface aval<'T> with
         member x.GetValue t = x.GetValue t
-
-
-
-
-
-
 

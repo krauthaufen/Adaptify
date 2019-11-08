@@ -65,8 +65,8 @@ type AdaptifyTask() =
                         "", 
                         "", 
                         range.FileName, 
-                        range.StartLine, range.StartColumn, 
-                        range.EndLine, range.EndColumn, 
+                        range.StartLine, range.StartColumn + 1, 
+                        range.EndLine, range.EndColumn + 1, 
                         imp, 
                         str,
                         [||]
@@ -76,28 +76,28 @@ type AdaptifyTask() =
                 { new ILog with
                     member __.debug range fmt = msg range MessageImportance.Low fmt
                     member __.info range fmt = msg range MessageImportance.Normal fmt
-                    member __.warn (range : FSharp.Compiler.Range.range) fmt =
+                    member __.warn (range : FSharp.Compiler.Range.range) code fmt =
                         fmt |> Printf.kprintf (fun str ->
                             x.Log.LogWarning(
-                                "", 
-                                "", 
+                                "Adaptify", 
+                                code, 
                                 "", 
                                 range.FileName, 
-                                range.StartLine, range.StartColumn, 
-                                range.EndLine, range.EndColumn, 
+                                range.StartLine, range.StartColumn + 1, 
+                                range.EndLine, range.EndColumn + 1, 
                                 str,
                                 [||]
                             )
                         )
-                    member __.error range fmt =
+                    member __.error range code fmt =
                         fmt |> Printf.kprintf (fun str ->
                             x.Log.LogError(
-                                "", 
-                                "", 
+                                "Adaptify", 
+                                code,  
                                 "", 
                                 range.FileName, 
-                                range.StartLine, range.StartColumn, 
-                                range.EndLine, range.EndColumn, 
+                                range.StartLine, range.StartColumn + 1, 
+                                range.EndLine, range.EndColumn + 1, 
                                 str,
                                 [||]
                             )
@@ -299,7 +299,7 @@ type AdaptifyTask() =
                                         x.Logger.info range0 "[Adaptify] generated %s" file
 
                                 | FSharpCheckFileAnswer.Aborted ->
-                                    x.Logger.warn range0 "[Adaptify] could not parse %s" file
+                                    x.Logger.warn range0 "587" "[Adaptify] could not parse %s" file
                                     ()
                             else
                                 x.Logger.info range0 "[Adaptify] skipping %s" file
@@ -308,7 +308,7 @@ type AdaptifyTask() =
                     results <- Seq.toArray newFiles
                     true
                 with e ->
-                    x.Logger.error range0 "failed: %A" e
+                    x.Logger.error range0 "587" "failed: %A" e
                     false
               
             | _other -> 

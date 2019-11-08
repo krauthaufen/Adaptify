@@ -1,28 +1,34 @@
-﻿open Model
+﻿//open Model
 open FSharp.Data.Adaptive
-
+open Adaptify.FSharp.Core
 
 [<EntryPoint>]
 let main _argv =
-    let face1 = { new Blubber with member x.Sepp = 100 }
-    let face2 = { new Blubber with member x.Sepp = 56 }
+    //let face1 = { new Blubber with member x.Sepp = 100 }
+    //let face2 = { new Blubber with member x.Sepp = 56 }
 
-    let r = 
-        AdaptiveRecord { 
-            fa = face1
-            fb = IndexList.empty 
-            fc = struct (1.0, "")
-            x = 10
-            test = Choice2Of2 2
-        }
+    //let r = 
+    //    AdaptiveRecord { 
+    //        fa = Some face1
+    //        fb = IndexList.empty 
+    //        fc = struct (1.0, "")
+    //        x = Some 10
+    //        test = Choice2Of2 2
+    //    }
 
-    let a = r.fa.Sepp |> AVal.map id
-    printfn "%A: %A" a.OutOfDate (AVal.force a)
+    //let a = r.fa |> AVal.map id
 
-    transact (fun () ->
-        r.update { fa = face2; fb = IndexList.empty; fc = struct (2.0, "abc"); x = 123; test = Choice2Of2 2 }
-    )
-    printfn "%A: %A" a.OutOfDate (AVal.force a)
+    //match AVal.force a with
+    //| AdaptiveOption.AdaptiveNone -> ()
+    //| AdaptiveSome v -> ()
+
+
+    //printfn "%A: %A" a.OutOfDate (AVal.force a)
+
+    //transact (fun () ->
+    //    r.update { fa = Some face2; fb = IndexList.empty; fc = struct (2.0, "abc"); x = Some 123; test = Choice2Of2 2 }
+    //)
+    //printfn "%A: %A" a.OutOfDate (AVal.force a)
 
 
 

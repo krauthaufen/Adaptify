@@ -4,59 +4,60 @@
 open FSharp.Data.Adaptive
 open Adaptify
 
+
 [<ModelType>]
 type IFace =
     abstract member Sepp: int
 
 type Blubber = IFace
-type Bar = (struct(float * string))
+//type Bar = (struct(float * string))
 
 [<ModelType>]
 type Record =
     {
-        fa : Blubber
+        fa : Choice<Blubber, Record>
         fb : IndexList<Record>
-        fc : Bar
-        x : int
+        fc : IndexList<Blubber>
+        x : Option<int>
         [<TreatAsValue>]
         test : Choice<Record, int>
     }
 
 
-[<ModelType>]
-type MyUnion<'a, 'b> =
-    | [<NonAdaptive>] CaseA of value : int * dst : 'a
-    | CaseB of 'b
+//[<ModelType>]
+//type MyUnion<'a, 'b> =
+//    | [<NonAdaptive>] CaseA of value : int * dst : 'a
+//    | CaseB of 'b
     
 
-[<ModelType>]
-type Geny<'a, 'b> =
-    {
-        a : MyUnion<'a, 'b>
-        b : IndexList<MyUnion<'a, 'b>>
-    }
+//[<ModelType>]
+//type Geny<'a, 'b> =
+//    {
+//        a : MyUnion<'a, 'b>
+//        b : IndexList<MyUnion<'a, 'b>>
+//    }
 
 
-[<ModelType>]
-type Seppy<'a> =
-    {
-        x : 'a
-        y : IndexList<'a>
-    }
+//[<ModelType>]
+//type Seppy<'a> =
+//    {
+//        x : 'a
+//        y : IndexList<'a>
+//    }
 
-[<ModelType>]
-type Recy =
-    {
-        f : Geny<int, Recy>
-        g : Seppy<MyUnion<int, float>>
-    }
+//[<ModelType>]
+//type Recy =
+//    {
+//        f : Geny<int, Recy>
+//        g : Seppy<MyUnion<int, float>>
+//    }
 
 
-[<ModelType>]
-type fff =
-    | Ggg of int
-    | Aaa of string
-    | YYY 
+//[<ModelType>]
+//type fff =
+//    | Ggg of int
+//    | Aaa of string
+//    | YYY 
 //[<AutoOpen>]
 //module Test =
 //    [<ModelType; Struct>]

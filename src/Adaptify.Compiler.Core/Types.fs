@@ -339,15 +339,22 @@ module TypeDef =
             ProductType(range, e.IsValueType, parent, e.DisplayName, props) |> ret
 
     and ofEntity (log : ILog) (e : FSharpEntity) : option<Lazy<TypeDef>> =
-        if e.Attributes |> Seq.exists FSharpAttribute.isModelType then 
-            if e.IsArrayType then log.warn e.DeclarationLocation "arrays cannot be model types"; None
-            elif e.IsByRef then log.warn e.DeclarationLocation "byrefs cannot be model types"; None
-            elif e.IsDelegate then log.warn e.DeclarationLocation "delegates cannot be model types"; None
-            elif e.IsEnum then log.warn e.DeclarationLocation "enums cannot be model types"; None
+        let isModel =
+            e.TryFullName = Some "Microsoft.FSharp.Core.FSharpOption`1" ||
+            e.TryFullName = Some "Microsoft.FSharp.Core.FSharpChoice`2" ||
+            e.TryFullName = Some "Microsoft.FSharp.Core.FSharpChoice`3" ||
+            e.TryFullName = Some "Microsoft.FSharp.Core.FSharpChoice`4" ||
+            e.Attributes |> Seq.exists FSharpAttribute.isModelType
+
+        if isModel then 
+            if e.IsArrayType then log.warn e.DeclarationLocation "2413" "arrays cannot be model types"; None
+            elif e.IsByRef then log.warn e.DeclarationLocation "2413" "byrefs cannot be model types"; None
+            elif e.IsDelegate then log.warn e.DeclarationLocation "2413" "delegates cannot be model types"; None
+            elif e.IsEnum then log.warn e.DeclarationLocation "2413" "enums cannot be model types"; None
             //elif e.IsFSharpAbbreviation then log.warn e.DeclarationLocation "abbreviations cannot be model types"; None
-            elif e.IsFSharpExceptionDeclaration then log.warn e.DeclarationLocation "exceptions cannot be model types"; None
-            elif e.IsFSharpModule then log.warn e.DeclarationLocation "modules cannot be model types"; None
-            elif e.IsMeasure then log.warn e.DeclarationLocation "measures cannot be model types"; None
+            elif e.IsFSharpExceptionDeclaration then log.warn e.DeclarationLocation "2413" "exceptions cannot be model types"; None
+            elif e.IsFSharpModule then log.warn e.DeclarationLocation "2413" "modules cannot be model types"; None
+            elif e.IsMeasure then log.warn e.DeclarationLocation "2413" "measures cannot be model types"; None
             else dict.GetOrAdd(e, fun e -> lazy (create log e)) |> Some
         else    
             None
