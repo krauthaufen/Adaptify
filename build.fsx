@@ -69,6 +69,14 @@ Target.create "Compile" (fun _ ->
 
 
 
+Target.create "Server" (fun _ ->
+    DotNet.publish (fun o ->
+        { o with Configuration = DotNet.BuildConfiguration.Release; OutputPath = Some "bin/Release/tools" }
+    ) "src/Adaptify.Server/Adaptify.Server.fsproj"
+)
+
+
+
 Target.create "Pack" (fun _ ->
     
     Paket.pack (fun o ->
@@ -333,7 +341,7 @@ Target.create "Merge" (fun _ ->
 
 "MergeDotNet" ==> "Merge"
 "MergeFramework" ==> "Merge"
-
+"Server" ==> "Merge"
 
 "Compile" ==> 
     "Docs"

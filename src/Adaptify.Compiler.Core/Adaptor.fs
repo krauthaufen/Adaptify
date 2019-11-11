@@ -1217,6 +1217,7 @@ module TypeDefinition =
             yield "#nowarn \"49\" // upper case patterns"
             yield "#nowarn \"66\" // upcast is unncecessary"
             yield "#nowarn \"1337\" // internal types"
+            yield "#nowarn \"3199\" // rec in rec"
 
 
             let groups = all |> List.groupBy (fun d -> d.scope)

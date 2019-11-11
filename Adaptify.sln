@@ -14,6 +14,8 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Adaptify.MSBuild.DotNet", "
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Adaptify.MSBuild.Framework", "src\Adaptify.MSBuild.Framework\Adaptify.MSBuild.Framework.fsproj", "{D6A22C39-5EC6-4D89-A5A4-69DB10BB6AAF}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Adaptify.Server", "src\Adaptify.Server\Adaptify.Server.fsproj", "{B6C64CB0-505F-4375-A1E7-E88E0CFB3C33}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -40,6 +42,10 @@ Global
 		{D6A22C39-5EC6-4D89-A5A4-69DB10BB6AAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D6A22C39-5EC6-4D89-A5A4-69DB10BB6AAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D6A22C39-5EC6-4D89-A5A4-69DB10BB6AAF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B6C64CB0-505F-4375-A1E7-E88E0CFB3C33}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B6C64CB0-505F-4375-A1E7-E88E0CFB3C33}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B6C64CB0-505F-4375-A1E7-E88E0CFB3C33}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B6C64CB0-505F-4375-A1E7-E88E0CFB3C33}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -49,6 +55,7 @@ Global
 		{E823BD28-CFED-486F-AED7-5EF54354E579} = {F28EFCED-51C1-4D6E-94CA-BA7C84247CFC}
 		{C11D497B-ACCA-4B76-8A41-71C5E7EC5E30} = {F28EFCED-51C1-4D6E-94CA-BA7C84247CFC}
 		{D6A22C39-5EC6-4D89-A5A4-69DB10BB6AAF} = {F28EFCED-51C1-4D6E-94CA-BA7C84247CFC}
+		{B6C64CB0-505F-4375-A1E7-E88E0CFB3C33} = {F28EFCED-51C1-4D6E-94CA-BA7C84247CFC}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F3DF5A5D-D599-45D1-869E-4552860AF1BC}

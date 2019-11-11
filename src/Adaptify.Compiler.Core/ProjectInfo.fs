@@ -2,20 +2,19 @@
 
 open System.IO
 
-
 [<RequireQualifiedAccess>]
 type Target =   
-    | Exe
-    | Library
-    | WinExe
-    | Module
+    | Exe       = 1
+    | Library   = 2
+    | WinExe    = 3
+    | Module    = 4
 
 [<RequireQualifiedAccess>]
 type DebugType =
-    | Off
-    | Full
-    | PdbOnly
-    | Portable
+    | Off       = 1
+    | Full      = 2
+    | PdbOnly   = 3
+    | Portable  = 4
 
 
 type ProjectInfo =
@@ -148,6 +147,8 @@ module ProjectInfo =
                 yield "--debug:portable"
             | DebugType.PdbOnly -> 
                 yield "--debug:pdbonly"
+            | _ ->
+                ()
                 
             for a in info.additional do
                 yield a
@@ -181,6 +182,7 @@ module ProjectInfo =
             | Target.WinExe -> "winexe"
             | Target.Library -> "library"
             | Target.Module -> "module"
+            | _ -> "library"
         )
         w.WriteLine "additional"
         for a in info.additional do w.WriteLine a
@@ -190,11 +192,83 @@ module ProjectInfo =
             | DebugType.Off -> "off"
             | DebugType.PdbOnly -> "pdbonly"
             | DebugType.Portable -> "portable"
+            | _ -> "off"
         )
 
         ms.Seek(0L, SeekOrigin.Begin) |> ignore
         let md5 = System.Security.Cryptography.MD5.Create()
         let hash = md5.ComputeHash(ms)
         System.Guid hash |> string
+
+    let tryUnpickle (stream : Stream) =
+        let p = stream.Position
+        try
+            use r = new BinaryReader(stream, System.Text.Encoding.UTF8, true)
+        
+            let project = r.ReadString()
+            let isNewStyle = r.ReadBoolean()
+            let c = r.ReadInt32()
+            let references = List.init c (fun _ -> r.ReadString())
+        
+            let c = r.ReadInt32()
+            let files = List.init c (fun _ -> r.ReadString())
+        
+            let c = r.ReadInt32()
+            let defines = List.init c (fun _ -> r.ReadString())
+
+            let target = r.ReadInt32() |> unbox<Target>
+
+            let has = r.ReadBoolean()
+            let output = if has then r.ReadString() |> Some else None
+        
+            let c = r.ReadInt32()
+            let additional = List.init c (fun _ -> r.ReadString())
+
+            let debug = r.ReadInt32() |> unbox<DebugType>
+
+            Some {
+                isNewStyle  = isNewStyle
+                project     = project
+                references  = references
+                files       = files
+                target      = target
+                defines     = defines
+                additional  = additional
+                output      = output
+                debug       = debug
+            }
+        with _ ->
+            stream.Position <- p
+            None
+
+    let pickleTo (stream : Stream) (info : ProjectInfo) =
+        use w = new BinaryWriter(stream, System.Text.Encoding.UTF8, true)
+
+        w.Write info.project
+        w.Write info.isNewStyle
+
+        w.Write (List.length info.references)
+        for r in info.references do w.Write r
+
+        w.Write (List.length info.files)
+        for f in info.files do w.Write f
+
+        w.Write (List.length info.defines)
+        for f in info.defines do w.Write f
+
+        w.Write (int info.target)
+
+        match info.output with
+        | Some o -> 
+            w.Write(true)
+            w.Write(o)
+        | None ->
+            w.Write(false)
+
+        w.Write (List.length info.additional)
+        for f in info.additional do w.Write f
+
+        w.Write(int info.debug)
+
 
 

@@ -13,56 +13,58 @@ type Blubber = IFace
 //type Bar = (struct(float * string))
 
 [<ModelType>]
+type MyResult<'a, 'b> = Result<'a, 'b>
+
+[<ModelType>]
 type Record =
     {
-        fa : Choice<Blubber, Record>
+        foo : int
+        fa : Choice<Blubber, Blubber>
         fb : IndexList<Record>
         fc : IndexList<Blubber>
         x : Option<int>
-        [<TreatAsValue>]
-        test : Choice<Record, int>
+        test : MyResult<Record, int>
     }
 
 
-//[<ModelType>]
-//type MyUnion<'a, 'b> =
-//    | [<NonAdaptive>] CaseA of value : int * dst : 'a
-//    | CaseB of 'b
+[<ModelType>]
+type MyUnion<'a, 'b> =
+    | [<NonAdaptive>] CaseA of value : int * dst : 'a
+    | CaseB of 'b
     
 
-//[<ModelType>]
-//type Geny<'a, 'b> =
-//    {
-//        a : MyUnion<'a, 'b>
-//        b : IndexList<MyUnion<'a, 'b>>
-//    }
+[<ModelType>]
+type Geny<'a, 'b> =
+    {
+        a : MyUnion<'a, 'b>
+        b : IndexList<MyUnion<'a, 'b>>
+    }
 
 
-//[<ModelType>]
-//type Seppy<'a> =
-//    {
-//        x : 'a
-//        y : IndexList<'a>
-//    }
+[<ModelType>]
+type Seppy<'a> =
+    {
+        x : 'a
+        y : IndexList<'a>
+    }
 
-//[<ModelType>]
-//type Recy =
-//    {
-//        f : Geny<int, Recy>
-//        g : Seppy<MyUnion<int, float>>
-//    }
+[<ModelType>]
+type Recy =
+    {
+        u : MyUnion<int, Recy>
+    }
 
 
-//[<ModelType>]
-//type fff =
-//    | Ggg of int
-//    | Aaa of string
-//    | YYY 
-//[<AutoOpen>]
-//module Test =
-//    [<ModelType; Struct>]
-//    type X(a : int) =
-//        member x.A = (a, "asd")
+[<ModelType>]
+type fff =
+    | Ggg of int
+    | Aaa of string
+    | YYY 
+[<AutoOpen>]
+module Test =
+    [<ModelType; Struct>]
+    type X(a : int) =
+        member x.A = (a, "asd")
     
 
 //    [<ModelType>]

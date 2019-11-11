@@ -261,8 +261,6 @@ let main argv =
         )
 
 
-
-
     for projFile in projFiles do
         match ProjectInfo.tryOfProject [] projFile with
         | Ok info ->

@@ -17,7 +17,7 @@ nuget Microsoft.Build.Tasks.Core            ~> 16.3.0
 nuget Microsoft.Build.Framework             ~> 16.3.0
 nuget Microsoft.Build.Utilities.Core        ~> 16.3.0
 nuget Microsoft.Build                       ~> 16.3.0
-
+nuget FsPickler                             ~> 5.2.2
 
 group Build
   source https://api.nuget.org/v3/index.json

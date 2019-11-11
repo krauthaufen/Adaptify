@@ -4,11 +4,33 @@
     <TaskAssembly Condition=" '$(MSBuildRuntimeType)' != 'Core'">Adaptify.MSBuild.Framework.dll</TaskAssembly>
   </PropertyGroup>
   <UsingTask TaskName="Adaptify.MSBuild.AdaptifyTask" AssemblyFile="$(TaskAssembly)" />
-  <Target Name="UpdateGeneratedFiles" AfterTargets="AfterResolveReferences" Condition="'@(Compile)' != '' And '$(GenerateDomainTypes)' != 'false'">
+  <Target Name="UpdateAdaptifyBuild" BeforeTargets="BeforeCompile" DependsOnTargets="ResolveAssemblyReferences" Condition="'@(Compile)' != '' And '$(GenerateDomainTypes)' != 'false' And '$(AdaptifyGeneratedFiles)' == ''">
+    <PropertyGroup>
+      <AdaptifyGeneratedFiles>True</AdaptifyGeneratedFiles>
+    </PropertyGroup>
+    <Message Text="build" Importance="high" />
     <ItemGroup>
       <OldItems Include="@(Compile)" />
     </ItemGroup>
-    <AdaptifyTask TargetFramework="$(TargetFramework)" Debug="$(DebugHate)" Files="@(OldItems)" References="@(_ResolveAssemblyReferenceResolvedFiles)" ProjectFile="$(MSBuildProjectFullPath)" OutputType="$(OutputType)">
+    <AdaptifyTask TargetFramework="$(TargetFramework)" Debug="$(DebugHate)" Rebuild="false" Files="@(OldItems)" References="@(_ResolveAssemblyReferenceResolvedFiles)" ProjectFile="$(MSBuildProjectFullPath)" OutputType="$(OutputType)">
+      <Output TaskParameter="Results" ItemName="Results" />
+    </AdaptifyTask>
+    <ItemGroup>
+      <Compile Remove="@(OldItems)" />
+      <Compile Include="@(Results)" />
+      <OldItems Remove="@(OldItems)" />
+      <Results Remove="@(Results)" />
+    </ItemGroup>
+  </Target>
+  <Target Name="UpdateAdaptifyBuildRebuild" BeforeTargets="BeforeRebuild" DependsOnTargets="ResolveAssemblyReferences" Condition="'@(Compile)' != '' And '$(GenerateDomainTypes)' != 'false' And '$(AdaptifyGeneratedFiles)' == ''">
+    <PropertyGroup>
+      <AdaptifyGeneratedFiles>True</AdaptifyGeneratedFiles>
+    </PropertyGroup>
+    <Message Text="rebuild" Importance="high" />
+    <ItemGroup>
+      <OldItems Include="@(Compile)" />
+    </ItemGroup>
+    <AdaptifyTask TargetFramework="$(TargetFramework)" Debug="$(DebugHate)" Rebuild="true" Files="@(OldItems)" References="@(_ResolveAssemblyReferenceResolvedFiles)" ProjectFile="$(MSBuildProjectFullPath)" OutputType="$(OutputType)">
       <Output TaskParameter="Results" ItemName="Results" />
     </AdaptifyTask>
     <ItemGroup>
@@ -19,4 +41,3 @@
     </ItemGroup>
   </Target>
 </Project>
-  

@@ -1,9 +1,19 @@
 ﻿//open Model
 open FSharp.Data.Adaptive
 open Adaptify.FSharp.Core
+open Model
+
 
 [<EntryPoint>]
 let main _argv =
+    let a : AdaptiveRecord = failwith ""
+    a.foo |> ignore
+    match AVal.force a.test with
+    | AdaptiveMyResult.AdaptiveOk v ->
+        ()
+    | AdaptiveError v ->
+        ()
+    //a.u
     //let face1 = { new Blubber with member x.Sepp = 100 }
     //let face2 = { new Blubber with member x.Sepp = 56 }
 
