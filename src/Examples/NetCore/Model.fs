@@ -1,33 +1,43 @@
 ﻿namespace Model
 
-
-open FSharp.Data.Adaptive
 open Adaptify
 
-
 [<ModelType>]
-type IFace =
-    abstract member Sepp: int
-
-type Blubber = IFace
-//type Bar = (struct(float * string))
-
-[<ModelType>]
-type Record =
+type MyModel =  
     {
-        fa : Choice<Blubber, Record>
-        fb : IndexList<Record>
-        fc : IndexList<Blubber>
-        x : Option<int>
-        [<TreatAsValue>]
-        test : Choice<Record, int>
+        a : Result<MyModel, string>
+        b : float
     }
 
 
+
+//open FSharp.Data.Adaptive
+//open Adaptify
+
+
 //[<ModelType>]
-//type MyUnion<'a, 'b> =
-//    | [<NonAdaptive>] CaseA of value : int * dst : 'a
-//    | CaseB of 'b
+//type IFace =
+//    abstract member Sepp: int
+
+//type Blubber = IFace
+////type Bar = (struct(float * string))
+
+//[<ModelType>]
+//type Record =
+//    {
+//        fa : Choice<Blubber, Record>
+//        fb : IndexList<Record>
+//        fc : IndexList<Blubber>
+//        x : Option<int>
+//        [<TreatAsValue>]
+//        test : Choice<Record, int>
+//    }
+
+
+//[<ModelType>]
+//type MyUnion =
+//    | CaseA of value : int * dst : string
+//    | CaseB of float
     
 
 //[<ModelType>]

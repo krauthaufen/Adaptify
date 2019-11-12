@@ -38,19 +38,47 @@ module AdaptiveTypes =
     module IndexList =
         let typ (t : TypeRef) =    
             TExtRef(fda, "IndexList", [t])
-        
+    module AdaptiveToken =
+        let typ  =    
+            TExtRef(fda, "AdaptiveToken", [])
+             
     module AVal =
         let typ (t : TypeRef) =    
             TExtRef(fda, "aval", [t])
             
-    module AdaptiveToken =
-        let typ  =    
-            TExtRef(fda, "AdaptiveToken", [])
-       
+        let custom (t : TypeRef) =
+            {
+                declaringType = Choice1Of2 (Module(fda, "AVal", false, false))
+                isStatic = true
+                name = "custom"
+                parameters = [ TFunc(AdaptiveToken.typ, t) ]
+                returnType = typ t
+            }
+            
+    module Transaction =
+        let transact (t : TypeRef) = 
+            {
+                declaringType = Choice1Of2 (Module(fda, "Transaction", false, false))
+                isStatic = true
+                name = "transact"
+                parameters = [ TFunc(TTuple(false, []), t) ]
+                returnType = t
+            }
+
     module AdaptiveObject =
         let typ  =    
             TExtRef(fda, "AdaptiveObject", [])
             
+        let markOutdated =
+            {
+                declaringType = Choice2Of2 typ
+                isStatic = false
+                name = "MarkOutdated"
+                parameters = [ ]
+                returnType = TTuple(false, [])
+            }
+            
+
     module AbstractAdaptiveValue =
         let typ (t : TypeRef) =    
             TExtRef(adaptify, "AdaptiveValue", [t])
@@ -155,34 +183,6 @@ module AdaptiveTypes =
                 returnType = typ k v
             }
 
-    module ChangeableModelOption =
-        let typ (t : TypeRef) (tc : TypeRef) (ta : TypeRef) =
-            TExtRef(adaptify, "ChangeableModelOption", [t; tc; ta])
-
-        let setValue (t : TypeRef) (tc : TypeRef) (ta : TypeRef) =
-            {
-                declaringType = Choice2Of2 (typ t tc ta)
-                isStatic = false
-                name = "update"
-                parameters = [ Option.typ t ]
-                returnType = TTuple(false, [])
-            }
-
-        let ctor (t : TypeRef) (tc : TypeRef) (ta : TypeRef) =
-            {
-                declaringType = Choice1Of2(adaptify)
-                isStatic = true
-                name = "ChangeableModelOption"
-                parameters = 
-                    [ 
-                        Option.typ t
-                        TFunc(t, tc)
-                        TFunc(tc, TFunc(t, tc))
-                        TFunc(tc, ta)
-                    ]
-                returnType = typ t tc ta
-            }
-
 
     module ChangeableModelMap =
         let typ (k : TypeRef) (a : TypeRef) (ca : TypeRef) (aa : TypeRef) =
@@ -192,7 +192,7 @@ module AdaptiveTypes =
             {
                 declaringType = Choice2Of2 (typ k a ca aa)
                 isStatic = false
-                name = "update"
+                name = "Update"
                 parameters = [ HashMap.typ k a ]
                 returnType = TTuple(false, [])
             }
@@ -212,6 +212,19 @@ module AdaptiveTypes =
                 returnType = typ k a ca aa
             }
 
+    module Adaptor = 
+        let typ (a : TypeRef) (aa : TypeRef) =
+            TExtRef(adaptify, "Unpersist", [a; aa])
+
+        let create (a : TypeRef) (aa : TypeRef) =
+            {
+                declaringType = Choice1Of2 (Module(adaptify, "Unpersist", false, false))
+                isStatic = true
+                name = "get_create"
+                parameters = []//[ TFunc(a, aa); TFunc(aa, TFunc(a, TTuple(false, []))) ]
+                returnType = TFunc(TFunc(a, aa), TFunc(TFunc(aa, TFunc(a, TTuple(false, []))), typ a aa))
+            }
+
     module ChangeableModelList =
         let typ (a : TypeRef) (ca : TypeRef) (aa : TypeRef) =
             TExtRef(adaptify, "ChangeableModelList", [a; ca; aa])
@@ -220,7 +233,7 @@ module AdaptiveTypes =
             {
                 declaringType = Choice2Of2 (typ a ca aa)
                 isStatic = false
-                name = "update"
+                name = "Update"
                 parameters = [ IndexList.typ a ]
                 returnType = TTuple(false, [])
             }

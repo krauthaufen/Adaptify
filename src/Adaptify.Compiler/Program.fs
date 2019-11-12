@@ -202,49 +202,56 @@ let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
 
 
     for file in info.files do
-        let name = Path.GetFileNameWithoutExtension file
-        log.debug range0 "checking %s" file 
-        let path = Path.Combine(projDir, file)
-        let content = File.ReadAllText path
-        let text = FSharp.Compiler.Text.SourceText.ofString content
-        let (_parseResult, answer) = checker.ParseAndCheckFileInProject(file, 0, text, options) |> Async.RunSynchronously
+        if not (file.EndsWith ".g.fs") then
+            let name = Path.GetFileNameWithoutExtension file
+            log.debug range0 "checking %s" file 
+            let path = Path.Combine(projDir, file)
+            let content = File.ReadAllText path
+            let text = FSharp.Compiler.Text.SourceText.ofString content
+            let (_parseResult, answer) = checker.ParseAndCheckFileInProject(file, 0, text, options) |> Async.RunSynchronously
 
-        match answer with
-        | FSharpCheckFileAnswer.Succeeded res ->
+            match answer with
+            | FSharpCheckFileAnswer.Succeeded res ->
             
-            let rec allEntities (d : FSharpImplementationFileDeclaration) =
-                match d with
-                | FSharpImplementationFileDeclaration.Entity(e, ds) ->
-                    e :: List.collect allEntities ds
-                | _ ->
-                    []
+                let rec allEntities (d : FSharpImplementationFileDeclaration) =
+                    match d with
+                    | FSharpImplementationFileDeclaration.Entity(e, ds) ->
+                        e :: List.collect allEntities ds
+                    | _ ->
+                        []
 
-            let entities = 
-                res.ImplementationFile.Value.Declarations
-                |> Seq.toList
-                |> List.collect allEntities
+                let entities = 
+                    res.ImplementationFile.Value.Declarations
+                    |> Seq.toList
+                    |> List.collect allEntities
 
-            let definitions = 
-                entities 
-                |> List.choose (TypeDef.ofEntity log)
-                |> List.map (fun l -> l.Value)
-                |> List.collect (TypeDefinition.ofTypeDef log [])
+                let definitions = 
+                    entities 
+                    |> List.choose (TypeDef.ofEntity log)
+                    |> List.map (fun l -> l.Value)
+                    |> List.collect (TypeDefinition.ofTypeDef log [])
 
-            match definitions with
-            | [] ->
-                log.info range0 "%s defines no model types" file 
-                ()
-            | defs ->
-                log.info range0 "%s defines model types" file
-                let generated = TypeDefinition.toFile defs
-                let file = Path.ChangeExtension(path, ".g.fs")
-                let result = sprintf "//%s\r\n//%s\r\n" (hash content) (hash generated) + generated
-                File.WriteAllText(file, result)
+                match definitions with
+                | [] ->
+                    log.info range0 "%s defines no model types" file 
+                    ()
+                | defs ->
+                    let modelTypes = 
+                        defs |> Seq.map (fun d ->   
+                            match Scope.fullName d.scope with
+                            | Some s -> sprintf "%s.%s" s d.name
+                            | None -> d.name
+                        )
+                    log.info range0 "%s defines model types: %s" file (modelTypes |> String.concat ", " |> sprintf "[%s]")
+                    let generated = TypeDefinition.toFile defs
+                    let file = Path.ChangeExtension(path, ".g.fs")
+                    let result = sprintf "//%s\r\n//%s\r\n" (hash content) (hash generated) + generated
+                    File.WriteAllText(file, result)
 
 
 
-        | FSharpCheckFileAnswer.Aborted ->
-            log.warn range0 "587" "aborted"
+            | FSharpCheckFileAnswer.Aborted ->
+                log.warn range0 "587" "aborted"
 
 [<EntryPoint>]
 let main argv =

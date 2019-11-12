@@ -344,6 +344,7 @@ module TypeDef =
             e.TryFullName = Some "Microsoft.FSharp.Core.FSharpChoice`2" ||
             e.TryFullName = Some "Microsoft.FSharp.Core.FSharpChoice`3" ||
             e.TryFullName = Some "Microsoft.FSharp.Core.FSharpChoice`4" ||
+            e.TryFullName = Some "Microsoft.FSharp.Core.FSharpResult`2" ||
             e.Attributes |> Seq.exists FSharpAttribute.isModelType
 
         if isModel then 

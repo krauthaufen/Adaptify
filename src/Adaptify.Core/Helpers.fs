@@ -33,12 +33,12 @@ type ChangeableModelMap<'K, 'V, 'C, 'A>(initial : HashMap<'K, 'V>, init : 'V -> 
     let store = cmap (initial |> HashMap.map (fun _ v -> init v))
     let content = (store :> amap<_,_>).Content |> AVal.map (HashMap.map (fun _ -> view))
 
-    member x.current = _current
+    member x.Current = _current :> aval<_>
 
     member x.GetReader() =
         ChangeableModelMapReader(store.GetReader(), view) :> IHashMapReader<_,_>
 
-    member x.update(value : HashMap<'K, 'V>) = 
+    member x.Update(value : HashMap<'K, 'V>) = 
         if not (_current.Value.ConservativeEquals value) then
             _current.Value <- value
             store.Value <- 
@@ -59,9 +59,9 @@ type ChangeableModelList<'T, 'C, 'A>(initial : IndexList<'T>, init : 'T -> 'C, u
     let store = clist (initial |> IndexList.map init)
     let content = (store :> alist<_>).Content |> AVal.map (IndexList.map view)
 
-    member x.current = _current
+    member x.Current = _current :> aval<_>
 
-    member x.update(value : IndexList<'T>) = 
+    member x.Update(value : IndexList<'T>) = 
         if not (_current.Value.ConservativeEquals value) then
             _current.Value <- value
             store.Value <- 

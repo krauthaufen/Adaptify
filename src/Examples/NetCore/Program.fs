@@ -1,9 +1,24 @@
 ﻿//open Model
 open FSharp.Data.Adaptive
 open Adaptify.FSharp.Core
+open Model
+open Adaptify
 
 [<EntryPoint>]
 let main _argv =
+    let test = Unpersist.instance<MyModel, AdaptiveMyModel>
+
+    let v = test.init { a = Error "bad"; b = 3.0 }
+    test.update v { a = Error "bad"; b = 4.0 }
+
+    let _ : aval<MyModel> = v.Current
+
+    match AVal.force v.a with
+    | AdaptiveOk value -> ()
+    | AdaptiveError error -> ()
+
+    //test.MyCurrent
+
     //let face1 = { new Blubber with member x.Sepp = 100 }
     //let face2 = { new Blubber with member x.Sepp = 56 }
 

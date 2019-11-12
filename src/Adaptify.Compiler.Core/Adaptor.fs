@@ -6,6 +6,24 @@ open FSharp.Compiler.SourceCodeServices
 open FSharp.Compiler.Range
 open Adaptify.Compiler
 
+module Config =
+    let generatedTypeName       = sprintf "Adaptive%s"
+
+    let updateMemberName        = "Update"
+    let createMemberName        = "Create"
+    let createAdaptiveCaseName  = "CreateAdaptiveCase"
+    let currentMemberName       = "Current"
+
+    let priminitName            = sprintf "_prim%sinit"
+    let primupdateName          = sprintf "_prim%supdate"
+    let primviewName            = sprintf "_prim%sview"
+    let primTypeName            = sprintf "_prim%s"
+
+    let initName                = sprintf "_%sinit"
+    let updateName              = sprintf "_%supdate"
+    let viewName                = sprintf "_%sview"
+    let adaptiveTypeName        = sprintf "_a%s"
+
 type Adaptor =
     {
         trivial : bool
@@ -112,11 +130,11 @@ module TypePatterns =
 
 module Adaptor =    
     let varPrimitive (t : TypeVar) =
-        let mat = TypeVar("pa" + t.Name)
+        let mat = TypeVar(Config.primTypeName t.Name)
 
-        let tinit = new Var(sprintf "prim%sinit" t.Name, TFunc(TVar t, Object.typ))
-        let tupdate = new Var(sprintf "prim%supdate" t.Name, TFunc(Object.typ, TFunc(TVar t, Object.typ)))
-        let tview = new Var(sprintf "prim%sview" t.Name, TFunc(Object.typ, TVar mat))
+        let tinit = new Var(Config.priminitName t.Name, TFunc(TVar t, Object.typ))
+        let tupdate = new Var(Config.primupdateName t.Name, TFunc(Object.typ, TFunc(TVar t, Object.typ)))
+        let tview = new Var(Config.primviewName t.Name, TFunc(Object.typ, TVar mat))
 
         {
             trivial = false
@@ -129,12 +147,12 @@ module Adaptor =
         } 
     
     let varModel (t : TypeVar) =
-        let mat = TypeVar("pa" + t.Name)
-        let at = TypeVar("a" + t.Name)
+        let mat = TypeVar(Config.primTypeName t.Name)
+        let at = TypeVar(Config.adaptiveTypeName t.Name)
 
-        let tinit = new Var(sprintf "%sinit" t.Name, TFunc(TVar t, Object.typ))
-        let tupdate = new Var(sprintf "%supdate" t.Name, TFunc(Object.typ, TFunc(TVar t, Object.typ)))
-        let tview = new Var(sprintf "%sview" t.Name, TFunc(Object.typ, TVar at))
+        let tinit = new Var(Config.initName t.Name, TFunc(TVar t, Object.typ))
+        let tupdate = new Var(Config.updateName t.Name, TFunc(Object.typ, TFunc(TVar t, Object.typ)))
+        let tview = new Var(Config.viewName t.Name, TFunc(Object.typ, TVar at))
 
         {
             trivial = false
@@ -313,11 +331,6 @@ module Adaptor =
             if mutableScope then identity typ
             else aval typ
 
-        //| Option t ->
-        //    let a = get log range mutableScope t
-        //    if mutableScope then failwith ""
-        //    else optionModel a
-
         | HashSet (PlainValue t) ->
             asetPrimitive t
 
@@ -360,10 +373,11 @@ module Adaptor =
 
             let _tpars, def = parsAndDef def.Value  
             match def with
-            | Generic _ -> failwith "unreachable"
+            | Generic _ -> 
+                failwith "unreachable"
 
             | Union(_range, scope, name, _, _) ->
-                let newName = "Adaptive" + name
+                let newName = Config.generatedTypeName name
                 let newScope = adaptorScope scope
                 
                 let adaptors =
@@ -380,7 +394,7 @@ module Adaptor =
                         [a.vType; pat; at]
                     )
                     
-                let mt = TExtRef(newScope, sprintf "Adaptive%sCase" name, tAdaptiveArgs)
+                let mt = TExtRef(newScope, sprintf "%sCase" (Config.generatedTypeName name), tAdaptiveArgs)
                 let at = TExtRef(newScope, newName, tAdaptiveArgs)
 
                 let ctorArgs =
@@ -405,7 +419,7 @@ module Adaptor =
                         {
                             declaringType   = Choice2Of2 at
                             isStatic        = true
-                            name            = "CreateAdaptiveCase"
+                            name            = Config.createAdaptiveCaseName
                             parameters      = [typ]
                             returnType      = mt
                         }
@@ -414,7 +428,7 @@ module Adaptor =
                         {
                             declaringType   = Choice2Of2 mt
                             isStatic        = false
-                            name            = "update"
+                            name            = Config.updateMemberName
                             parameters      = [typ]
                             returnType      = mt
                         }
@@ -446,7 +460,7 @@ module Adaptor =
                         {
                             declaringType   = Choice2Of2 at
                             isStatic        = false
-                            name            = "update"
+                            name            = Config.updateMemberName
                             parameters      = [typ]
                             returnType      = TTuple(false, [])
                         }
@@ -462,7 +476,7 @@ module Adaptor =
                     } 
 
             | ProductType(_range, _, scope, name, _) ->
-                let newName = "Adaptive" + name 
+                let newName = Config.generatedTypeName name 
                 let newScope = adaptorScope scope
 
                 let adaptors =
@@ -509,7 +523,7 @@ module Adaptor =
                     {
                         declaringType   = Choice2Of2 at
                         isStatic        = false
-                        name            = "update"
+                        name            = Config.updateMemberName
                         parameters      = [typ]
                         returnType      = TTuple(false, [])
                     }
@@ -559,7 +573,7 @@ type TypeDefinition =
         tpars       : list<TypeVar>
         ctorArgs    : list<Var>
         ctor        : Expr
-        statics     : list<string * list<Var> * Expr>
+        statics     : list<bool * string * list<Var> * Expr>
         members     : list<bool * string * list<Var> * Expr>
         interfaces  : list<TypeRef * list<string * list<Var> * (Var -> Expr)>>
     }
@@ -596,7 +610,7 @@ module TypeDefinition =
             [|
                 yield sprintf "[<AutoOpen>]"
                 yield sprintf "module %s%s = " priv d.name
-                for (name, args, b) in d.statics do
+                for (_priv, name, args, b) in d.statics do
                     let typ = b.Type
                     let args = args |> List.map (fun a -> sprintf "(%s : %s)" a.Name (TypeRef.toString d.scope a.Type))
                     yield sprintf "    let %s %s =" name (String.concat " " args) 
@@ -630,15 +644,28 @@ module TypeDefinition =
 
                     yield! ctorLines
 
-                    for (name, args, body) in d.statics do
+                    for (priv, name, args, body) in d.statics do
                         let body = Expr.toString d.scope body |> lines
-                        let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
+                        let priv = if priv then "internal " else ""
                             
-                        if body.Length = 1 then
-                            yield sprintf "    static member %s(%s) = %s" name args body.[0]
-                        else
-                            yield sprintf "    static member %s(%s) =" name args
-                            yield! body |> indent |> indent
+                        if args = [] && name.StartsWith "get_" then
+                            let name = name.Substring 4
+                            if body.Length = 1 then
+                                yield sprintf "    static member %s%s = %s" priv name body.[0]
+                            else
+                                yield sprintf "    static member %s%s =" priv name
+                                yield! body |> indent |> indent
+
+                            //yield sprintf "    static member %s =" (name.Substring 4)
+                            //yield! Expr.toString d.scope b |> lines |> indent |> indent
+                        else 
+                            let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
+
+                            if body.Length = 1 then
+                                yield sprintf "    static member %s%s(%s) = %s" priv name args body.[0]
+                            else
+                                yield sprintf "    static member %s%s(%s) =" priv name args
+                                yield! body |> indent |> indent
 
                             
                     for (ov, name, args, body) in d.members do
@@ -707,11 +734,74 @@ module TypeDefinition =
     let private eq (a : Expr) (b : Expr) = Expr.Call(None, shallowEquals a.Type, [a; b])
        
 
-    let private productType (log : ILog) (args : list<Var>) (tpars : list<TypeVar>) (s : Scope) (n : string) (props : list<Prop * Expr>) =
+    let private productType (log : ILog) (current : bool) (args : list<Var>) (tpars : list<TypeVar>) (s : Scope) (n : string) (props : list<Prop * Expr>) =
+        
+
+
+        let tAdaptivePars =
+            tpars |> List.collect (fun t -> [t; TypeVar(Config.primTypeName t.Name); TypeVar(Config.adaptiveTypeName t.Name)])
+
+        let mutable reservedNames = 
+            Set.ofList [
+                yield Config.updateMemberName
+                yield Config.currentMemberName
+                yield Config.createMemberName
+                yield Config.createAdaptiveCaseName
+                
+                for (a, _) in props do
+                    yield sprintf "_%s_" a.name
+
+                for a in args do
+                    yield sprintf "__%s" a.Name
+
+                for t in tpars do
+                    yield Config.priminitName t.Name
+                    yield Config.primupdateName t.Name
+                    yield Config.primviewName t.Name
+                    yield Config.initName t.Name
+                    yield Config.updateName t.Name
+                    yield Config.viewName t.Name
+
+            ]
+        
+        let variants =
+            [
+                sprintf "%sValue"
+                sprintf "_%s"
+                sprintf "_%sValue"
+            ]
+        
+        let props =
+            props |> List.map (fun (prop, get) ->
+                let prop =
+                    if Set.contains prop.name reservedNames then
+                        
+                        let newName = 
+                            variants |> List.tryPick (fun v ->
+                                let r = v prop.name
+                                if Set.contains r reservedNames then None
+                                else Some r
+                            )
+                        match newName with
+                        | Some newName -> 
+                            log.warn prop.range "654" "reserved property name \"%s\". Renaming to \"%s\"" prop.name newName
+                            reservedNames <- Set.add newName reservedNames
+                            { prop with name = newName }
+                        | None ->
+                            log.error prop.range "655" "reserved property name \"%s\". Please rename the property." prop.name
+                            prop
+                    else  
+                        reservedNames <- Set.add prop.name reservedNames
+                        prop
+                prop, get
+            )
+        
         let adaptors = 
             props |> List.map (fun (prop, get) -> 
                 let local = 
                     new Var("_" + prop.name + "_", prop.typ)
+
+                
 
                 match prop.mode with
                 | AdaptifyMode.NonAdaptive -> 
@@ -727,14 +817,31 @@ module TypeDefinition =
             adaptorScope s
 
         let newName = 
-            "Adaptive" + n
+            Config.generatedTypeName n
                    
         let cache = args |> List.map (fun v -> new Var(sprintf "__%s" v.Name, v.Type, true))
+
+        let mutable adaptiveValue = None
+
+        let fin =
+            match cache, args with
+            | [cache], [field] when current -> 
+                let v = new Var("__adaptive", AVal.typ field.Type)
+                let token = new Var("token", AdaptiveToken.typ)
+                adaptiveValue <- Some v
+                Expr.Let(
+                    false, [v], 
+                    Expr.Call (None, AVal.custom v.Type, [Expr.Lambda([token], Var cache)]),
+                    Expr.Unit
+                )
+            | _ ->
+                Expr.Unit
+
 
         let rec ctor (adaptors : list<Var * Prop * Expr * Option<Adaptor>>) =
             match adaptors with
             | [] -> 
-                (Expr.Unit, cache, args) |||> List.fold2 (fun s c a ->
+                (fin, cache, args) |||> List.fold2 (fun s c a ->
                     Expr.Let(false, [c], Var a, s)
                 )
             | (v, p, get, a) :: rest ->
@@ -781,6 +888,13 @@ module TypeDefinition =
                     Expr.Many [
                         for (args, cache) in List.zip args cache do
                             yield Expr.VarSet(cache, Var args)
+
+                        match adaptiveValue with
+                        | Some v ->
+                            yield Expr.Call(Some (Var v), AdaptiveObject.markOutdated, [])
+                        | None ->
+                            ()
+
                         yield update adaptors
                     ],
                     Expr.Unit
@@ -798,7 +912,13 @@ module TypeDefinition =
 
         let members =
             [
-                yield false, "update", args, update
+                yield false, Config.updateMemberName, args, update
+
+                match adaptiveValue with
+                | Some v ->
+                    yield false, "get_" + Config.currentMemberName, [], Var v
+                | None ->
+                    ()
 
                 for (v, p, get, a) in adaptors do
                     match a with
@@ -815,26 +935,62 @@ module TypeDefinition =
                         
             ]
                     
-
-
-
-        let tAdaptivePars =
-            tpars |> List.collect (fun t -> [t; TypeVar("pa" + t.Name); TypeVar("a" + t.Name)])
-
+        
         let ctorArgs = 
             tpars |> List.collect (fun t ->
-                let mat = TypeVar("pa" + t.Name)
-                let at = TypeVar("a" + t.Name)
+                let mat = TypeVar(Config.primTypeName t.Name)
+                let at = TypeVar(Config.adaptiveTypeName t.Name)
 
                 [
-                    new Var(sprintf "prim%sinit" t.Name, TFunc(TVar t, Object.typ))
-                    new Var(sprintf "prim%supdate" t.Name, TFunc(Object.typ, TFunc(TVar t, Object.typ)))
-                    new Var(sprintf "prim%sview" t.Name, TFunc(Object.typ, TVar mat))
-                    new Var(sprintf "%sinit" t.Name, TFunc(TVar t, Object.typ))
-                    new Var(sprintf "%supdate" t.Name, TFunc(Object.typ, TFunc(TVar t, Object.typ)))
-                    new Var(sprintf "%sview" t.Name, TFunc(Object.typ, TVar at))
+                    new Var(Config.priminitName t.Name, TFunc(TVar t, Object.typ))
+                    new Var(Config.primupdateName t.Name, TFunc(Object.typ, TFunc(TVar t, Object.typ)))
+                    new Var(Config.primviewName t.Name, TFunc(Object.typ, TVar mat))
+                    new Var(Config.initName t.Name, TFunc(TVar t, Object.typ))
+                    new Var(Config.updateName t.Name, TFunc(Object.typ, TFunc(TVar t, Object.typ)))
+                    new Var(Config.viewName t.Name, TFunc(Object.typ, TVar at))
                 ]
             )
+
+        let selfType = TExtRef(newScope, newName, List.map TVar tAdaptivePars)
+        let statics =
+            let selfCtor =  
+                let selfFullName =
+                    TypeRef.toString newScope selfType
+                {
+                    declaringType = Choice1Of2 newScope
+                    isStatic      = true
+                    name          = selfFullName
+                    parameters    = args @ ctorArgs |> List.map (fun v -> v.Type)
+                    returnType    = selfType
+                }
+            let selfUpdate =  
+                {
+                    declaringType = Choice2Of2 selfType
+                    isStatic      = false
+                    name          = Config.updateMemberName
+                    parameters    = args @ ctorArgs |> List.map (fun v -> v.Type)
+                    returnType    = TTuple(false, [])
+                }
+            [
+                if current then 
+                    yield false, Config.createMemberName, args @ ctorArgs, Expr.Call(None, selfCtor, List.map Var (args @ ctorArgs))
+                
+                match tpars, args with
+                | [], [v] ->
+                    let value = new Var("value", v.Type)
+                    let adaptive = new Var("adaptive", selfType)
+                    yield false, "get_Unpersist", [],
+                        Expr.Application(
+                            Expr.Application(
+                                Expr.Call(None, Adaptor.create v.Type selfType, []),
+                                Lambda([value], Expr.Call(None, selfCtor, List.map Var args))
+                            ),
+                            Lambda([adaptive], Lambda([value], Expr.Call(Some (Var adaptive), selfUpdate, [Var value])))
+                        )
+                | _ ->
+                    ()
+            
+            ]
 
         {
             kind        = TypeKind.Class
@@ -845,7 +1001,7 @@ module TypeDefinition =
             tpars       = tAdaptivePars
             ctorArgs    = args @ ctorArgs
             ctor        = ctor
-            statics     = []
+            statics     = statics
             members     = members
             interfaces  = []
         }
@@ -867,7 +1023,8 @@ module TypeDefinition =
                     (p, Expr.PropertyGet(Var arg, p))
                 )
 
-            [ productType log [arg] tpars s n props ]
+
+            [ productType log true [arg] tpars s n props ]
               
             
         | Union(_range, scope, name, props, cases) ->
@@ -883,7 +1040,7 @@ module TypeDefinition =
             // * 'paa   -> the new type when nested in a *changeable* scope (e.g. in an alist)
             // * 'aa    -> the new type when not in a *changeable* scope (e.g. record field)
             let tAdaptivePars =
-                tpars |> List.collect (fun t -> [t; TypeVar("pa" + t.Name); TypeVar("a" + t.Name)])
+                tpars |> List.collect (fun t -> [t; TypeVar(Config.primTypeName t.Name); TypeVar(Config.adaptiveTypeName t.Name)])
 
             // create types for each union case
             // example:
@@ -902,26 +1059,27 @@ module TypeDefinition =
                         )
 
                     let typeName = sprintf "%s%s" name caseName
-                    productType log args tpars scope typeName props
+                    productType log false args tpars scope typeName props
                 )
 
             // define an interface-type for all case types. (`AdaptiveFooCase`)
-            let ctorTypeRef = TExtRef(newScope, sprintf "Adaptive%sCase" name, List.map TVar tAdaptivePars)
+            let ctorTypeRef = TExtRef(newScope, sprintf "%sCase" (Config.generatedTypeName name), List.map TVar tAdaptivePars)
             let valueType = TExtRef(scope, name, List.map TVar tpars)
+
             let ctorType =
                 {
                     kind            = TypeKind.Interface
                     priv            = false
                     baseType        = None
                     scope           = newScope
-                    name            = sprintf "Adaptive%sCase" name
+                    name            = sprintf "%sCase" (Config.generatedTypeName name)
                     tpars           = tAdaptivePars
                     ctorArgs        = []
                     ctor            = Expr.Unit
                     statics         = []
                     members =
                         [
-                            false, "update", [new Var("value", valueType)], Expr.Unbox(ctorTypeRef, Expr.Unit)
+                            false, Config.updateMemberName, [new Var("value", valueType)], Expr.Unbox(ctorTypeRef, Expr.Unit)
                         ]
                     interfaces = []
                 }
@@ -957,13 +1115,14 @@ module TypeDefinition =
                     )
 
                 let otherType =
+                    // TODO: wrong????ß
                     TExtRef(newScope, sprintf "%s%s" name caseName, List.map TVar tAdaptivePars)
 
                 let meth =     
                     {
                         declaringType   = Choice1Of2 newScope
                         isStatic        = true
-                        name            = sprintf "Adaptive%s%s" name caseName
+                        name            = sprintf "%s%s" (Config.generatedTypeName name) caseName
                         parameters      = (props |> List.map (fun v -> v.typ)) @ (ctorArgs |> List.map (fun v -> v.Type))
                         returnType      = otherType
                     }
@@ -975,7 +1134,7 @@ module TypeDefinition =
             let implementCtorType (selfCase : string) =
                 let value = new Var("value", valueType)
                 ctorTypeRef, [
-                    "update", [value], (fun (this : Var) ->
+                    Config.updateMemberName, [value], (fun (this : Var) ->
                         Expr.Match(
                             Var value,
                             [
@@ -988,7 +1147,7 @@ module TypeDefinition =
                                             {
                                                 declaringType   = Choice2Of2 this.Type
                                                 isStatic        = false
-                                                name            = "update"
+                                                name            = Config.updateMemberName
                                                 parameters      = vars |> List.map (fun v -> v.Type)
                                                 returnType      = TTuple(false, [])
                                             }
@@ -1019,8 +1178,15 @@ module TypeDefinition =
             // internally changes and implements `aval<AdaptiveFooCase>`
             let adaptiveType =
                 let value = new Var("value", valueType)
-                let current = new Var("__value", ctorTypeRef, true)
+                let current = new Var("__current", ctorTypeRef, true)
                 let n = new Var("__n", ctorTypeRef)
+
+                
+                let currentValue = new Var("__value", ctorTypeRef, true)
+                let adaptive = new Var("__adaptive", AVal.typ valueType)
+                let token = new Var("token", AdaptiveToken.typ)
+
+
 
                 let ctor =
                     Expr.Match(
@@ -1034,74 +1200,119 @@ module TypeDefinition =
                         declaringType = Choice2Of2 ctorTypeRef
                         returnType = ctorTypeRef
                         parameters = [valueType]
-                        name = "update"
+                        name = Config.updateMemberName
                     }
 
-                let selfType = TExtRef(newScope, sprintf "Adaptive%s" name, List.map TVar tAdaptivePars)
+                let selfType = TExtRef(newScope, Config.generatedTypeName name, List.map TVar tAdaptivePars)
 
-                let markOutdated =
-                    {
-                        isStatic = false
-                        declaringType = Choice2Of2 selfType
-                        returnType = TTuple(false, [])
-                        parameters = []
-                        name = "MarkOutdated"
-                    }
-
-                let eval =
-                    {
-                        isStatic = false
-                        declaringType = Choice2Of2 selfType
-                        returnType = TFunc(AdaptiveToken.typ, TFunc(TFunc(AdaptiveToken.typ, ctorTypeRef), ctorTypeRef))
-                        parameters = []
-                        name = "get_EvaluateAlways"
-                    }
 
                 let token = new Var("t", AdaptiveToken.typ)
 
                 let ctorArgs = 
                     tpars |> List.collect (fun t ->
-                        let mat = TypeVar("pa" + t.Name)
-                        let at = TypeVar("a" + t.Name)
+                        let mat = TypeVar(Config.primTypeName t.Name)
+                        let at = TypeVar(Config.adaptiveTypeName t.Name)
 
                         [
-                            new Var(sprintf "prim%sinit" t.Name, TFunc(TVar t, Object.typ))
-                            new Var(sprintf "prim%supdate" t.Name, TFunc(Object.typ, TFunc(TVar t, Object.typ)))
-                            new Var(sprintf "prim%sview" t.Name, TFunc(Object.typ, TVar mat))
-                            new Var(sprintf "%sinit" t.Name, TFunc(TVar t, Object.typ))
-                            new Var(sprintf "%supdate" t.Name, TFunc(Object.typ, TFunc(TVar t, Object.typ)))
-                            new Var(sprintf "%sview" t.Name, TFunc(Object.typ, TVar at))
+                            new Var(Config.priminitName t.Name, TFunc(TVar t, Object.typ))
+                            new Var(Config.primupdateName t.Name, TFunc(Object.typ, TFunc(TVar t, Object.typ)))
+                            new Var(Config.primviewName t.Name, TFunc(Object.typ, TVar mat))
+                            new Var(Config.initName t.Name, TFunc(TVar t, Object.typ))
+                            new Var(Config.updateName t.Name, TFunc(Object.typ, TFunc(TVar t, Object.typ)))
+                            new Var(Config.viewName t.Name, TFunc(Object.typ, TVar at))
                         ]
                     )
 
+                let selfCtor =  
+                    let selfFullName =
+                        TypeRef.toString newScope selfType
+                    {
+                        declaringType = Choice1Of2 newScope
+                        isStatic      = true
+                        name          = selfFullName
+                        parameters    = value :: ctorArgs |> List.map (fun v -> v.Type)
+                        returnType    = selfType
+                    }
+
+                let selfUpdate =  
+                    {
+                        declaringType = Choice2Of2 selfType
+                        isStatic      = false
+                        name          = Config.updateMemberName
+                        parameters    = [value.Type]
+                        returnType    = TTuple(false, [])
+                    }
 
                 {
                     kind            = TypeKind.Class
                     priv            = false
                     baseType        = Some (AbstractAdaptiveValue.typ ctorTypeRef)
                     scope           = newScope
-                    name            = sprintf "Adaptive%s" name
+                    name            = Config.generatedTypeName name
                     tpars           = tAdaptivePars
                     ctorArgs        = value :: ctorArgs
-                    ctor            = Expr.Let(false, [current], ctor, Expr.Unit)
+                    ctor            = 
+                        Expr.Let(
+                            false, [currentValue], Var value,
+                            Expr.Let(
+                                false, [current], ctor, 
+                                Expr.Let(
+                                    false, [adaptive], 
+                                    Expr.Call(None, AVal.custom valueType, [Lambda([token], Var currentValue)]),
+                                    Expr.Unit
+                                )
+                            )
+                        )
                             
                     statics =
                         [
-                            "CreateAdaptiveCase", value :: ctorArgs, ctor
+                            yield false, Config.createAdaptiveCaseName, (value :: ctorArgs), ctor
+                            yield false, Config.createMemberName, value :: ctorArgs, Expr.Call(None, selfCtor, List.map Var (value :: ctorArgs))
+
+                            
+                            match tpars with
+                            | [] ->
+                                let value = new Var("value", valueType)
+                                let adaptive = new Var("adaptive", selfType)
+                                yield false, "get_Unpersist", [],
+                                    Expr.Application(
+                                        Expr.Application(
+                                            Expr.Call(None, Adaptor.create valueType selfType, []),
+                                            Lambda([value], Expr.Call(None, selfCtor, [Var value]))
+                                        ),
+                                        Lambda([adaptive], Lambda([value], Expr.Call(Some (Var adaptive), selfUpdate, [Var value])))
+                                    )
+                            | _ ->
+                                ()
+
                         ]
 
                     members =
                         [
-                            false, "update", [value], 
-                                Expr.Let(false, [n], Expr.Call(Some (Var current), updateMeth, [Var value]), 
-                                    Expr.IfThenElse(
-                                        Call(None, notMeth, [eq (Var n) (Var current)]),
-                                        Expr.Seq(
-                                            VarSet(current, Var n),
-                                            Call(Some (Var (new Var("__", selfType))), markOutdated, [])
-                                        ),
-                                        Expr.Unit
-                                    )
+                            false, "get_" + Config.currentMemberName, [], Expr.Var adaptive
+                            false, Config.updateMemberName, [value], 
+                                Expr.IfThenElse(
+                                    Call(None, notMeth, [eq (Var value) (Var currentValue)]),
+                                    Expr.Many [
+                                        let tunit = TTuple(false, [])
+
+                                        Expr.VarSet(currentValue, Var value)
+
+                                        Expr.Call(Some (Var adaptive), AdaptiveObject.markOutdated, [])
+
+
+                                        Expr.Let(false, [n], Expr.Call(Some (Var current), updateMeth, [Var value]), 
+                                            Expr.IfThenElse(
+                                                Call(None, notMeth, [eq (Var n) (Var current)]),
+                                                Expr.Seq(
+                                                    VarSet(current, Var n),
+                                                    Call(Some (Var (new Var("__", selfType))), AdaptiveObject.markOutdated, [])
+                                                ),
+                                                Expr.Unit
+                                            )
+                                        )
+                                    ],
+                                    Expr.Unit
                                 )
                             true, "Compute", [token], Var current
                         ]
@@ -1121,7 +1332,7 @@ module TypeDefinition =
             // for the new union-type. `(|AdaptiveBar|AdaptiveBaz|)`
             let patterns =
 
-                let patternName =  cases |> List.map (fun (n,_) -> sprintf "Adaptive%s" n) |> String.concat "|" |> sprintf "(|%s|)"
+                let patternName =  cases |> List.map (fun (n,_) -> Config.generatedTypeName n) |> String.concat "|" |> sprintf "(|%s|)"
 
                 let value = new Var("value", ctorTypeRef)
 
@@ -1130,7 +1341,7 @@ module TypeDefinition =
                     priv            = false
                     baseType        = None
                     scope           = newScope
-                    name            = sprintf "Adaptive%s" name
+                    name            = Config.generatedTypeName name
                     tpars           = []
                     ctorArgs        = []
                     ctor            = Expr.Unit
@@ -1139,15 +1350,15 @@ module TypeDefinition =
                             
                     statics =
                         [
-                            patternName, [value], 
+                            false, patternName, [value], 
                                 Expr.Match(Var value, [
                                     for (c, props) in cases do
-                                        let n = TExtRef(newScope, sprintf "Adaptive%s%s" name c, List.map TVar tAdaptivePars)
+                                        let n = TExtRef(newScope, sprintf "%s%s" (Config.generatedTypeName name) c, List.map TVar tAdaptivePars)
                                         let ctor = 
                                             {
                                                 isStatic = true
                                                 declaringType = Choice1Of2 newScope
-                                                name = sprintf "Adaptive%s" c
+                                                name = Config.generatedTypeName  c
                                                 parameters = props |> List.map (fun p -> p.typ)
                                                 returnType = TTuple(false, [])
                                             }
@@ -1155,7 +1366,7 @@ module TypeDefinition =
                                         let pat = TypeTest(n, self)
                                         match props with
                                         | [] ->
-                                            yield pat, Expr.Var(new Var(sprintf "Adaptive%s" c, TTuple(false, [])))
+                                            yield pat, Expr.Var(new Var(Config.generatedTypeName c, TTuple(false, [])))
 
                                         | _ ->
                                             let body = Call(None, ctor, props |> List.map (fun p -> Expr.PropertyGet(Var self, p)))
