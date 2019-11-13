@@ -1,5 +1,8 @@
 # Adaptify
 
+[![Build status](https://ci.appveyor.com/api/projects/status/7er7gx0uf62x3v7d/branch/master?svg=true)](https://ci.appveyor.com/project/krauthaufen/adaptify/branch/master)
+
+
 Adaptify provides a MSBuild plugin for automatically *incrementalizing* F# types using [FSharp.Data.Adaptive](https://github.com/fsprojects/FSharp.Data.Adaptive). It generates associated types for all types in the project that are marked with the `ModelType` attribute. It currently achieves that via inserting generated files (suffixed with `.g.fs`) in your project that contain the adaptive reprensentations for all necessary types.
 
 ### Example
