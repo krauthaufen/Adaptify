@@ -105,7 +105,7 @@ module Prop =
         let typ = TypeRef.ofType log targs f.FieldType
         let name = f.Name
         {
-            range = f.DeclarationLocation
+            range = try f.DeclarationLocation with _ -> range0
             name = name
             typ = typ
             mode = mode
@@ -121,7 +121,7 @@ module Prop =
             let typ = TypeRef.ofType log targs mfv.GetterMethod.ReturnParameter.Type
             let name = mfv.DisplayName
             Some {
-                range = mfv.DeclarationLocation
+                range = try mfv.DeclarationLocation with _ -> range0
                 name = name
                 typ = typ
                 mode = mode
@@ -177,7 +177,7 @@ module TypeRef =
 
         elif t.HasTypeDefinition then
             let def = t.TypeDefinition
-            let range = def.DeclarationLocation
+            let range = try def.DeclarationLocation with _ -> range0
             if def.IsArrayType then
                 let el = ofType log args t.GenericArguments.[0]
                 TArray(el, def.ArrayRank)
@@ -289,7 +289,7 @@ module TypeDef =
             |> Seq.toList
             |> List.choose (Prop.ofMemberOrFunctionOrValue log parMap)
 
-        let range = e.DeclarationLocation
+        let range = try e.DeclarationLocation with _ -> range0
 
         if e.IsFSharpRecord then
             let fields = 
@@ -348,14 +348,15 @@ module TypeDef =
             e.Attributes |> Seq.exists FSharpAttribute.isModelType
 
         if isModel then 
-            if e.IsArrayType then log.warn e.DeclarationLocation "2413" "arrays cannot be model types"; None
-            elif e.IsByRef then log.warn e.DeclarationLocation "2413" "byrefs cannot be model types"; None
-            elif e.IsDelegate then log.warn e.DeclarationLocation "2413" "delegates cannot be model types"; None
-            elif e.IsEnum then log.warn e.DeclarationLocation "2413" "enums cannot be model types"; None
-            //elif e.IsFSharpAbbreviation then log.warn e.DeclarationLocation "abbreviations cannot be model types"; None
-            elif e.IsFSharpExceptionDeclaration then log.warn e.DeclarationLocation "2413" "exceptions cannot be model types"; None
-            elif e.IsFSharpModule then log.warn e.DeclarationLocation "2413" "modules cannot be model types"; None
-            elif e.IsMeasure then log.warn e.DeclarationLocation "2413" "measures cannot be model types"; None
+            let loc = try e.DeclarationLocation with _ -> range0
+            if e.IsArrayType then log.warn loc "2413" "arrays cannot be model types"; None
+            elif e.IsByRef then log.warn loc "2413" "byrefs cannot be model types"; None
+            elif e.IsDelegate then log.warn loc "2413" "delegates cannot be model types"; None
+            elif e.IsEnum then log.warn loc "2413" "enums cannot be model types"; None
+            //elif e.IsFSharpAbbreviation then log.warn loc "abbreviations cannot be model types"; None
+            elif e.IsFSharpExceptionDeclaration then log.warn loc "2413" "exceptions cannot be model types"; None
+            elif e.IsFSharpModule then log.warn loc "2413" "modules cannot be model types"; None
+            elif e.IsMeasure then log.warn loc "2413" "measures cannot be model types"; None
             else dict.GetOrAdd(e, fun e -> lazy (create log e)) |> Some
         else    
             None

@@ -6,12 +6,12 @@ Adaptify provides a MSBuild plugin for automatically *incrementalizing* F# types
 
 ### Notes
 
-The project also contains a command line version of the generator which will be published as a dotnet tool when its done.
+This project also contains a command line version of the generator which will be published as a dotnet tool when its done.
 
 Note that the MSBuild plugin cannot be built on Linux/MacOS currently. Nonetheless it should work on these platforms.
 Currently there are efforts to improve the MSBuild integration, so in case I break something for VS/VSCode let me know...
 
-The generated files (and their base-library) are fable-compatible and the generated package includes the `fable/` folder, so all of this should simply be usable in fable projects.
+The generated files (and their base library) are fable-compatible and the generated package includes the `fable/` folder, so all of this should simply be usable in fable projects.
 
 ### Example
 
@@ -69,8 +69,8 @@ type AdaptiveModel =
 
 ```
 
-### Type Function
-Since this type association can be quite involved at times here's a complete table showing how the translation works (where `α` denotes the adaptify type-function)
+### Semantics
+Since this type association can be quite involved at times here's a complete table showing how the translation works (where `α` denotes the adaptify-type-function)
 
 
 | Immutable                 | Adaptive                          | Remarks                                  |
@@ -79,12 +79,27 @@ Since this type association can be quite involved at times here's a complete tab
 | `α(HashSet<'T>)`          | `aset<α('T)>`                     | `aset<aval<'T>>` -> `aset<'T>`           |
 | `α(HashMap<'K, 'V>)`      | `amap<'K, α('V)>`                 | `amap<'K, aval<'V>>` -> `amap<'K, 'V>`   |
 | `α({ a:'T;.. })`          | `{ a:α('T);..}`                   | product types                            |
+| `α('T * ..)`              | `(α('T) * ..)`                    | tuples                                   |
+| `α(struct('T * ..))`      | `(α('T) * ..)`                    | struct tuples                            |
 | `α(\|A of 'T..)`          | `aval<\|AdaptiveA of α('T)..>`    | sum types                                |
 | `α('T)`                   | `aval<'T>`                        | *opaque* types                           |
 
 ### Compilation
-The MSBuild plugin inserts the generated files in your project directly after the original files. This means that you need to put  **model-types in a separate file** in order to *see* their adaptified version in subsequent files for e.g. view functions.
-We worked hard to avoid this, but couldn't figure out a way of working around this limitation yet. Once type-providers are capable of taking types as arguments (see https://github.com/fsharp/fslang-suggestions/issues/212) this limitation might be overcome.
+The MSBuild plugin inserts the generated files in your project directly after the original files. This means that you need to put  **model types in a separate file** in order to *see* their adaptified version in subsequent files for e.g. view functions.
+We worked hard to avoid this, but couldn't figure out a way of working around this limitation yet. Once type providers are capable of taking types as arguments (see https://github.com/fsharp/fslang-suggestions/issues/212) this limitation might be overcome.
+
+### Adaptifying third party types
+Foreign types (for example from third party libraries, etc.) can be adaptified afterwards! Simply create a type alias for the foreign type to be adaptified.
+
+```fsharp 
+[<ModelType>]
+type MyTime = System.DateTime
+
+..
+
+let t = AdaptiveMyTime(System.DateTime.Now)
+t.Day |> AVal.map (fun d -> "Today is "+string d)
+```
 
 ### Namespaces
 The generated types will be defined in the same namespace as your original types if the original ones were not defined inside a module.
@@ -109,11 +124,11 @@ module Adaptify =
 ```
 
 We sadly couldn't figure out a better way for modules, since they can only be declared once per assembly (no partial modules).  
-Generally speaking we **strogly recommend that you put your model-types directly in namespaces** to avoid confusion.
+Generally speaking we **strongly recommend that you put your model types directly in namespaces** to avoid confusion.
 
 
 ### Sum Types (Unions)
-Union types are treated somewhat special and it can be irritating how they capture two kinds of changes.
+Union types receive special treatment and it can be irritating how they capture two kinds of changes.
 Therefore I'll give a short overview here.
 
 ```fsharp
@@ -123,14 +138,14 @@ type Union =
     | B of string
 ```
 
-let's consider translating that in a *natural* way:
+Let's consider translating that in a *natural* way:
 ```fsharp
 type AdaptiveUnionCase =
     | AdaptiveA of aval<int>
     | AdaptiveB of aval<string>
 ```
 
-This cannot capture all changes happening, since there is no adaptive reprensentation of the current union-case.
+This cannot capture all changes happening, since there is no adaptive reprensentation of the current union case.
 Therefore our system generates an additional type:
 
 ```fsharp
@@ -142,11 +157,11 @@ type AdaptiveUnion =
 ```
 
 This way we can capture both kinds of changes:
-* inner field-changes are handled by the respective case-types
+* inner field changes are handled by the respective case-types
 * case/constructor changes are handled by the outer wrapper
 
 Note that these `aval` instances will be removed whenever they occur inside changeable collections 
-Take for example `alist<AdaptiveUnion>` (which is conceptually identical to `alist<aval<AdaptiveUnionCase>>`) will be turned into `alist<AdaptiveUnionCase>`, since the outer list can take care of the case-changes here.
+Take for example `alist<AdaptiveUnion>` (which is conceptually identical to `alist<aval<AdaptiveUnionCase>>`) will be turned into `alist<AdaptiveUnionCase>`, since the outer list can take care of the case changes here.
 
 
 
