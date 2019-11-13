@@ -71,6 +71,35 @@ Since this type association can be quite involved at times here's a complete tab
 | `α(\|A of 'T..)`          | `aval<\|AdaptiveA of α('T)..>`    | sum types                                |
 | `α('T)`                   | `aval<'T>`                        | *opaque* types                           |
 
+### Compilation
+The MSBuild plugin inserts the generated files in your project directly after the original files. This means that you need to put  **model-types in a separate file** in order to *see* their adaptified version in subsequent files for e.g. view functions.
+We worked hard to avoid this, but couldn't figure out a way of working around this limitation yet. Once type-providers are capable of taking types as arguments (see https://github.com/fsharp/fslang-suggestions/issues/212) this limitation might be overcome.
+
+### Namespaces
+The generated types will be defined in the same namespace as your original types if the original ones were not defined inside a module.
+
+If they are defined in a module the generated types will get defined in a somewhat strange scope. Consider:
+```fsharp
+namespace A
+module B =
+    [<ModelType>]
+    type Foo = { bar : int }
+```
+
+The generator will then emit
+```fsharp
+namespace A
+
+[<AutoOpen>]
+module Adaptify =
+    module B =
+        [<ModelType>]
+        type AdaptiveFoo = // ...
+```
+
+We sadly couldn't figure out a better way for modules, since they can only be declared once per assembly (no partial modules).  
+Generally speaking we **strogly recommend that you put your model-types directly in namespaces** to avoid confusion.
+
 
 ### Sum Types (Unions)
 Union types are treated somewhat special and it can be irritating how they capture two kinds of changes.
@@ -107,6 +136,7 @@ This way we can capture both kinds of changes:
 
 Note that these `aval` instances will be removed whenever they occur inside changeable collections 
 Take for example `alist<AdaptiveUnion>` (which is conceptually identical to `alist<aval<AdaptiveUnionCase>>`) will be turned into `alist<AdaptiveUnionCase>`, since the outer list can take care of the case-changes here.
+
 
 
 ### Generics
