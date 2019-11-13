@@ -83,6 +83,39 @@ module AdaptiveTypes =
         let typ (t : TypeRef) =    
             TExtRef(adaptify, "AdaptiveValue", [t])
 
+    module Lazy =
+        let typ (t : TypeRef) =
+            TExtRef(Namespace "System", "Lazy", [t])
+            
+        let ll (f : unit -> 'a) = System.Lazy<_>(f)
+
+        let ctor (t : TypeRef) =
+            {
+                isStatic = true
+                declaringType = Choice1Of2 Global
+                name = "lazy"
+                parameters = []
+                returnType = typ t
+            }
+        let value (t : TypeRef) =
+            {
+                isStatic = false
+                declaringType = Choice2Of2 (typ t)
+                name = "get_Value"
+                parameters = []
+                returnType = t
+            }
+
+        let isValueCreated (t : TypeRef) =
+            {
+                isStatic = false
+                declaringType = Choice2Of2 (typ t)
+                name = "get_IsValueCreated"
+                parameters = []
+                returnType = TBool
+            }
+
+
     module CVal =
         let typ (t : TypeRef) = 
             TExtRef(fda, "cval", [t])
