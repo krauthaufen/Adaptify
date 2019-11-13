@@ -228,6 +228,26 @@ Target.create "ReleaseDocs" (fun _ ->
 )
 
 
+let ilrepack (outFolder : string) (args : list<string>) =
+    let path = Path.GetFullPath(Path.Combine("packages", "build", "ILRepack", "tools", "ILRepack.exe"))
+    let program, args =
+        match Environment.OSVersion.Platform with
+        | PlatformID.Unix | PlatformID.MacOSX ->
+            "mono", path :: args
+        | _ ->
+            path, args
+
+    let paramters = 
+        { 
+            Program = program
+            WorkingDir = outFolder
+            CommandLine = String.concat " " args
+            Args = []
+        }
+
+    Fake.Core.Process.shellExec paramters
+
+
 Target.create "MergeDotNet" (fun _ ->
     
     let outFolder =
@@ -249,7 +269,7 @@ Target.create "MergeDotNet" (fun _ ->
     )
 
     let args =
-        [|
+        [
             "/out:../Adaptify.MSBuild.DotNet.dll"
             "/internalize"
             
@@ -257,18 +277,10 @@ Target.create "MergeDotNet" (fun _ ->
             "Adaptify.Compiler.Core.dll"
             "FSharp.Compiler.Service.dll"
             "FSharp.Core.dll"
-        |]
+        ]
 
-    let worked = 
-        let paramters = 
-            { 
-                Program = Path.GetFullPath(Path.Combine("packages", "build", "ILRepack", "tools", "ILRepack.exe"))
-                WorkingDir = outFolder
-                CommandLine = String.concat " " args
-                Args = []
-            }
+    let worked = ilrepack outFolder args
 
-        Fake.Core.Process.shellExec paramters
     if worked = 0 then
         Trace.log "merged"
     else
@@ -297,7 +309,7 @@ Target.create "MergeFramework" (fun _ ->
     )
 
     let args =
-        [|
+        [
             "/out:../Adaptify.MSBuild.Framework.dll"
             "/internalize"
             
@@ -305,18 +317,10 @@ Target.create "MergeFramework" (fun _ ->
             "Adaptify.Compiler.Core.dll"
             "FSharp.Compiler.Service.dll"
             "FSharp.Core.dll"
-        |]
+        ]
+        
+    let worked = ilrepack outFolder args
 
-    let worked = 
-        let paramters = 
-            { 
-                Program = Path.GetFullPath(Path.Combine("packages", "build", "ILRepack", "tools", "ILRepack.exe"))
-                WorkingDir = outFolder
-                CommandLine = String.concat " " args
-                Args = []
-            }
-
-        Fake.Core.Process.shellExec paramters
     if worked = 0 then
         Trace.log "merged"
     else
