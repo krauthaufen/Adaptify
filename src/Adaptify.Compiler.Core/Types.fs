@@ -74,6 +74,7 @@ type TypeDef =
 type AdaptifyMode = 
     | Default
     | Value
+    | Lazy
     | NonAdaptive
 
 module AdaptifyMode =
@@ -116,7 +117,7 @@ module Prop =
             let mode = 
                 if mfv.Attributes |> Seq.exists FSharpAttribute.isNonAdaptive then NonAdaptive
                 elif mfv.Attributes |> Seq.exists FSharpAttribute.isTreatAsValue then Value
-                else Default
+                else Lazy
 
             let typ = TypeRef.ofType log targs mfv.GetterMethod.ReturnParameter.Type
             let name = mfv.DisplayName
@@ -134,6 +135,7 @@ module Prop =
             match p.mode with
             | Value -> "[<TreatAsValue>] "
             | NonAdaptive -> "[<NonAdaptive>] "
+            | Lazy -> ""
             | Default -> ""
         sprintf "%s%s : %s" prefix p.name (string p.typ)
 

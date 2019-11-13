@@ -185,6 +185,28 @@ module Adaptor =
             update = fun c v -> Call(Some c, CVal.setValue t, [v])
             view = fun c -> Upcast(c, AVal.typ t)
         } 
+        
+    let lazyAdaptor (a : Adaptor) =
+        {
+            trivial = a.trivial
+            vType = a.vType
+            mType = Lazy.typ a.mType
+            aType = a.vType
+            init = fun v -> Call(None, Lazy.ctor a.mType, [a.init v])
+            update = fun c v -> 
+                IfThenElse(
+                    Call(Some c, Lazy.isValueCreated a.mType, []),
+                    a.update (Call(Some c, Lazy.value a.mType, [])) v,
+                    (
+                        match c with
+                        | Var c ->
+                            VarSet(c, Call(None, Lazy.ctor a.mType, [a.init v]))
+                        | _ ->
+                            failwith ""
+                    )
+                )
+            view = fun c -> Call(Some c, Lazy.value a.mType, []) |> a.view
+        } 
             
     let asetPrimitive (t : TypeRef) =
         {
@@ -800,8 +822,14 @@ module TypeDefinition =
         
         let adaptors = 
             props |> List.map (fun (prop, get) -> 
+
+                let isMutable =
+                    match prop.mode with
+                    | Lazy -> true
+                    | _ -> false
+
                 let local = 
-                    new Var("_" + prop.name + "_", prop.typ)
+                    new Var("_" + prop.name + "_", prop.typ, isMutable)
 
                 
 
@@ -812,6 +840,9 @@ module TypeDefinition =
                     local, prop, get, Some (Adaptor.aval prop.typ)
                 | AdaptifyMode.Default -> 
                     local, prop, get, Some (Adaptor.get log prop.range false prop.typ)
+                | AdaptifyMode.Lazy ->
+                    let a = Adaptor.get log prop.range false prop.typ
+                    local, prop, get, Some (Adaptor.lazyAdaptor a)
             )
         let props = ()
 
