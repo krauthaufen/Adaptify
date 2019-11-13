@@ -2,8 +2,16 @@
 
 [![Build status](https://ci.appveyor.com/api/projects/status/7er7gx0uf62x3v7d/branch/master?svg=true)](https://ci.appveyor.com/project/krauthaufen/adaptify/branch/master) [![Discord](https://discordapp.com/api/guilds/611129394764840960/widget.png)](https://discord.gg/UyecnhM)
 
-
 Adaptify provides a MSBuild plugin for automatically *incrementalizing* F# types using [FSharp.Data.Adaptive](https://github.com/fsprojects/FSharp.Data.Adaptive). It generates associated types for all types in the project that are marked with the `ModelType` attribute. It currently achieves that via inserting generated files (suffixed with `.g.fs`) in your project that contain the adaptive reprensentations for all necessary types.
+
+### Notes
+
+The project also contains a command line version of the generator which will be published as a dotnet tool when its done.
+
+Note that the MSBuild plugin cannot be built on Linux/MacOS currently. Nonetheless it should work on these platforms.
+Currently there are efforts to improve the MSBuild integration, so in case I break something for VS/VSCode let me know...
+
+The generated files (and their base-library) are fable-compatible and the generated package includes the `fable/` folder, so all of this should simply be usable in fable projects.
 
 ### Example
 
