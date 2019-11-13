@@ -591,6 +591,7 @@ module TypeDefinition =
 
         if d.kind = TypeKind.Interface then
             [|
+                yield "[<System.Diagnostics.CodeAnalysis.SuppressMessage(\"NameConventions\", \"*\")>]"
                 yield sprintf "type %s%s%s =" priv d.name tpars 
                 for (_, name, args, b) in d.members do
                     let typ = b.Type
@@ -608,7 +609,7 @@ module TypeDefinition =
 
         elif d.kind = TypeKind.Module then
             [|
-                yield sprintf "[<AutoOpen>]"
+                yield "[<AutoOpen; System.Diagnostics.CodeAnalysis.SuppressMessage(\"NameConventions\", \"*\")>]"
                 yield sprintf "module %s%s = " priv d.name
                 for (_priv, name, args, b) in d.statics do
                     let typ = b.Type
@@ -636,6 +637,7 @@ module TypeDefinition =
 
             let code =
                 [|
+                    yield "[<System.Diagnostics.CodeAnalysis.SuppressMessage(\"NameConventions\", \"*\")>]"
                     yield sprintf "type %s%s%s(%s) =" priv d.name tpars ctorArgs
                     match d.baseType with
                     | Some b -> yield sprintf "    inherit %s()" (TypeRef.toString d.scope b)
