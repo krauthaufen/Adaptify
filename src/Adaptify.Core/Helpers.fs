@@ -28,55 +28,60 @@ type private ChangeableModelListReader<'C, 'A>(inner : IIndexListReader<'C>, vie
         )
    
 [<CompilerMessage("ChangeableModelMap should not be used directly", 1337, IsHidden = true)>]
-type ChangeableModelMap<'K, 'V, 'C, 'A>(initial : HashMap<'K, 'V>, init : 'V -> 'C, update : 'C -> 'V -> 'C, view : 'C -> 'A) =
-    let _current = cval initial
-    let store = cmap (initial |> HashMap.map (fun _ v -> init v))
+type ChangeableModelMap<'K, 'V, 'C, 'A>(map : HashMap<'K, 'V>, init : 'V -> 'C, update : 'C -> 'V -> 'C, view : 'C -> 'A) =
+    let mutable map = map 
+    let _current = AVal.custom (fun _ -> map)
+    let store = cmap (map |> HashMap.map (fun _ v -> init v))
     let content = (store :> amap<_,_>).Content |> AVal.map (HashMap.map (fun _ -> view))
 
     member x.Current = _current :> aval<_>
 
     member x.GetReader() =
-        ChangeableModelMapReader(store.GetReader(), view) :> IHashMapReader<_,_>
+        match (store :> amap<_,_>).History with
+        | Some r ->
+            r.NewReader(HashMap.trace, HashMapDelta.toHashMap >> HashMap.map (fun i op -> match op with | Set v -> Set (view v) | Remove -> Remove) >> HashMapDelta.ofHashMap)
+        | None ->
+            ChangeableModelMapReader(store.GetReader(), view) :> IHashMapReader<_,_>
 
     member x.Update(value : HashMap<'K, 'V>) = 
-        if not (_current.Value.ConservativeEquals value) then
-            _current.Value <- value
-            store.Value <- 
-                store.Value.UpdateTo(value, fun _k o v ->
-                    match o with
-                    | Some o -> update o v
-                    | None -> init v
-                )
+        if not (map.ConservativeEquals value) then
+            map <- value
+            _current.MarkOutdated()
+            store.UpdateTo(value, init, update)
 
     interface amap<'K, 'A> with
         member x.IsConstant = false
         member x.Content = content
         member x.GetReader() = x.GetReader()
+        member x.History = None
 
 [<CompilerMessage("ChangeableModelList should not be used directly", 1337, IsHidden = true)>]
-type ChangeableModelList<'T, 'C, 'A>(initial : IndexList<'T>, init : 'T -> 'C, update : 'C -> 'T -> 'C, view : 'C -> 'A) =
-    let _current = cval initial
-    let store = clist (initial |> IndexList.map init)
+type ChangeableModelList<'T, 'C, 'A>(list : IndexList<'T>, init : 'T -> 'C, update : 'C -> 'T -> 'C, view : 'C -> 'A) =
+    let mutable list = list 
+    let _current = AVal.custom (fun _ -> list)
+    let store = clist (list |> IndexList.map init)
     let content = (store :> alist<_>).Content |> AVal.map (IndexList.map view)
 
     member x.Current = _current :> aval<_>
 
     member x.Update(value : IndexList<'T>) = 
-        if not (_current.Value.ConservativeEquals value) then
-            _current.Value <- value
-            store.Value <- 
-                store.Value.UpdateTo(value, fun _i o v ->
-                    match o with
-                    | Some o -> update o v
-                    | None -> init v
-                )
+        if not (list.ConservativeEquals value) then
+            list <- value
+            _current.MarkOutdated()
+            store.UpdateTo(value, init, update)
+
     member x.GetReader() =
-        ChangeableModelListReader((store :> alist<_>).GetReader(), view) :> IIndexListReader<_>
+        match (store :> alist<_>).History with
+        | Some r ->
+            r.NewReader(IndexList.trace, IndexListDelta.map (fun i op -> match op with | Set v -> Set (view v) | Remove -> Remove))
+        | None ->
+            ChangeableModelListReader((store :> alist<_>).GetReader(), view) :> IIndexListReader<_>
 
     interface alist<'A> with
         member x.IsConstant = false
         member x.Content = content
         member x.GetReader() = x.GetReader()
+        member x.History = None
  
 [<AbstractClass; CompilerMessage("AdaptiveValue should not be used directly", 1337, IsHidden = true)>]
 type AdaptiveValue<'T>() =

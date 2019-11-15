@@ -62,8 +62,7 @@ module ProjectInfo =
 
                         match msbuild with
                         | Some msbuild -> Dotnet.ProjInfo.Inspect.MSBuildExePath.Path msbuild
-                        | None ->
-                            failwith "no msbuild"
+                        | None -> failwith "no msbuild"
                 Dotnet.ProjInfo.Inspect.msbuild msbuildPath runCmd
 
             let additionalArgs = additionalMSBuildProps |> List.map (Dotnet.ProjInfo.Inspect.MSBuild.MSbuildCli.Property)
@@ -203,7 +202,6 @@ let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
 
     for file in info.files do
         if not (file.EndsWith ".g.fs") then
-            let name = Path.GetFileNameWithoutExtension file
             log.debug range0 "checking %s" file 
             let path = Path.Combine(projDir, file)
             let content = File.ReadAllText path

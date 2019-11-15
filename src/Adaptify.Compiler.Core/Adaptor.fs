@@ -356,8 +356,10 @@ module Adaptor =
         | HashSet (PlainValue t) ->
             asetPrimitive t
 
-        | HashSet _t ->
-            failwith "HashSet<ModelType> not implemented!"
+        | HashSet t ->
+            let fullType = TypeRef.toString Global t
+            log.warn range "7865" "HashSet<%s> cannot be adaptified since HashSets of model-type are not yet implemented" fullType
+            aval typ
 
         | IndexList (PlainValue t) ->
             alistPrimitive t
@@ -759,9 +761,6 @@ module TypeDefinition =
        
 
     let private productType (log : ILog) (current : bool) (args : list<Var>) (tpars : list<TypeVar>) (s : Scope) (n : string) (props : list<Prop * Expr>) =
-        
-
-
         let tAdaptivePars =
             tpars |> List.collect (fun t -> [t; TypeVar(Config.primTypeName t.Name); TypeVar(Config.adaptiveTypeName t.Name)])
 
