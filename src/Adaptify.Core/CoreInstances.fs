@@ -27,7 +27,7 @@ type private AdaptiveOptionSome<'T, '_primT, '_aT>(Value : 'T, _primTinit : 'T -
     let _Value_ = _Tinit Value
     let mutable __Value = Value
     member __.Update(Value : 'T) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<'T>.ShallowEquals(Value, __Value))) then
+        if Operators.not((ShallowEqualityComparer<'T>.ShallowEquals(Value, __Value))) then
             __Value <- Value
             ignore (_Tupdate _Value_ Value)
     member __.Value = _Tview _Value_
@@ -73,11 +73,11 @@ type AdaptiveOption<'T, '_primT, '_aT>(value : Option<'T>, _primTinit : 'T -> Sy
     static member Create(value : Option<'T>, _primTinit : 'T -> System.Object, _primTupdate : System.Object -> 'T -> System.Object, _primTview : System.Object -> '_primT, _Tinit : 'T -> System.Object, _Tupdate : System.Object -> 'T -> System.Object, _Tview : System.Object -> '_aT) = AdaptiveOption<'T, '_primT, '_aT>(value, _primTinit, _primTupdate, _primTview, _Tinit, _Tupdate, _Tview)
     member __.Current = __adaptive
     member __.Update(value : Option<'T>) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<Option<'T>>.ShallowEquals(value, __value))) then
+        if Operators.not((ShallowEqualityComparer<Option<'T>>.ShallowEquals(value, __value))) then
             __value <- value
             __adaptive.MarkOutdated()
             let __n = __current.Update(value)
-            if Operators.not((Adaptify.ShallowEqualityComparer<AdaptiveOptionCase<'T, '_primT, '_aT>>.ShallowEquals(__n, __current))) then
+            if Operators.not((ShallowEqualityComparer<AdaptiveOptionCase<'T, '_primT, '_aT>>.ShallowEquals(__n, __current))) then
                 __current <- __n
                 __.MarkOutdated()
     override __.Compute(t : FSharp.Data.Adaptive.AdaptiveToken) = __current
@@ -94,7 +94,7 @@ type private AdaptiveChoiceChoice1Of2<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2
     let _Item_ = _T1init Item
     let mutable __Item = Item
     member __.Update(Item : 'T1) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<'T1>.ShallowEquals(Item, __Item))) then
+        if Operators.not((ShallowEqualityComparer<'T1>.ShallowEquals(Item, __Item))) then
             __Item <- Item
             ignore (_T1update _Item_ Item)
     member __.Item = _T1view _Item_
@@ -116,7 +116,7 @@ type private AdaptiveChoiceChoice2Of2<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2
     let _Item_ = _T2init Item
     let mutable __Item = Item
     member __.Update(Item : 'T2) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<'T2>.ShallowEquals(Item, __Item))) then
+        if Operators.not((ShallowEqualityComparer<'T2>.ShallowEquals(Item, __Item))) then
             __Item <- Item
             ignore (_T2update _Item_ Item)
     member __.Item = _T2view _Item_
@@ -177,11 +177,11 @@ type AdaptiveChoice<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2>(value : Choice<'
     static member Create(value : Choice<'T1, 'T2>, _primT1init : 'T1 -> System.Object, _primT1update : System.Object -> 'T1 -> System.Object, _primT1view : System.Object -> '_primT1, _T1init : 'T1 -> System.Object, _T1update : System.Object -> 'T1 -> System.Object, _T1view : System.Object -> '_aT1, _primT2init : 'T2 -> System.Object, _primT2update : System.Object -> 'T2 -> System.Object, _primT2view : System.Object -> '_primT2, _T2init : 'T2 -> System.Object, _T2update : System.Object -> 'T2 -> System.Object, _T2view : System.Object -> '_aT2) = AdaptiveChoice<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2>(value, _primT1init, _primT1update, _primT1view, _T1init, _T1update, _T1view, _primT2init, _primT2update, _primT2view, _T2init, _T2update, _T2view)
     member __.Current = __adaptive
     member __.Update(value : Choice<'T1, 'T2>) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<Choice<'T1, 'T2>>.ShallowEquals(value, __value))) then
+        if Operators.not((ShallowEqualityComparer<Choice<'T1, 'T2>>.ShallowEquals(value, __value))) then
             __value <- value
             __adaptive.MarkOutdated()
             let __n = __current.Update(value)
-            if Operators.not((Adaptify.ShallowEqualityComparer<AdaptiveChoiceCase<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2>>.ShallowEquals(__n, __current))) then
+            if Operators.not((ShallowEqualityComparer<AdaptiveChoiceCase<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2>>.ShallowEquals(__n, __current))) then
                 __current <- __n
                 __.MarkOutdated()
     override __.Compute(t : FSharp.Data.Adaptive.AdaptiveToken) = __current
@@ -192,7 +192,7 @@ type private AdaptiveChoiceChoice1Of3<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2
     let _Item_ = _T1init Item
     let mutable __Item = Item
     member __.Update(Item : 'T1) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<'T1>.ShallowEquals(Item, __Item))) then
+        if Operators.not((ShallowEqualityComparer<'T1>.ShallowEquals(Item, __Item))) then
             __Item <- Item
             ignore (_T1update _Item_ Item)
     member __.Item = _T1view _Item_
@@ -228,7 +228,7 @@ type private AdaptiveChoiceChoice2Of3<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2
     let _Item_ = _T2init Item
     let mutable __Item = Item
     member __.Update(Item : 'T2) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<'T2>.ShallowEquals(Item, __Item))) then
+        if Operators.not((ShallowEqualityComparer<'T2>.ShallowEquals(Item, __Item))) then
             __Item <- Item
             ignore (_T2update _Item_ Item)
     member __.Item = _T2view _Item_
@@ -264,7 +264,7 @@ type private AdaptiveChoiceChoice3Of3<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2
     let _Item_ = _T3init Item
     let mutable __Item = Item
     member __.Update(Item : 'T3) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<'T3>.ShallowEquals(Item, __Item))) then
+        if Operators.not((ShallowEqualityComparer<'T3>.ShallowEquals(Item, __Item))) then
             __Item <- Item
             ignore (_T3update _Item_ Item)
     member __.Item = _T3view _Item_
@@ -373,11 +373,11 @@ type AdaptiveChoice<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '
     static member Create(value : Choice<'T1, 'T2, 'T3>, _primT1init : 'T1 -> System.Object, _primT1update : System.Object -> 'T1 -> System.Object, _primT1view : System.Object -> '_primT1, _T1init : 'T1 -> System.Object, _T1update : System.Object -> 'T1 -> System.Object, _T1view : System.Object -> '_aT1, _primT2init : 'T2 -> System.Object, _primT2update : System.Object -> 'T2 -> System.Object, _primT2view : System.Object -> '_primT2, _T2init : 'T2 -> System.Object, _T2update : System.Object -> 'T2 -> System.Object, _T2view : System.Object -> '_aT2, _primT3init : 'T3 -> System.Object, _primT3update : System.Object -> 'T3 -> System.Object, _primT3view : System.Object -> '_primT3, _T3init : 'T3 -> System.Object, _T3update : System.Object -> 'T3 -> System.Object, _T3view : System.Object -> '_aT3) = AdaptiveChoice<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3>(value, _primT1init, _primT1update, _primT1view, _T1init, _T1update, _T1view, _primT2init, _primT2update, _primT2view, _T2init, _T2update, _T2view, _primT3init, _primT3update, _primT3view, _T3init, _T3update, _T3view)
     member __.Current = __adaptive
     member __.Update(value : Choice<'T1, 'T2, 'T3>) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<Choice<'T1, 'T2, 'T3>>.ShallowEquals(value, __value))) then
+        if Operators.not((ShallowEqualityComparer<Choice<'T1, 'T2, 'T3>>.ShallowEquals(value, __value))) then
             __value <- value
             __adaptive.MarkOutdated()
             let __n = __current.Update(value)
-            if Operators.not((Adaptify.ShallowEqualityComparer<AdaptiveChoiceCase<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3>>.ShallowEquals(__n, __current))) then
+            if Operators.not((ShallowEqualityComparer<AdaptiveChoiceCase<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3>>.ShallowEquals(__n, __current))) then
                 __current <- __n
                 __.MarkOutdated()
     override __.Compute(t : FSharp.Data.Adaptive.AdaptiveToken) = __current
@@ -388,7 +388,7 @@ type private AdaptiveChoiceChoice1Of4<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2
     let _Item_ = _T1init Item
     let mutable __Item = Item
     member __.Update(Item : 'T1) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<'T1>.ShallowEquals(Item, __Item))) then
+        if Operators.not((ShallowEqualityComparer<'T1>.ShallowEquals(Item, __Item))) then
             __Item <- Item
             ignore (_T1update _Item_ Item)
     member __.Item = _T1view _Item_
@@ -444,7 +444,7 @@ type private AdaptiveChoiceChoice2Of4<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2
     let _Item_ = _T2init Item
     let mutable __Item = Item
     member __.Update(Item : 'T2) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<'T2>.ShallowEquals(Item, __Item))) then
+        if Operators.not((ShallowEqualityComparer<'T2>.ShallowEquals(Item, __Item))) then
             __Item <- Item
             ignore (_T2update _Item_ Item)
     member __.Item = _T2view _Item_
@@ -500,7 +500,7 @@ type private AdaptiveChoiceChoice3Of4<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2
     let _Item_ = _T3init Item
     let mutable __Item = Item
     member __.Update(Item : 'T3) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<'T3>.ShallowEquals(Item, __Item))) then
+        if Operators.not((ShallowEqualityComparer<'T3>.ShallowEquals(Item, __Item))) then
             __Item <- Item
             ignore (_T3update _Item_ Item)
     member __.Item = _T3view _Item_
@@ -556,7 +556,7 @@ type private AdaptiveChoiceChoice4Of4<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2
     let _Item_ = _T4init Item
     let mutable __Item = Item
     member __.Update(Item : 'T4) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<'T4>.ShallowEquals(Item, __Item))) then
+        if Operators.not((ShallowEqualityComparer<'T4>.ShallowEquals(Item, __Item))) then
             __Item <- Item
             ignore (_T4update _Item_ Item)
     member __.Item = _T4view _Item_
@@ -731,11 +731,11 @@ type AdaptiveChoice<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '
     static member Create(value : Choice<'T1, 'T2, 'T3, 'T4>, _primT1init : 'T1 -> System.Object, _primT1update : System.Object -> 'T1 -> System.Object, _primT1view : System.Object -> '_primT1, _T1init : 'T1 -> System.Object, _T1update : System.Object -> 'T1 -> System.Object, _T1view : System.Object -> '_aT1, _primT2init : 'T2 -> System.Object, _primT2update : System.Object -> 'T2 -> System.Object, _primT2view : System.Object -> '_primT2, _T2init : 'T2 -> System.Object, _T2update : System.Object -> 'T2 -> System.Object, _T2view : System.Object -> '_aT2, _primT3init : 'T3 -> System.Object, _primT3update : System.Object -> 'T3 -> System.Object, _primT3view : System.Object -> '_primT3, _T3init : 'T3 -> System.Object, _T3update : System.Object -> 'T3 -> System.Object, _T3view : System.Object -> '_aT3, _primT4init : 'T4 -> System.Object, _primT4update : System.Object -> 'T4 -> System.Object, _primT4view : System.Object -> '_primT4, _T4init : 'T4 -> System.Object, _T4update : System.Object -> 'T4 -> System.Object, _T4view : System.Object -> '_aT4) = AdaptiveChoice<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3, 'T4, '_primT4, '_aT4>(value, _primT1init, _primT1update, _primT1view, _T1init, _T1update, _T1view, _primT2init, _primT2update, _primT2view, _T2init, _T2update, _T2view, _primT3init, _primT3update, _primT3view, _T3init, _T3update, _T3view, _primT4init, _primT4update, _primT4view, _T4init, _T4update, _T4view)
     member __.Current = __adaptive
     member __.Update(value : Choice<'T1, 'T2, 'T3, 'T4>) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<Choice<'T1, 'T2, 'T3, 'T4>>.ShallowEquals(value, __value))) then
+        if Operators.not((ShallowEqualityComparer<Choice<'T1, 'T2, 'T3, 'T4>>.ShallowEquals(value, __value))) then
             __value <- value
             __adaptive.MarkOutdated()
             let __n = __current.Update(value)
-            if Operators.not((Adaptify.ShallowEqualityComparer<AdaptiveChoiceCase<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3, 'T4, '_primT4, '_aT4>>.ShallowEquals(__n, __current))) then
+            if Operators.not((ShallowEqualityComparer<AdaptiveChoiceCase<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3, 'T4, '_primT4, '_aT4>>.ShallowEquals(__n, __current))) then
                 __current <- __n
                 __.MarkOutdated()
     override __.Compute(t : FSharp.Data.Adaptive.AdaptiveToken) = __current
@@ -767,7 +767,7 @@ type private AdaptiveResultOk<'T, '_primT, '_aT, 'TError, '_primTError, '_aTErro
     let _ResultValue_ = _Tinit ResultValue
     let mutable __ResultValue = ResultValue
     member __.Update(ResultValue : 'T) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<'T>.ShallowEquals(ResultValue, __ResultValue))) then
+        if Operators.not((ShallowEqualityComparer<'T>.ShallowEquals(ResultValue, __ResultValue))) then
             __ResultValue <- ResultValue
             ignore (_Tupdate _ResultValue_ ResultValue)
     member __.ResultValue = _Tview _ResultValue_
@@ -789,7 +789,7 @@ type private AdaptiveResultError<'T, '_primT, '_aT, 'TError, '_primTError, '_aTE
     let _ErrorValue_ = _TErrorinit ErrorValue
     let mutable __ErrorValue = ErrorValue
     member __.Update(ErrorValue : 'TError) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<'TError>.ShallowEquals(ErrorValue, __ErrorValue))) then
+        if Operators.not((ShallowEqualityComparer<'TError>.ShallowEquals(ErrorValue, __ErrorValue))) then
             __ErrorValue <- ErrorValue
             ignore (_TErrorupdate _ErrorValue_ ErrorValue)
     member __.ErrorValue = _TErrorview _ErrorValue_
@@ -850,11 +850,11 @@ type AdaptiveResult<'T, '_primT, '_aT, 'TError, '_primTError, '_aTError>(value :
     static member Create(value : Result<'T, 'TError>, _primTinit : 'T -> System.Object, _primTupdate : System.Object -> 'T -> System.Object, _primTview : System.Object -> '_primT, _Tinit : 'T -> System.Object, _Tupdate : System.Object -> 'T -> System.Object, _Tview : System.Object -> '_aT, _primTErrorinit : 'TError -> System.Object, _primTErrorupdate : System.Object -> 'TError -> System.Object, _primTErrorview : System.Object -> '_primTError, _TErrorinit : 'TError -> System.Object, _TErrorupdate : System.Object -> 'TError -> System.Object, _TErrorview : System.Object -> '_aTError) = AdaptiveResult<'T, '_primT, '_aT, 'TError, '_primTError, '_aTError>(value, _primTinit, _primTupdate, _primTview, _Tinit, _Tupdate, _Tview, _primTErrorinit, _primTErrorupdate, _primTErrorview, _TErrorinit, _TErrorupdate, _TErrorview)
     member __.Current = __adaptive
     member __.Update(value : Result<'T, 'TError>) =
-        if Operators.not((Adaptify.ShallowEqualityComparer<Result<'T, 'TError>>.ShallowEquals(value, __value))) then
+        if Operators.not((ShallowEqualityComparer<Result<'T, 'TError>>.ShallowEquals(value, __value))) then
             __value <- value
             __adaptive.MarkOutdated()
             let __n = __current.Update(value)
-            if Operators.not((Adaptify.ShallowEqualityComparer<AdaptiveResultCase<'T, '_primT, '_aT, 'TError, '_primTError, '_aTError>>.ShallowEquals(__n, __current))) then
+            if Operators.not((ShallowEqualityComparer<AdaptiveResultCase<'T, '_primT, '_aT, 'TError, '_primTError, '_aTError>>.ShallowEquals(__n, __current))) then
                 __current <- __n
                 __.MarkOutdated()
     override __.Compute(t : FSharp.Data.Adaptive.AdaptiveToken) = __current

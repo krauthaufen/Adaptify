@@ -44,7 +44,7 @@ type ChangeableModelMap<'K, 'V, 'C, 'A>(map : HashMap<'K, 'V>, init : 'V -> 'C, 
             ChangeableModelMapReader(store.GetReader(), view) :> IHashMapReader<_,_>
 
     member x.Update(value : HashMap<'K, 'V>) = 
-        if not (map.ConservativeEquals value) then
+        if not (ShallowEqualityComparer<_>.ShallowEquals(map, value)) then
             map <- value
             _current.MarkOutdated()
             store.UpdateTo(value, init, update)
@@ -65,7 +65,7 @@ type ChangeableModelList<'T, 'C, 'A>(list : IndexList<'T>, init : 'T -> 'C, upda
     member x.Current = _current :> aval<_>
 
     member x.Update(value : IndexList<'T>) = 
-        if not (list.ConservativeEquals value) then
+        if not (ShallowEqualityComparer<_>.ShallowEquals(list, value)) then
             list <- value
             _current.MarkOutdated()
             store.UpdateTo(value, init, update)

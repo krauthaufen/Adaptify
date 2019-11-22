@@ -1,3 +1,6 @@
+### 0.0.4
+* updated FSharp.Data.Adaptive
+
 ### 0.0.3
 * updated FSharp.Data.Adaptive
 * improved CList/CMap diffing

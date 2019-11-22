@@ -311,7 +311,7 @@ module AdaptiveTypes =
   
     let shallowEquals (t : TypeRef) =
         {
-            declaringType = Choice2Of2(TExtRef(Namespace "Adaptify", "ShallowEqualityComparer", [t]))
+            declaringType = Choice2Of2(TExtRef(fda, "ShallowEqualityComparer", [t]))
             isStatic = true
             name = "ShallowEquals"
             parameters = [ t; t ]
