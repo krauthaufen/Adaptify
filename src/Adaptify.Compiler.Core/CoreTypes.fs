@@ -3,6 +3,7 @@
 [<AutoOpen>]
 module AdaptiveTypes =
     let private fda = Namespace "FSharp.Data.Adaptive"
+    let private fdt = Namespace "FSharp.Data.Traceable"
     let private adaptify = Namespace "Adaptify"
 
     module Option =
@@ -219,7 +220,7 @@ module AdaptiveTypes =
 
     module ChangeableModelMap =
         let typ (k : TypeRef) (a : TypeRef) (ca : TypeRef) (aa : TypeRef) =
-            TExtRef(adaptify, "ChangeableModelMap", [k; a; ca; aa])
+            TExtRef(fdt, "ChangeableModelMap", [k; a; ca; aa])
 
         let setValue (k : TypeRef) (a : TypeRef) (ca : TypeRef) (aa : TypeRef) =
             {
@@ -232,7 +233,7 @@ module AdaptiveTypes =
             
         let ctor (k : TypeRef) (a : TypeRef) (ca : TypeRef) (aa : TypeRef) =
             {
-                declaringType = Choice1Of2(adaptify)
+                declaringType = Choice1Of2(fdt)
                 isStatic = true
                 name = "ChangeableModelMap"
                 parameters = 
@@ -260,7 +261,7 @@ module AdaptiveTypes =
 
     module ChangeableModelList =
         let typ (a : TypeRef) (ca : TypeRef) (aa : TypeRef) =
-            TExtRef(adaptify, "ChangeableModelList", [a; ca; aa])
+            TExtRef(fdt, "ChangeableModelList", [a; ca; aa])
 
         let setValue (a : TypeRef) (ca : TypeRef) (aa : TypeRef) =
             {
@@ -273,7 +274,7 @@ module AdaptiveTypes =
             
         let ctor (a : TypeRef) (ca : TypeRef) (aa : TypeRef) =
             {
-                declaringType = Choice1Of2(adaptify)
+                declaringType = Choice1Of2(fdt)
                 isStatic = true
                 name = "ChangeableModelList"
                 parameters = 

@@ -24,7 +24,7 @@ NUGET
       System.Security.Cryptography.Algorithms (>= 4.3) - restriction: || (&& (== net472) (< net461)) (== netcoreapp2.2) (== netstandard2.0) (== netstandard2.1)
       System.ValueTuple (>= 4.4) - restriction: || (== net472) (&& (== netcoreapp2.2) (>= net461)) (&& (== netstandard2.0) (>= net461)) (&& (== netstandard2.1) (>= net461))
     FSharp.Core (4.7)
-    FSharp.Data.Adaptive (0.0.9)
+    FSharp.Data.Adaptive (0.0.10)
       FSharp.Core (>= 4.6.2)
       System.Reflection.Emit.Lightweight (>= 4.6 < 4.7)
     Microsoft.Build (16.3)

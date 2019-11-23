@@ -8,8 +8,8 @@ open Adaptify
 let main _argv =
     let test = Unpersist.instance<MyModel, AdaptiveMyModel>
 
-    let v = test.init { a = Error "bad"; b = 3.0 }
-    test.update v { a = Error "bad"; b = 4.0 }
+    let v = test.init { a = Error "bad"; b = 3.0; list = IndexList.empty; map = HashMap.empty }
+    test.update v { a = Error "bad"; b = 4.0; list = IndexList.empty; map = HashMap.empty }
 
     let _ : aval<MyModel> = v.Current
 

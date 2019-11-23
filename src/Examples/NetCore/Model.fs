@@ -1,12 +1,15 @@
 ﻿namespace Model
 
 open Adaptify
+open FSharp.Data.Adaptive
 
 [<ModelType>]
 type MyModel =  
     {
         a : Result<MyModel, string>
         b : float
+        list : IndexList<MyModel>
+        map : HashMap<int, MyModel>
     }
 
 
