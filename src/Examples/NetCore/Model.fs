@@ -8,7 +8,7 @@ type MyModel =
     {
         a : Result<MyModel, string>
         b : float
-        list : IndexList<MyModel>
+        list : HashSet<MyModel>
         map : HashMap<int, MyModel>
     }
 

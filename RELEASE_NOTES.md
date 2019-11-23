@@ -1,3 +1,8 @@
+### 0.0.5
+* updated FSharp.Data.Adaptive
+* removed ChangeableModelMap/List
+* improved warning handling (also reported when cached)
+
 ### 0.0.4
 * updated FSharp.Data.Adaptive
 

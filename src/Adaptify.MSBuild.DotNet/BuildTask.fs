@@ -7,10 +7,56 @@ open System.IO
 open FSharp.Compiler.SourceCodeServices
 open FSharp.Compiler.Range
 
+type Warning =
+    {
+        startLine : int
+        startCol : int
+        endLine : int
+        endCol : int
+        message : string
+        code : string
+    }
+
+module Warning =
+    let parse (str : string) : list<Warning> =
+        let str = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(str))
+        str.Split([|"\r\n" |], System.StringSplitOptions.None)
+        |> Array.toList
+        |> List.map (fun (l : string) ->
+            let c : string[] = l.Split([| ";" |], System.StringSplitOptions.None)
+            { 
+                startLine = int c.[0]
+                startCol = int c.[1]
+                endLine = int c.[2]
+                endCol = int c.[3]
+                code = c.[4]
+                message = c.[5]
+            }
+        )
+
+    let pickle (l : list<Warning>) =
+        let string =
+            l |> List.map (fun w ->
+                sprintf "%d;%d;%d;%d;%s;%s" w.startLine w.startCol w.endLine w.endCol w.code w.message
+            ) |> String.concat "\r\n"
+            
+        string
+        |> System.Text.Encoding.UTF8.GetBytes
+        |> System.Convert.ToBase64String
+
+
+type FileCacheEntry =
+    {
+        fileHash    : string
+        hasModels   : bool
+        warnings    : list<Warning>
+    }
+
+
 type CacheFile =
     {
         projectHash : string
-        fileHashes : Map<string, string * bool>
+        fileHashes : Map<string, FileCacheEntry>
     }
 
 module CacheFile =
@@ -20,7 +66,12 @@ module CacheFile =
             let fileHashes =
                 Array.skip 1 lines |> Seq.map (fun l ->
                     let comp = l.Split([|";"|], System.StringSplitOptions.None)
-                    comp.[0], (comp.[1], System.Boolean.Parse comp.[2])
+
+                    let warnings =
+                        if comp.Length > 3 then Warning.parse comp.[3]
+                        else []
+
+                    comp.[0], { fileHash = comp.[1]; hasModels = System.Boolean.Parse comp.[2]; warnings = warnings }
                 )
                 |> Map.ofSeq
             Some {
@@ -34,8 +85,9 @@ module CacheFile =
         try
             File.WriteAllLines(path, [|
                 yield cache.projectHash
-                for (file, (hash, modelTypes)) in Map.toSeq cache.fileHashes do
-                    yield sprintf "%s;%s;%A" file hash modelTypes
+                for (file, entry) in Map.toSeq cache.fileHashes do
+                    let wrn = Warning.pickle entry.warnings
+                    yield sprintf "%s;%s;%A;%s" file entry.fileHash entry.hasModels wrn
             |])
         with _ ->
             ()
@@ -203,15 +255,15 @@ type AdaptifyTask() =
                             let needsUpdate =
                                 if not mayDefineModelTypes then
                                     newFiles.Add file
-                                    newHashes <- Map.add file (fileHash, false) newHashes
+                                    newHashes <- Map.add file { fileHash = fileHash; hasModels = false; warnings = [] } newHashes
                                     false
                                 elif projectChanged then 
                                     true
                                 else
                                     match Map.tryFind file oldHashes with
-                                    | Some (oldHash, hasModels) ->
-                                        if oldHash = fileHash then
-                                            if hasModels then
+                                    | Some oldEntry ->
+                                        if oldEntry.fileHash = fileHash then
+                                            if oldEntry.hasModels then
                                                 let generated = Path.ChangeExtension(path, ".g.fs")
 
                                                 let readGeneratedHash (file : string) = 
@@ -242,13 +294,22 @@ type AdaptifyTask() =
                                                 if File.Exists(generated) && readGeneratedHash generated = fileHash then
                                                     newFiles.Add file
                                                     newFiles.Add generated
-                                                    newHashes <- Map.add file (fileHash, true) newHashes
+                                                    newHashes <- Map.add file oldEntry newHashes
+                                                    for w in oldEntry.warnings do   
+                                                        let range = mkRange file (mkPos w.startLine w.startCol) (mkPos w.endLine w.endCol)
+                                                        x.Logger.warn range w.code "%s" w.message
+
                                                     false
                                                 else
                                                     true
                                             else
                                                 newFiles.Add file
-                                                newHashes <- Map.add file (fileHash, false) newHashes
+                                                newHashes <- Map.add file oldEntry newHashes
+                                                
+                                                for w in oldEntry.warnings do   
+                                                    let range = mkRange file (mkPos w.startLine w.startCol) (mkPos w.endLine w.endCol)
+                                                    x.Logger.warn range w.code "%s" w.message
+
                                                 false
                                         else
                                             true
@@ -276,14 +337,35 @@ type AdaptifyTask() =
                                         |> List.collect allEntities
                                         
 
+                                    let warnings = System.Collections.Generic.List<Warning>()
+                                    let addWarning (r : range) (code : string) (str : string) =
+                                        warnings.Add {
+                                            startLine = r.StartLine
+                                            startCol = r.StartColumn
+                                            code = code
+                                            endLine = r.EndLine
+                                            endCol = r.EndColumn
+                                            message = str
+                                        }
+
+                                    let localLogger =
+                                        { new ILog with
+                                            member __.debug r fmt = x.Logger.debug r fmt
+                                            member __.info r fmt = x.Logger.debug r fmt
+                                            member __.warn r c fmt = Printf.kprintf (fun str -> addWarning r c str; x.Logger.warn r c "%s" str) fmt
+                                            member __.error r c fmt = Printf.kprintf (fun str -> addWarning r c str; x.Logger.error r c "%s" str) fmt
+                                        }
+
 
                                     let definitions = 
                                         entities 
-                                        |> List.choose (TypeDef.ofEntity x.Logger)
+                                        |> List.choose (TypeDef.ofEntity localLogger)
                                         |> List.map (fun l -> l.Value)
-                                        |> List.collect (TypeDefinition.ofTypeDef x.Logger [])
+                                        |> List.collect (TypeDefinition.ofTypeDef localLogger [])
 
-                                    newHashes <- Map.add file (fileHash, not (List.isEmpty definitions)) newHashes
+                                    let warnings = Seq.toList warnings
+
+                                    newHashes <- Map.add file { fileHash = fileHash; hasModels = not (List.isEmpty definitions); warnings = warnings } newHashes
                                     newFiles.Add file
                                     match definitions with
                                     | [] ->
