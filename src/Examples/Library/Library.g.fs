@@ -1,9 +1,9 @@
-//20c95812-4887-ee94-252a-0f3250def343
-//d260064c-4184-5418-2113-74dded527316
+//9006cb99-09fb-f308-2213-466fbf55ef5d
+//12725eeb-9ebf-e24e-2e41-191dfdc5b353
 #nowarn "49" // upper case patterns
 #nowarn "66" // upcast is unncecessary
 #nowarn "1337" // internal types
-namespace rec Model
+namespace rec LibraryModel
 
 open System
 open FSharp.Data.Adaptive
@@ -84,9 +84,8 @@ type AdaptiveMyModel(value : MyModel) =
         let inline __arg11 (o : System.Object) (v : Microsoft.FSharp.Core.string) =
             (unbox<FSharp.Data.Adaptive.cval<Microsoft.FSharp.Core.string>> o).Value <- v
             o
-        Adaptify.FSharp.Core.AdaptiveResult<Model.MyModel, Model.AdaptiveMyModel, Model.AdaptiveMyModel, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>(value.a, (fun (v : MyModel) -> AdaptiveMyModel(v) :> System.Object), (fun (o : System.Object) (v : MyModel) -> (unbox<AdaptiveMyModel> o).Update(v) :> System.Object), (fun (o : System.Object) -> unbox<AdaptiveMyModel> o), (fun (v : MyModel) -> AdaptiveMyModel(v) :> System.Object), __arg5, (fun (o : System.Object) -> unbox<AdaptiveMyModel> o), (fun (v : Microsoft.FSharp.Core.string) -> v :> System.Object), (fun (o : System.Object) (v : Microsoft.FSharp.Core.string) -> v :> System.Object), (fun (o : System.Object) -> unbox<Microsoft.FSharp.Core.string> o), (fun (v : Microsoft.FSharp.Core.string) -> FSharp.Data.Adaptive.cval(v) :> System.Object), __arg11, (fun (o : System.Object) -> unbox<FSharp.Data.Adaptive.cval<Microsoft.FSharp.Core.string>> o :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>))
+        Adaptify.FSharp.Core.AdaptiveResult<LibraryModel.MyModel, LibraryModel.AdaptiveMyModel, LibraryModel.AdaptiveMyModel, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>(value.a, (fun (v : MyModel) -> AdaptiveMyModel(v) :> System.Object), (fun (o : System.Object) (v : MyModel) -> (unbox<AdaptiveMyModel> o).Update(v) :> System.Object), (fun (o : System.Object) -> unbox<AdaptiveMyModel> o), (fun (v : MyModel) -> AdaptiveMyModel(v) :> System.Object), __arg5, (fun (o : System.Object) -> unbox<AdaptiveMyModel> o), (fun (v : Microsoft.FSharp.Core.string) -> v :> System.Object), (fun (o : System.Object) (v : Microsoft.FSharp.Core.string) -> v :> System.Object), (fun (o : System.Object) -> unbox<Microsoft.FSharp.Core.string> o), (fun (v : Microsoft.FSharp.Core.string) -> FSharp.Data.Adaptive.cval(v) :> System.Object), __arg11, (fun (o : System.Object) -> unbox<FSharp.Data.Adaptive.cval<Microsoft.FSharp.Core.string>> o :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>))
     let _b_ = FSharp.Data.Adaptive.cval(value.b)
-    let _list_ = FSharp.Data.Adaptive.cval(value.list)
     let _map_ =
         let inline __arg2 (m : AdaptiveMyModel) (v : MyModel) =
             m.Update(v)
@@ -102,11 +101,9 @@ type AdaptiveMyModel(value : MyModel) =
             __adaptive.MarkOutdated()
             _a_.Update(value.a)
             _b_.Value <- value.b
-            _list_.Value <- value.list
             _map_.Update(value.map)
     member __.Current = __adaptive
     member __.a = _a_ :> FSharp.Data.Adaptive.aval<Adaptify.FSharp.Core.AdaptiveResultCase<MyModel, AdaptiveMyModel, AdaptiveMyModel, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>>
     member __.b = _b_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.float>
-    member __.list = _list_ :> FSharp.Data.Adaptive.aval<FSharp.Data.Adaptive.HashSet<MyModel>>
     member __.map = _map_ :> FSharp.Data.Adaptive.amap<Microsoft.FSharp.Core.int, AdaptiveMyModel>
 

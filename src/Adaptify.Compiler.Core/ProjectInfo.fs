@@ -170,11 +170,11 @@ module ProjectInfo =
             else "oldstyle"
         )
         w.WriteLine "references"
-        for r in info.references do w.WriteLine(r)
+        for r in List.sort info.references do w.WriteLine(r)
         w.WriteLine "files"
         for f in info.files do w.WriteLine f
         w.WriteLine "defines"
-        for f in info.defines do w.WriteLine f
+        for f in List.sort info.defines do w.WriteLine f
         w.WriteLine(
             match info.target with
             | Target.Exe -> "exe"
@@ -183,7 +183,7 @@ module ProjectInfo =
             | Target.Module -> "module"
         )
         w.WriteLine "additional"
-        for a in info.additional do w.WriteLine a
+        for a in List.sort info.additional do w.WriteLine a
         w.WriteLine(
             match info.debug with
             | DebugType.Full -> "full"

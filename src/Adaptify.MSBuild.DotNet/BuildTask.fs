@@ -19,20 +19,23 @@ type Warning =
 
 module Warning =
     let parse (str : string) : list<Warning> =
-        let str = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(str))
-        str.Split([|"\r\n" |], System.StringSplitOptions.None)
-        |> Array.toList
-        |> List.map (fun (l : string) ->
-            let c : string[] = l.Split([| ";" |], System.StringSplitOptions.None)
-            { 
-                startLine = int c.[0]
-                startCol = int c.[1]
-                endLine = int c.[2]
-                endCol = int c.[3]
-                code = c.[4]
-                message = c.[5]
-            }
-        )
+        if str.Length = 0 then 
+            []
+        else
+            let str = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(str))
+            str.Split([|"\r\n" |], System.StringSplitOptions.None)
+            |> Array.toList
+            |> List.map (fun (l : string) ->
+                let c : string[] = l.Split([| ";" |], System.StringSplitOptions.None)
+                { 
+                    startLine = int c.[0]
+                    startCol = int c.[1]
+                    endLine = int c.[2]
+                    endCol = int c.[3]
+                    code = c.[4]
+                    message = c.[5]
+                }
+            )
 
     let pickle (l : list<Warning>) =
         let string =
@@ -258,6 +261,8 @@ type AdaptifyTask() =
                                     newHashes <- Map.add file { fileHash = fileHash; hasModels = false; warnings = [] } newHashes
                                     false
                                 elif projectChanged then 
+                                    let old = match cache with | Some p -> p.projectHash | None -> ""
+                                    x.Logger.info range0 "[Adaptify] project for %s changed (%A vs %A)" file projHash old
                                     true
                                 else
                                     match Map.tryFind file oldHashes with
@@ -301,6 +306,7 @@ type AdaptifyTask() =
 
                                                     false
                                                 else
+                                                    x.Logger.info range0 "[Adaptify] %s: generated file invalid" file
                                                     true
                                             else
                                                 newFiles.Add file
@@ -312,9 +318,11 @@ type AdaptifyTask() =
 
                                                 false
                                         else
+                                            x.Logger.info range0 "[Adaptify] %s: file hash changed" file
                                             true
 
                                     | None ->   
+                                        x.Logger.info range0 "[Adaptify] %s: no old hash" file
                                         true
                                 
                             if needsUpdate then

@@ -1,3 +1,6 @@
+### 0.0.8
+* fixed caching
+
 ### 0.0.7
 * building with FSharp.Core 4.6.2 for backwards compat
 

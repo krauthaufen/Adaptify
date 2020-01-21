@@ -1,10 +1,7 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp2.2</TargetFramework>
-    <DisableImplicitFSharpCoreReference>True</DisableImplicitFSharpCoreReference>
+    <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -13,20 +10,15 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <OutputPath>..\..\..\bin\Release\</OutputPath>
   </PropertyGroup>
+  
   <ItemGroup>
-    <Compile Include="Model.fs" />
-    <Compile Include="Model.g.fs" />
-    <Compile Include="Program.fs" />
+    <Compile Include="Library.g.fs" />
+    <Compile Include="Library.fs" />
   </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="FSharp.Core" Version="4.6.2" />
     <PackageReference Include="FSharp.Data.Adaptive" Version="0.0.16" />
     <PackageReference Include="System.Reflection.Emit.Lightweight" Version="4.6.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Library\Library.fsproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -5,6 +5,7 @@ open FSharp.Data.Adaptive
 
 
 
+
 [<ModelType>]
 type MyUnion =
     | A of int
