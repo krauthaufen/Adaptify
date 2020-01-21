@@ -1,3 +1,6 @@
+### 0.0.7
+* building with FSharp.Core 4.6.2 for backwards compat
+
 ### 0.0.6
 * update FSharp.Data.Adaptive to 0.0.16
 * fixed Unpersist members (no longer on Union-Case-Types)
