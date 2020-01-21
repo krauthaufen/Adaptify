@@ -1,5 +1,5 @@
-//1f393f24-1629-f7a3-f49d-eaeb02c60d70
-//fc724c27-fcd8-96fc-37e4-0a3ecccc3b9d
+//9cb99e1e-ecc7-67d5-8ff0-6d41a6010d64
+//d260064c-4184-5418-2113-74dded527316
 #nowarn "49" // upper case patterns
 #nowarn "66" // upcast is unncecessary
 #nowarn "1337" // internal types
@@ -8,6 +8,73 @@ namespace rec Model
 open System
 open FSharp.Data.Adaptive
 open Adaptify
+[<System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
+type AdaptiveMyUnionCase =
+    abstract member Update : MyUnion -> AdaptiveMyUnionCase
+[<System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
+type private AdaptiveMyUnionA(Item : Microsoft.FSharp.Core.int) =
+    let _Item_ = FSharp.Data.Adaptive.cval(Item)
+    let mutable __Item = Item
+    member __.Update(Item : Microsoft.FSharp.Core.int) =
+        if Microsoft.FSharp.Core.Operators.not((FSharp.Data.Adaptive.ShallowEqualityComparer<Microsoft.FSharp.Core.int>.ShallowEquals(Item, __Item))) then
+            __Item <- Item
+            _Item_.Value <- Item
+    member __.Item = _Item_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.int>
+    interface AdaptiveMyUnionCase with
+        member x.Update(value : MyUnion) =
+            match value with
+            | MyUnion.A(Item) ->
+                x.Update(Item)
+                x :> AdaptiveMyUnionCase
+            | MyUnion.B(Item) -> AdaptiveMyUnionB(Item) :> AdaptiveMyUnionCase
+[<System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
+type private AdaptiveMyUnionB(Item : Microsoft.FSharp.Core.float) =
+    let _Item_ = FSharp.Data.Adaptive.cval(Item)
+    let mutable __Item = Item
+    member __.Update(Item : Microsoft.FSharp.Core.float) =
+        if Microsoft.FSharp.Core.Operators.not((FSharp.Data.Adaptive.ShallowEqualityComparer<Microsoft.FSharp.Core.float>.ShallowEquals(Item, __Item))) then
+            __Item <- Item
+            _Item_.Value <- Item
+    member __.Item = _Item_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.float>
+    interface AdaptiveMyUnionCase with
+        member x.Update(value : MyUnion) =
+            match value with
+            | MyUnion.A(Item) -> AdaptiveMyUnionA(Item) :> AdaptiveMyUnionCase
+            | MyUnion.B(Item) ->
+                x.Update(Item)
+                x :> AdaptiveMyUnionCase
+[<System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
+type AdaptiveMyUnion(value : MyUnion) =
+    inherit Adaptify.AdaptiveValue<AdaptiveMyUnionCase>()
+    let mutable __value = value
+    let mutable __current =
+        match value with
+        | MyUnion.A(Item) -> AdaptiveMyUnionA(Item) :> AdaptiveMyUnionCase
+        | MyUnion.B(Item) -> AdaptiveMyUnionB(Item) :> AdaptiveMyUnionCase
+    let __adaptive = FSharp.Data.Adaptive.AVal.custom((fun (t : FSharp.Data.Adaptive.AdaptiveToken) -> __value))
+    static member CreateAdaptiveCase(value : MyUnion) =
+        match value with
+        | MyUnion.A(Item) -> AdaptiveMyUnionA(Item) :> AdaptiveMyUnionCase
+        | MyUnion.B(Item) -> AdaptiveMyUnionB(Item) :> AdaptiveMyUnionCase
+    static member Create(value : MyUnion) = AdaptiveMyUnion(value)
+    static member Unpersist = Adaptify.Unpersist.create (fun (value : MyUnion) -> AdaptiveMyUnion(value)) (fun (adaptive : AdaptiveMyUnion) (value : MyUnion) -> adaptive.Update(value))
+    member __.Current = __adaptive
+    member __.Update(value : MyUnion) =
+        if Microsoft.FSharp.Core.Operators.not((FSharp.Data.Adaptive.ShallowEqualityComparer<MyUnion>.ShallowEquals(value, __value))) then
+            __value <- value
+            __adaptive.MarkOutdated()
+            let __n = __current.Update(value)
+            if Microsoft.FSharp.Core.Operators.not((FSharp.Data.Adaptive.ShallowEqualityComparer<AdaptiveMyUnionCase>.ShallowEquals(__n, __current))) then
+                __current <- __n
+                __.MarkOutdated()
+    override __.Compute(t : FSharp.Data.Adaptive.AdaptiveToken) = __current
+[<AutoOpen; System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
+module AdaptiveMyUnion = 
+    let (|AdaptiveA|AdaptiveB|) (value : AdaptiveMyUnionCase) =
+        match value with
+        | (:? AdaptiveMyUnionA as A) -> AdaptiveA(A.Item)
+        | (:? AdaptiveMyUnionB as B) -> AdaptiveB(B.Item)
+        | _ -> failwith "unreachable"
 [<System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
 type AdaptiveMyModel(value : MyModel) =
     let _a_ =

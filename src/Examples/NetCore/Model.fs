@@ -3,6 +3,13 @@
 open Adaptify
 open FSharp.Data.Adaptive
 
+
+
+[<ModelType>]
+type MyUnion =
+    | A of int
+    | B of float
+
 [<ModelType>]
 type MyModel =  
     {

@@ -18,7 +18,7 @@ type AdaptiveValue<'T>() =
             lastValue
         )
 
-    interface AdaptiveValue with
+    interface IAdaptiveValue with
         member x.GetValueUntyped t = x.GetValue t :> obj
         member x.ContentType =
             #if FABLE_COMPILER

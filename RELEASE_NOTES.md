@@ -1,3 +1,7 @@
+### 0.0.6
+* update FSharp.Data.Adaptive to 0.0.16
+* fixed Unpersist members (no longer on Union-Case-Types)
+
 ### 0.0.5
 * updated FSharp.Data.Adaptive
 * removed ChangeableModelMap/List

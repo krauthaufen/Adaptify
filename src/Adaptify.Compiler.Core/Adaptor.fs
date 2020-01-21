@@ -84,15 +84,15 @@ module TypePatterns =
         match t with
         | TRef(_, e, [t]) ->
             match e.TryFullName with
-            | Some "FSharp.Data.Adaptive.AdaptiveValue`1" -> Some t
+            | Some "FSharp.Data.Adaptive.IAdaptiveValue`1" -> Some t
             | Some "FSharp.Data.Adaptive.aval`1" -> Some t
-            | Some "FSharp.Data.Adaptive.AdaptiveValue" -> Some t
+            | Some "FSharp.Data.Adaptive.IAdaptiveValue" -> Some t
             | Some "FSharp.Data.Adaptive.aval" -> Some t
             | _ -> None
         | TExtRef(scope, name, [t]) ->
             match Scope.fullName scope with
             | Some "FSharp.Data.Adaptive" ->
-                if name = "aval" || name = "AdaptiveValue" then Some t
+                if name = "aval" || name = "IAdaptiveValue" then Some t
                 else None
             | _ -> 
                 None
@@ -760,7 +760,7 @@ module TypeDefinition =
     let private eq (a : Expr) (b : Expr) = Expr.Call(None, shallowEquals a.Type, [a; b])
        
 
-    let private productType (log : ILog) (current : bool) (args : list<Var>) (tpars : list<TypeVar>) (s : Scope) (n : string) (props : list<Prop * Expr>) =
+    let private productType (log : ILog) (isUnion: bool) (current : bool) (args : list<Var>) (tpars : list<TypeVar>) (s : Scope) (n : string) (props : list<Prop * Expr>) =
         let tAdaptivePars =
             tpars |> List.collect (fun t -> [t; TypeVar(Config.primTypeName t.Name); TypeVar(Config.adaptiveTypeName t.Name)])
 
@@ -1008,7 +1008,7 @@ module TypeDefinition =
                     yield false, Config.createMemberName, args @ ctorArgs, Expr.Call(None, selfCtor, List.map Var (args @ ctorArgs))
                 
                 match tpars, args with
-                | [], [v] ->
+                | [], [v] when not isUnion ->
                     let value = new Var("value", v.Type)
                     let adaptive = new Var("adaptive", selfType)
                     yield false, "get_Unpersist", [],
@@ -1056,7 +1056,7 @@ module TypeDefinition =
                 )
 
 
-            [ productType log true [arg] tpars s n props ]
+            [ productType log false true [arg] tpars s n props ]
               
             
         | Union(_range, scope, name, props, cases) ->
@@ -1091,7 +1091,7 @@ module TypeDefinition =
                         )
 
                     let typeName = sprintf "%s%s" name caseName
-                    productType log false args tpars scope typeName props
+                    productType log true false args tpars scope typeName props
                 )
 
             // define an interface-type for all case types. (`AdaptiveFooCase`)

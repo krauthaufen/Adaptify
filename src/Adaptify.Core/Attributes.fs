@@ -42,7 +42,7 @@ module Unpersist =
     [<GeneralizableValue>]
     let amap<'K, 'V> =
         {
-            init = fun v -> cmap v :> amap<'K, 'V>
+            init = fun (v : HashMap<_,_>) -> cmap v :> amap<'K, 'V>
             update = fun c v -> (unbox<cmap<'K, 'V>> c).Value <- v
         }
 
