@@ -3,6 +3,7 @@ open FSharp.Data.Adaptive
 open Adaptify.FSharp.Core
 open Model
 open Adaptify
+open LibraryModel
 
 
 
@@ -11,6 +12,9 @@ let main _argv =
     let _ = Unpersist.instance<MyUnion, AdaptiveMyUnion>
     let test = Unpersist.instance<MyModel, AdaptiveMyModel>
 
+    let bla = fst MyModel.a_ Unchecked.defaultof<MyModel>
+    
+    
     let v = test.init { a = Error "bad"; b = 3.0; map = HashMap.empty }
     test.update v { a = Error "bad"; b = 4.0; map = HashMap.empty }
 

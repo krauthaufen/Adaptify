@@ -188,12 +188,20 @@ let main argv =
         printfn "Options:"
         printfn "  -f|--force    ignore caches and regenerate files"
         printfn "  -v|--verbose  verbose output"
+        printfn "  -l|--lenses   generate aether lenses for records"
         Environment.Exit 1
+
 
     let force =
         argv |> Array.exists (fun a -> 
             let a = a.ToLower().Trim()
             a = "-f" || a = "--force"    
+        )
+        
+    let lenses =
+        argv |> Array.exists (fun a -> 
+            let a = a.ToLower().Trim()
+            a = "-l" || a = "--lenses"    
         )
         
     let verbose =
@@ -219,7 +227,7 @@ let main argv =
     for projFile in projFiles do
         match ProjectInfo.tryOfProject [] projFile with
         | Ok info ->
-            Adaptify.run (Some checker) (not force) log info |> ignore
+            Adaptify.run (Some checker) (not force) lenses log info |> ignore
 
         | Error err ->
             log.error range0 "" "ERRORS"

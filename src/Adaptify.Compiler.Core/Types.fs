@@ -26,7 +26,7 @@ type TypeRef =
     
 [<StructuredFormatDisplay("{AsString}")>]
 type TypeDef =
-    | ProductType of range : range * isValueType : bool * scope : Scope * name : string * properties : list<Prop>
+    | ProductType of lenses : bool * range : range * isValueType : bool * scope : Scope * name : string * properties : list<Prop>
     | Union of range : range * scope : Scope * name : string * properties : list<Prop> * cases : list<string * list<Prop>>
     | Generic of tpars : list<TypeVar> * def : TypeDef
     
@@ -42,7 +42,7 @@ type TypeDef =
 
     member x.Name =
         match x with
-        | ProductType(_, _, _, n, _)
+        | ProductType(_, _, _, _, n, _)
         | Union(_, _, n, _, _) ->
             n
         | Generic(_,d) ->
@@ -50,7 +50,7 @@ type TypeDef =
             
     member x.RelativeName (scope : Scope) =
         match x with
-        | ProductType(_, _, s, n, _)
+        | ProductType(_, _, _, s, n, _)
         | Union(_, s, n, _, _) ->
             match Scope.relativeName scope s with
             | Some s -> sprintf "%s.%s" s n
@@ -62,7 +62,7 @@ type TypeDef =
 
     member x.FullName =
         match x with
-        | ProductType(_, _, s, n, _)
+        | ProductType(_, _, _, s, n, _)
         | Union(_, s, n, _, _) ->
             match Scope.fullName s with
             | Some s -> sprintf "%s.%s" s n
@@ -265,7 +265,7 @@ module TypeDef =
 
     let rec private withInfo (range : range) (scope : Scope) (name : string) (d : TypeDef) =
         match d with
-        | ProductType(_, v, _, _, p) -> ProductType(range, v, scope, name, p)
+        | ProductType(lenses, _, v, _, _, p) -> ProductType(lenses, range, v, scope, name, p)
         | Union(_, _, _, p, c) -> Union(range, scope, name, p, c)
         | Generic(pars, t) -> Generic(pars, withInfo range scope name t)
         
@@ -302,7 +302,7 @@ module TypeDef =
             let parent = 
                 Scope.ofFSharpEntityOpt e.DeclaringEntity e.Namespace
 
-            ProductType(range, e.IsValueType, parent, e.DisplayName, props @ fields) |> ret
+            ProductType(true, range, e.IsValueType, parent, e.DisplayName, props @ fields) |> ret
 
         elif e.IsFSharpUnion then
             let cases = 
@@ -335,10 +335,10 @@ module TypeDef =
                 let def = create log real.TypeDefinition
                 withInfo range parent e.DisplayName def |> ret
             else
-                ProductType(range, e.IsValueType, parent, e.DisplayName, props) |> ret
+                ProductType(false, range, e.IsValueType, parent, e.DisplayName, props) |> ret
         else
             let parent = Scope.ofFSharpEntityOpt e.DeclaringEntity e.Namespace
-            ProductType(range, e.IsValueType, parent, e.DisplayName, props) |> ret
+            ProductType(false, range, e.IsValueType, parent, e.DisplayName, props) |> ret
 
     and ofEntity (log : ILog) (e : FSharpEntity) : option<Lazy<TypeDef>> =
         let isModel =

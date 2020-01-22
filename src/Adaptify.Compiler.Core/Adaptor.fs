@@ -499,7 +499,7 @@ module Adaptor =
                         view = fun c -> Expr.Upcast(c, AVal.typ mt)
                     } 
 
-            | ProductType(_range, _, scope, name, _) ->
+            | ProductType(_lenses,_range, _, scope, name, _) ->
                 let newName = Config.generatedTypeName name 
                 let newScope = adaptorScope scope
 
@@ -586,6 +586,7 @@ type TypeKind =
     | Class
     | Interface
     | Module
+    | Extension
 
 type TypeDefinition =
     {
@@ -600,10 +601,11 @@ type TypeDefinition =
         statics     : list<bool * string * list<Var> * Expr>
         members     : list<bool * string * list<Var> * Expr>
         interfaces  : list<TypeRef * list<string * list<Var> * (Var -> Expr)>>
+        nested      : list<TypeDefinition>
     }
 
 module TypeDefinition =
-    let toString (d : TypeDefinition) =
+    let rec toString (d : TypeDefinition) =
    
         let tpars =
             match d.tpars with
@@ -640,9 +642,63 @@ module TypeDefinition =
                     let args = args |> List.map (fun a -> sprintf "(%s : %s)" a.Name (TypeRef.toString d.scope a.Type))
                     yield sprintf "    let %s %s =" name (String.concat " " args) 
                     yield! Expr.toString d.scope b |> lines |> indent |> indent
+
+                for n in d.nested do
+                    let lines = toString n
+                    yield! lines |> indent
+
             |]
 
+        elif d.kind = TypeKind.Extension then
 
+            [|
+                yield sprintf "type %s%s%s with" priv d.name tpars
+
+                for (priv, name, args, body) in d.statics do
+                    let body = Expr.toString d.scope body |> lines
+                    let priv = if priv then "internal " else ""
+                            
+                    if args = [] && name.StartsWith "get_" then
+                        let name = name.Substring 4
+                        if body.Length = 1 then
+                            yield sprintf "    static member %s%s = %s" priv name body.[0]
+                        else
+                            yield sprintf "    static member %s%s =" priv name
+                            yield! body |> indent |> indent
+
+                        //yield sprintf "    static member %s =" (name.Substring 4)
+                        //yield! Expr.toString d.scope b |> lines |> indent |> indent
+                    else 
+                        let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
+
+                        if body.Length = 1 then
+                            yield sprintf "    static member %s%s(%s) = %s" priv name args body.[0]
+                        else
+                            yield sprintf "    static member %s%s(%s) =" priv name args
+                            yield! body |> indent |> indent
+
+                            
+                for (ov, name, args, body) in d.members do
+                    let body = Expr.toString d.scope body |> lines
+                    let mem = if ov then "override" else "member"
+
+                    if args = [] && name.StartsWith "get_" then
+                            
+                        if body.Length = 1 then
+                            yield sprintf "    %s __.%s = %s" mem (name.Substring 4) body.[0]
+                        else
+                            yield sprintf "    %s __.%s =" mem (name.Substring 4)
+                            yield! body |> indent |> indent
+                    else
+                        let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
+                            
+                        if body.Length = 1 then
+                            yield sprintf "    %s __.%s(%s) = %s" mem name args body.[0]
+                        else
+                            yield sprintf "    %s __.%s(%s) =" mem name args
+                            yield! body |> indent |> indent
+
+            |]
         else
 
 
@@ -659,78 +715,76 @@ module TypeDefinition =
             let selfType =
                 TExtRef(d.scope, d.name, List.map TVar d.tpars)
 
-            let code =
-                [|
-                    yield "[<System.Diagnostics.CodeAnalysis.SuppressMessage(\"NameConventions\", \"*\")>]"
-                    yield sprintf "type %s%s%s(%s) =" priv d.name tpars ctorArgs
-                    match d.baseType with
-                    | Some b -> yield sprintf "    inherit %s()" (TypeRef.toString d.scope b)
-                    | None -> ()
+            [|
+                yield "[<System.Diagnostics.CodeAnalysis.SuppressMessage(\"NameConventions\", \"*\")>]"
+                yield sprintf "type %s%s%s(%s) =" priv d.name tpars ctorArgs
+                match d.baseType with
+                | Some b -> yield sprintf "    inherit %s()" (TypeRef.toString d.scope b)
+                | None -> ()
 
 
-                    yield! ctorLines
+                yield! ctorLines
 
-                    for (priv, name, args, body) in d.statics do
-                        let body = Expr.toString d.scope body |> lines
-                        let priv = if priv then "internal " else ""
+                for (priv, name, args, body) in d.statics do
+                    let body = Expr.toString d.scope body |> lines
+                    let priv = if priv then "internal " else ""
                             
-                        if args = [] && name.StartsWith "get_" then
-                            let name = name.Substring 4
-                            if body.Length = 1 then
-                                yield sprintf "    static member %s%s = %s" priv name body.[0]
-                            else
-                                yield sprintf "    static member %s%s =" priv name
-                                yield! body |> indent |> indent
-
-                            //yield sprintf "    static member %s =" (name.Substring 4)
-                            //yield! Expr.toString d.scope b |> lines |> indent |> indent
-                        else 
-                            let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
-
-                            if body.Length = 1 then
-                                yield sprintf "    static member %s%s(%s) = %s" priv name args body.[0]
-                            else
-                                yield sprintf "    static member %s%s(%s) =" priv name args
-                                yield! body |> indent |> indent
-
-                            
-                    for (ov, name, args, body) in d.members do
-                        let body = Expr.toString d.scope body |> lines
-                        let mem = if ov then "override" else "member"
-
-                        if args = [] && name.StartsWith "get_" then
-                            
-                            if body.Length = 1 then
-                                yield sprintf "    %s __.%s = %s" mem (name.Substring 4) body.[0]
-                            else
-                                yield sprintf "    %s __.%s =" mem (name.Substring 4)
-                                yield! body |> indent |> indent
+                    if args = [] && name.StartsWith "get_" then
+                        let name = name.Substring 4
+                        if body.Length = 1 then
+                            yield sprintf "    static member %s%s = %s" priv name body.[0]
                         else
-                            let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
-                            
-                            if body.Length = 1 then
-                                yield sprintf "    %s __.%s(%s) = %s" mem name args body.[0]
-                            else
-                                yield sprintf "    %s __.%s(%s) =" mem name args
-                                yield! body |> indent |> indent
+                            yield sprintf "    static member %s%s =" priv name
+                            yield! body |> indent |> indent
 
-                    for (iface, mems) in d.interfaces do
-                        let name = TypeRef.toString d.scope iface
-                        yield sprintf "    interface %s with" name
-                        let this = new Var("x", selfType)
-                        for (name, args, body) in mems do
-                            let body = Expr.toString d.scope (body this) |> lines
-                            let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
-                            
-                            if body.Length = 1 then
-                                yield sprintf "        member x.%s(%s) = %s" name args body.[0]
-                            else
-                                yield sprintf "        member x.%s(%s) =" name args
-                                yield! body |> indent |> indent |> indent
+                        //yield sprintf "    static member %s =" (name.Substring 4)
+                        //yield! Expr.toString d.scope b |> lines |> indent |> indent
+                    else 
+                        let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
 
-                |]
+                        if body.Length = 1 then
+                            yield sprintf "    static member %s%s(%s) = %s" priv name args body.[0]
+                        else
+                            yield sprintf "    static member %s%s(%s) =" priv name args
+                            yield! body |> indent |> indent
+
+                            
+                for (ov, name, args, body) in d.members do
+                    let body = Expr.toString d.scope body |> lines
+                    let mem = if ov then "override" else "member"
+
+                    if args = [] && name.StartsWith "get_" then
+                            
+                        if body.Length = 1 then
+                            yield sprintf "    %s __.%s = %s" mem (name.Substring 4) body.[0]
+                        else
+                            yield sprintf "    %s __.%s =" mem (name.Substring 4)
+                            yield! body |> indent |> indent
+                    else
+                        let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
+                            
+                        if body.Length = 1 then
+                            yield sprintf "    %s __.%s(%s) = %s" mem name args body.[0]
+                        else
+                            yield sprintf "    %s __.%s(%s) =" mem name args
+                            yield! body |> indent |> indent
+
+                for (iface, mems) in d.interfaces do
+                    let name = TypeRef.toString d.scope iface
+                    yield sprintf "    interface %s with" name
+                    let this = new Var("x", selfType)
+                    for (name, args, body) in mems do
+                        let body = Expr.toString d.scope (body this) |> lines
+                        let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
+                            
+                        if body.Length = 1 then
+                            yield sprintf "        member x.%s(%s) = %s" name args body.[0]
+                        else
+                            yield sprintf "        member x.%s(%s) =" name args
+                            yield! body |> indent |> indent |> indent
+
+            |]
                 
-            code
 
     let private adaptorScope (o : Scope) =
         match o with
@@ -1036,27 +1090,79 @@ module TypeDefinition =
             statics     = statics
             members     = members
             interfaces  = []
+            nested      = []
         }
 
-    let rec ofTypeDef (log : ILog) (tpars : list<TypeVar>) (d : TypeDef) =
+    let lenses (tpars : list<TypeVar>) (inputType : TypeRef) (scope : Scope) (name : string) (properties : list<Prop>) =
+
+        {
+            kind            = TypeKind.Module
+            priv            = false
+            baseType        = None
+            scope           = scope
+            name            = name + "Lenses"
+            tpars           = []
+            ctorArgs        = []
+            ctor            = Expr.Unit
+            members = []
+            interfaces = []
+            statics = []
+            nested      = 
+                [
+                    {
+                        kind            = TypeKind.Extension
+                        priv            = false
+                        baseType        = None
+                        scope           = scope
+                        name            = name
+                        tpars           = tpars
+                        ctorArgs        = []
+                        ctor            = Expr.Unit
+                        members = []
+                        interfaces = []
+                        nested = []
+                        statics =
+                            properties |> List.map (fun prop ->
+                                let self = new Var("self", inputType)
+                                let value = new Var("value", prop.typ)
+                                false, "get_" + prop.name + "_", [],
+                                    Expr.NewTuple(
+                                        false, 
+                                        [
+                                            Expr.Lambda([self], Expr.PropertyGet(Var self, prop))   
+                                            Expr.Lambda([value], Expr.Lambda([self], Expr.RecordUpdate(Var self, prop, Var value)))   
+                                        ]
+                                    )
+                            )
+                    }
+                ]
+                     
+
+        }
+
+    let rec ofTypeDef (log : ILog) (createLenses : bool) (tpars : list<TypeVar>) (d : TypeDef) =
         match d with
         | Generic(tpars, def) ->
-            ofTypeDef log tpars def
+            ofTypeDef log createLenses tpars def
 
-        | ProductType(_, _, _, _, []) ->
+        | ProductType(_,_, _, _, _, []) ->
             []
 
-        | ProductType(range, _, s, n, props) ->
+        | ProductType(isRecord, range, _, s, n, props) ->
             let valueType = TModel(range, lazy d, List.map TVar tpars)
             let arg = new Var("value", valueType)
 
-            let props =
+            let propsWithGetters =
                 props |> List.map (fun p ->
                     (p, Expr.PropertyGet(Var arg, p))
                 )
 
 
-            [ productType log false true [arg] tpars s n props ]
+            let selfType = TypeRef.TModel(range, lazy d, List.map TVar tpars)
+            [   
+                yield productType log false true [arg] tpars s n propsWithGetters
+                if createLenses && isRecord then yield lenses tpars selfType s n props 
+            ]
               
             
         | Union(_range, scope, name, props, cases) ->
@@ -1114,6 +1220,7 @@ module TypeDefinition =
                             false, Config.updateMemberName, [new Var("value", valueType)], Expr.Unbox(ctorTypeRef, Expr.Unit)
                         ]
                     interfaces = []
+                    nested     = []
                 }
 
             // utility creating a match case and a construction
@@ -1349,6 +1456,7 @@ module TypeDefinition =
                             true, "Compute", [token], Var current
                         ]
                     interfaces = []
+                    nested     = []
                         //[
                         //    AVal.typ ctorTypeRef, [
                         //        "GetValue", [token], (fun this ->
@@ -1379,6 +1487,7 @@ module TypeDefinition =
                     ctor            = Expr.Unit
                     members = []
                     interfaces = []
+                    nested     = []
                             
                     statics =
                         [

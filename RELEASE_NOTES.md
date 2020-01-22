@@ -1,3 +1,7 @@
+### 0.0.11
+* fixed shadowing problems with system type names (Object)
+* added option (GenerateLenses) to generate aether-compatible lens extensions
+
 ### 0.0.10
 * shared code between tool and MSBuild
 * improved logging

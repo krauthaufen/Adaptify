@@ -43,7 +43,7 @@ type Expr =
     | Ignore of Expr
     | And of list<Expr>
     | Match of Expr * list<Pattern * Expr>
-
+    | RecordUpdate of Expr * Prop * Expr
 
     static member Many (s : list<Expr>) =
         match s with
@@ -102,6 +102,8 @@ type Expr =
             p.typ
         | Fail(t,_) ->
             t
+        | RecordUpdate(r,_,_) -> 
+            r.Type
 
 module Expr =
 
@@ -393,6 +395,13 @@ module Expr =
             else
                 sprintf "%s(%s)" prefix (String.concat ", " args)
 
+        | RecordUpdate(record, prop, value) ->
+            let prefix1, record = toOneLineArgs scope [record]
+            let prefix2, value = toOneLineArgs scope [value]
+
+            sprintf "%s%s{ %s with %s = %s }" prefix1 prefix2 (List.exactlyOne record) prop.name (List.exactlyOne value)
+
+
 
     let rec substitute (mapping : Var -> Option<Expr>) (e : Expr) =
         match e with
@@ -433,7 +442,8 @@ module Expr =
             And(es |> List.map (substitute mapping))
         | Match(e, pats) ->
             Match(substitute mapping e, pats |> List.map (fun (h,b) -> h, substitute mapping b))
-        
+        | RecordUpdate(r,p,v) ->
+            RecordUpdate(substitute mapping r, p, substitute mapping v)
 
 
 

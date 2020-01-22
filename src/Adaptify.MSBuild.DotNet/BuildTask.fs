@@ -105,6 +105,7 @@ type AdaptifyTask() =
     let mutable results : string[] = [||]
     let mutable framework : string = ""
     let mutable outputType : string = ""
+    let mutable createLenses = false
 
     let mutable log : option<ILog> = None
 
@@ -189,7 +190,7 @@ type AdaptifyTask() =
                             debug = DebugType.Off
                         }
 
-                    let newFiles = Adaptify.run None false x.Logger projInfo
+                    let newFiles = Adaptify.run None true createLenses x.Logger projInfo
 
                     results <- List.toArray newFiles
                     true
@@ -200,7 +201,11 @@ type AdaptifyTask() =
             | _other -> 
                 results <- files
                 true
-                
+              
+              
+    member x.GenerateLenses
+        with get() = createLenses
+        and set l = createLenses <- l
 
     member x.Debug
         with get() = debug

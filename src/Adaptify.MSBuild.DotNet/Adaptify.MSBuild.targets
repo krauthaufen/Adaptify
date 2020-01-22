@@ -13,7 +13,7 @@
     <ItemGroup>
       <OldItems Include="@(Compile)" />
     </ItemGroup>
-    <AdaptifyTask TargetFramework="$(TargetFramework)" Debug="$(DebugHate)" Files="@(OldItems)" References="@(_ResolveAssemblyReferenceResolvedFiles)" ProjectFile="$(MSBuildProjectFullPath)" OutputType="$(OutputType)">
+    <AdaptifyTask GenerateLenses="$(GenerateLenses)" TargetFramework="$(TargetFramework)" Debug="$(DebugHate)" Files="@(OldItems)" References="@(_ResolveAssemblyReferenceResolvedFiles)" ProjectFile="$(MSBuildProjectFullPath)" OutputType="$(OutputType)">
       <Output TaskParameter="Results" ItemName="Results" />
     </AdaptifyTask>
     <ItemGroup>

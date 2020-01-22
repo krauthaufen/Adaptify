@@ -8,7 +8,7 @@ open FSharp.Compiler.SourceCodeServices
 module Adaptify =
     let private modelTypeRx = System.Text.RegularExpressions.Regex @"ModelType(Attribute)?"
 
-    let run (checker : option<FSharpChecker>) (useCache : bool) (log : ILog) (projectInfo : ProjectInfo) =
+    let run (checker : option<FSharpChecker>) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
         
         let projectFile = projectInfo.project
         if Path.GetExtension projectFile = ".fsproj" then
@@ -266,7 +266,7 @@ module Adaptify =
                                 entities 
                                 |> List.choose (TypeDef.ofEntity localLogger)
                                 |> List.map (fun l -> l.Value)
-                                |> List.collect (TypeDefinition.ofTypeDef localLogger [])
+                                |> List.collect (TypeDefinition.ofTypeDef localLogger createLenses [])
 
                             let warnings = Seq.toList warnings
 
