@@ -68,7 +68,6 @@ Target.create "Compile" (fun _ ->
 
 
 
-
 Target.create "Pack" (fun _ ->
     
     Paket.pack (fun o ->
@@ -76,11 +75,20 @@ Target.create "Pack" (fun _ ->
             WorkingDir = Environment.CurrentDirectory
             OutputPath = "bin"
             PinProjectReferences = true
-            ProjectUrl = "https://github.com/fsprojects/FSharp.Data.Adaptive"
+            ProjectUrl = "https://github.com/krauthaufen/Adaptify"
             Version = notes.NugetVersion
             ReleaseNotes = String.concat "\n" notes.Notes
         }
     )
+
+    "src/Adaptify.Compiler/adaptify.fsproj" |> DotNet.pack (fun o -> 
+        { o with        
+            NoRestore = true
+            NoBuild = true
+            MSBuildParams = { o.MSBuildParams with Properties = ["Version", notes.NugetVersion] }
+        }
+    )
+
 )
 
 Target.create "Push" (fun _ ->

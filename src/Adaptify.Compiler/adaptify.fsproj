@@ -4,6 +4,15 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.2</TargetFramework>
     <DisableImplicitFSharpCoreReference>True</DisableImplicitFSharpCoreReference>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>adaptify</ToolCommandName>
+    <PackageOutputPath>..\..\bin\</PackageOutputPath>
+    <Authors>The Aardvark Platform Team</Authors>
+    <Owners>krauthaufen</Owners>
+    <Copyright>The Aardvark Platform Team</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/krauthaufen/Adaptify</PackageProjectUrl>
+    
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <OutputPath>..\..\bin\Debug\</OutputPath>

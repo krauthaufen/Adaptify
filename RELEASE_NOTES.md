@@ -1,3 +1,8 @@
+### 0.0.10
+* shared code between tool and MSBuild
+* improved logging
+* dotnet tool "adaptify"
+
 ### 0.0.9
 * fixed compilation for netframework projects
 * added clean/rebuild target

@@ -125,21 +125,7 @@ let inline hash (str : string) =
     md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes str) |> System.Guid |> string
     
     
-let log =  
-
-    //let tryReadRange (r : FSharp.Compiler.Range.range) =    
-    //    match Map.tryFind r.FileName fileContent with
-    //    | Some c ->
-    //        if r.StartLine = r.EndLine then
-    //            let line = c.[r.StartLine - 1]
-    //            line.Substring(r.StartColumn - 1, 1 + r.EndColumn - r.StartColumn) |> Some
-    //        else
-    //            let arr = c.[r.StartLine - 1 .. r.EndLine - 1]
-    //            arr.[0] <- arr.[0].Substring(r.StartColumn - 1)
-    //            arr.[arr.Length-1] <- arr.[arr.Length-1].Substring(r.EndColumn - 1)
-    //            String.concat "\r\n" arr |> Some
-    //    | None ->
-    //        None
+let log (verbose : bool) =  
 
     let useColor (c : ConsoleColor) (f : unit -> 'a) =
         let o = Console.ForegroundColor
@@ -155,13 +141,14 @@ let log =
             Console.WriteLine()
     { new ILog with
         member x.debug range fmt =
+            
             fmt |> Printf.kprintf (fun str ->   
-                Console.Write "> "
-                useColor ConsoleColor.DarkGray (fun () ->
-                    Console.Write(str)
-                )
-                writeRange range
-                ()
+                if verbose then
+                    Console.Write "> "
+                    useColor ConsoleColor.DarkGray (fun () ->
+                        Console.Write(str)
+                    )
+                    writeRange range
             )
             
         member x.info range fmt =
@@ -192,17 +179,30 @@ let log =
             )
     }
 
-let generateFilesForProject (checker : FSharpChecker) (info : ProjectInfo) =
-    Adaptify.run (Some checker) false log info |> ignore
-
 [<EntryPoint>]
 let main argv =
+    
+    if argv.Length <= 0 then
+        printfn "Usage: adaptify [options] [projectfiles]"
+        printfn ""
+        printfn "Options:"
+        printfn "  -f|--force    ignore caches and regenerate files"
+        printfn "  -v|--verbose  verbose output"
+        Environment.Exit 1
 
     let force =
         argv |> Array.exists (fun a -> 
             let a = a.ToLower().Trim()
             a = "-f" || a = "--force"    
         )
+        
+    let verbose =
+        argv |> Array.exists (fun a -> 
+            let a = a.ToLower().Trim()
+            a = "-v" || a = "--verbose"    
+        )
+
+    let log = log verbose
 
     let projFiles = 
         if argv.Length > 0 then argv |> Array.filter (fun a -> not (a.StartsWith "-"))
