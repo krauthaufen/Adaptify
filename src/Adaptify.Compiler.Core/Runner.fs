@@ -270,7 +270,6 @@ module Adaptify =
 
                             let warnings = Seq.toList warnings
 
-                            let inFile = file
                             newHashes <- Map.add file { fileHash = fileHash; hasModels = not (List.isEmpty definitions); warnings = warnings } newHashes
                             newFiles.Add file
                             match definitions with

@@ -1427,7 +1427,7 @@ module TypeDefinition =
             sprintf "namespace rec global\r\n\r\n%s" (String.concat "\r\n" (Array.append defaultOpens str))
                     
         | Namespace ns ->
-            sprintf "namespace rec %s\r\n\r\n%s" ns (String.concat "\r\n" (Array.append defaultOpens str))
+            sprintf "namespace rec %s\r\n\r\n%s" ns (String.concat "\r\n" (Array.concat [defaultOpens; [|sprintf "open %s" ns|]; str]))
 
         | Module(parent, name, autoOpen, moduleSuffix) ->
 

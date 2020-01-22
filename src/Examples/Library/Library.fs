@@ -11,10 +11,10 @@ type MyUnion =
     | B of float
 
 [<ModelType>]
-type MyModel =  
+type Object =  
     {
-        a : Result<MyModel, string>
+        a : Result<Object, string>
         b : float
-        map : HashMap<int, MyModel>
+        map : HashMap<int, Object>
     }
 

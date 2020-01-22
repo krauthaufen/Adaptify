@@ -1,5 +1,5 @@
 //f3b74a31-f78c-b76f-792e-3926982a06ec
-//c8165649-3e94-eb30-901f-856752f4a56f
+//f6138536-bd18-a519-8dd8-c593102e56bd
 #nowarn "49" // upper case patterns
 #nowarn "66" // upcast is unncecessary
 #nowarn "1337" // internal types
@@ -8,6 +8,7 @@ namespace rec Model
 open System
 open FSharp.Data.Adaptive
 open Adaptify
+open Model
 [<System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
 type AdaptiveMyUnionCase =
     abstract member Update : MyUnion -> AdaptiveMyUnionCase
