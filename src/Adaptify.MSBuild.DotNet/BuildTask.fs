@@ -203,9 +203,22 @@ type AdaptifyTask() =
                             defines = []
                             target = targetType
                             output = Some (Path.GetTempFileName() + ".dll")
-                            additional = []
+                            additional = ["--noframework"]
                             debug = DebugType.Off
                         }
+
+                        
+                    x.Logger.info range0 "project info"
+                    x.Logger.info range0 "  path: %s" projectFile
+                    x.Logger.info range0 "  newStyle: %A" (not isNetFramework)
+                    x.Logger.info range0 "  target: %A" targetType
+                    x.Logger.info range0 "  %d" references.Length
+                    for r in references do
+                        x.Logger.info range0 "    reference: %s" r
+                    x.Logger.info range0 "  %d" inFiles.Length
+                    for r in inFiles do
+                        x.Logger.info range0 "    file: %s" r
+
 
                     let projHash = ProjectInfo.computeHash projInfo
                     let cacheFile = Path.Combine(Path.GetDirectoryName projectFile, ".adaptifycache")
@@ -258,6 +271,7 @@ type AdaptifyTask() =
                             let needsUpdate =
                                 if not mayDefineModelTypes then
                                     newFiles.Add file
+                                    x.Logger.info range0 "[Adaptify] %s does not contain \"ModelType\"" file
                                     newHashes <- Map.add file { fileHash = fileHash; hasModels = false; warnings = [] } newHashes
                                     false
                                 elif projectChanged then 
@@ -331,7 +345,15 @@ type AdaptifyTask() =
                                 let (_parseResult, answer) = checker.Value.ParseAndCheckFileInProject(file, 0, text, options.Value) |> Async.RunSynchronously
         
                                 match answer with
-                                | FSharpCheckFileAnswer.Succeeded res ->
+                                | FSharpCheckFileAnswer.Succeeded res ->    
+                                    for err in res.Errors do
+                                        let r = mkRange err.FileName (mkPos err.StartLineAlternate err.StartColumn) (mkPos err.EndLineAlternate err.EndColumn)
+                                        let kind = 
+                                            match err.Severity with
+                                            | FSharpErrorSeverity.Error -> "error"
+                                            | FSharpErrorSeverity.Warning -> "warning"
+                                        x.Logger.info r "%s: %s" kind err.Message
+
                                     let rec allEntities (d : FSharpImplementationFileDeclaration) =
                                         match d with
                                         | FSharpImplementationFileDeclaration.Entity(e, ds) ->

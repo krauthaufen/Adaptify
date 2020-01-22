@@ -10,7 +10,7 @@ nuget System.Reflection.Emit.Lightweight    ~> 4.6.0
 nuget BlackFox.VsWhere                      ~> 1.0.0
 nuget Dotnet.ProjInfo                       ~> 0.36.0
 nuget Dotnet.ProjInfo.Workspace             ~> 0.36.0
-nuget FSharp.Compiler.Service               ~> 32.0.0	
+nuget FSharp.Compiler.Service               ~> 33.0.1
 
 nuget Microsoft.Build.Tasks.Core            ~> 16.3.0
 nuget Microsoft.Build.Framework             ~> 16.3.0

@@ -1,3 +1,7 @@
+### 0.0.9
+* fixed compilation for netframework projects
+* added clean/rebuild target
+
 ### 0.0.8
 * fixed caching
 

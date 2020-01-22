@@ -3,6 +3,11 @@
     <TaskAssembly Condition=" '$(MSBuildRuntimeType)' == 'Core'">Adaptify.MSBuild.DotNet.dll</TaskAssembly>
     <TaskAssembly Condition=" '$(MSBuildRuntimeType)' != 'Core'">Adaptify.MSBuild.Framework.dll</TaskAssembly>
   </PropertyGroup>
+
+  <ItemGroup Condition="$(TargetFramework.StartsWith('net4')) Or '$(TargetFramework)' == ''">
+    <Reference Include="netstandard" />
+  </ItemGroup>
+
   <UsingTask TaskName="Adaptify.MSBuild.AdaptifyTask" AssemblyFile="$(TaskAssembly)" />
   <Target Name="UpdateGeneratedFiles" AfterTargets="AfterResolveReferences" Condition="'@(Compile)' != '' And '$(GenerateDomainTypes)' != 'false'">
     <ItemGroup>
@@ -18,5 +23,12 @@
       <Results Remove="@(Results)" />
     </ItemGroup>
   </Target>
+  <ItemGroup>
+    <FilesToClean Include="$(MSBuildProjectDirectory)\.adaptifycache" />
+    <FilesToClean Include="$(MSBuildProjectDirectory)\**\*.g.fs" />
+  </ItemGroup>
+  <Target Name="DeleteAdaptifyCache"  BeforeTargets="Clean;Rebuild">
+    <Delete Files="@(FilesToClean)" />
+  </Target>
+
 </Project>
-  
