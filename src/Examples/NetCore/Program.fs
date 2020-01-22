@@ -11,8 +11,8 @@ let main _argv =
     let _ = Unpersist.instance<MyUnion, AdaptiveMyUnion>
     let test = Unpersist.instance<MyModel, AdaptiveMyModel>
 
-    let v = test.init { a = Error "bad"; b = 3.0; list = HashSet.ofList []; map = HashMap.empty }
-    test.update v { a = Error "bad"; b = 4.0; list = HashSet.empty; map = HashMap.empty }
+    let v = test.init { a = Error "bad"; b = 3.0; map = HashMap.empty }
+    test.update v { a = Error "bad"; b = 4.0; map = HashMap.empty }
 
     let _ : aval<MyModel> = v.Current
 

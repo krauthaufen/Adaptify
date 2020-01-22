@@ -12,7 +12,6 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <Compile Include="Library.g.fs" />
     <Compile Include="Library.fs" />
   </ItemGroup>
   <ItemGroup>

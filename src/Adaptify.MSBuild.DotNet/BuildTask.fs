@@ -165,8 +165,6 @@ type AdaptifyTask() =
         if debug then
             System.Diagnostics.Debugger.Launch() |> ignore
             
-        let modelTypeRx = System.Text.RegularExpressions.Regex @"ModelType(Attribute)?"
-
         match Path.GetExtension projectFile with
             | ".fsproj" -> 
                 try
@@ -178,28 +176,12 @@ type AdaptifyTask() =
 
                     let isNetFramework = references |> Array.exists (fun r -> Path.GetFileNameWithoutExtension(r).ToLower() = "mscorlib")
                     
-                    let inFiles =
-                        let rec appendGenerated (f : list<string>) =
-                            match f with
-                            | [] -> []
-                            | [s] when targetType = Target.Exe -> [s]
-                            | [s] -> 
-                                if s.EndsWith ".g.fs" then [s]
-                                else [s; Path.ChangeExtension(s, ".g.fs")]
-                            | h :: t ->
-                                match t with
-                                | hh :: t when hh = Path.ChangeExtension(h, ".g.fs") ->
-                                    h :: hh :: appendGenerated t
-                                | _ ->
-                                    h :: Path.ChangeExtension(h, ".g.fs") :: appendGenerated t
-                        appendGenerated (Array.toList files)
-
                     let projInfo =
                         {
                             project = projectFile
                             isNewStyle = not isNetFramework
                             references = Array.toList references
-                            files = inFiles
+                            files = Array.toList files
                             defines = []
                             target = targetType
                             output = Some (Path.GetTempFileName() + ".dll")
@@ -207,217 +189,9 @@ type AdaptifyTask() =
                             debug = DebugType.Off
                         }
 
-                        
-                    x.Logger.info range0 "project info"
-                    x.Logger.info range0 "  path: %s" projectFile
-                    x.Logger.info range0 "  newStyle: %A" (not isNetFramework)
-                    x.Logger.info range0 "  target: %A" targetType
-                    x.Logger.info range0 "  %d" references.Length
-                    for r in references do
-                        x.Logger.info range0 "    reference: %s" r
-                    x.Logger.info range0 "  %d" inFiles.Length
-                    for r in inFiles do
-                        x.Logger.info range0 "    file: %s" r
+                    let newFiles = Adaptify.run None false x.Logger projInfo
 
-
-                    let projHash = ProjectInfo.computeHash projInfo
-                    let cacheFile = Path.Combine(Path.GetDirectoryName projectFile, ".adaptifycache")
-                    let cache = CacheFile.tryRead cacheFile
-
-                    let projectChanged = 
-                        match cache with
-                        | Some cache -> projHash <> cache.projectHash
-                        | None -> true
-
-                    let oldHashes = 
-                        match cache with
-                        | Some c -> c.fileHashes
-                        | None -> Map.empty
-
-                    let mutable newHashes = Map.empty
-                    
-                    let projDir = Path.GetDirectoryName projectFile
-                    let newFiles = System.Collections.Generic.List<string>()
-
-                    let md5 = System.Security.Cryptography.MD5.Create()
-                    let inline hash (str : string) = 
-                        md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes str) |> System.Guid |> string
-                    
-                    let checker = 
-                        lazy (
-                            let sw = System.Diagnostics.Stopwatch.StartNew()
-                            let res = FSharpChecker.Create(keepAssemblyContents = true)
-                            sw.Stop()
-                            x.Logger.info range0 "[Adaptify] creating FSharpChecker took: %.0fm" sw.Elapsed.TotalMilliseconds
-                            res
-                        )
-                    
-                    let options = 
-                        lazy (
-                            checker.Value.GetProjectOptionsFromCommandLineArgs(
-                                projectFile, 
-                                ProjectInfo.toFscArgs projInfo |> List.toArray
-                            )
-                        )
-                    for file in files do
-                        if not (file.EndsWith ".g.fs") then
-                            let path = Path.Combine(projDir, file)
-                            let content = File.ReadAllText path
-                            let fileHash = hash content
-
-                            let mayDefineModelTypes = modelTypeRx.IsMatch content
-
-
-                            let needsUpdate =
-                                if not mayDefineModelTypes then
-                                    newFiles.Add file
-                                    x.Logger.info range0 "[Adaptify] %s does not contain \"ModelType\"" file
-                                    newHashes <- Map.add file { fileHash = fileHash; hasModels = false; warnings = [] } newHashes
-                                    false
-                                elif projectChanged then 
-                                    let old = match cache with | Some p -> p.projectHash | None -> ""
-                                    x.Logger.info range0 "[Adaptify] project for %s changed (%A vs %A)" file projHash old
-                                    true
-                                else
-                                    match Map.tryFind file oldHashes with
-                                    | Some oldEntry ->
-                                        if oldEntry.fileHash = fileHash then
-                                            if oldEntry.hasModels then
-                                                let generated = Path.ChangeExtension(path, ".g.fs")
-
-                                                let readGeneratedHash (file : string) = 
-                                                    use s = File.OpenRead file
-                                                    use r = new StreamReader(s)
-                                                    try
-                                                        let inputHash = 
-                                                            let line = r.ReadLine()
-                                                            if line.StartsWith "//" then line.Substring 2
-                                                            else ""
-
-                                                        let selfHash =
-                                                            let line = r.ReadLine()
-                                                            if line.StartsWith "//" then line.Substring 2
-                                                            else ""
-
-                                                        let restHash = 
-                                                            let str = r.ReadToEnd()
-                                                            hash str
-
-                                                        if selfHash = restHash then
-                                                            inputHash
-                                                        else
-                                                            ""
-                                                    with _ ->
-                                                        ""
-
-                                                if File.Exists(generated) && readGeneratedHash generated = fileHash then
-                                                    newFiles.Add file
-                                                    newFiles.Add generated
-                                                    newHashes <- Map.add file oldEntry newHashes
-                                                    for w in oldEntry.warnings do   
-                                                        let range = mkRange file (mkPos w.startLine w.startCol) (mkPos w.endLine w.endCol)
-                                                        x.Logger.warn range w.code "%s" w.message
-
-                                                    false
-                                                else
-                                                    x.Logger.info range0 "[Adaptify] %s: generated file invalid" file
-                                                    true
-                                            else
-                                                newFiles.Add file
-                                                newHashes <- Map.add file oldEntry newHashes
-                                                
-                                                for w in oldEntry.warnings do   
-                                                    let range = mkRange file (mkPos w.startLine w.startCol) (mkPos w.endLine w.endCol)
-                                                    x.Logger.warn range w.code "%s" w.message
-
-                                                false
-                                        else
-                                            x.Logger.info range0 "[Adaptify] %s: file hash changed" file
-                                            true
-
-                                    | None ->   
-                                        x.Logger.info range0 "[Adaptify] %s: no old hash" file
-                                        true
-                                
-                            if needsUpdate then
-                                x.Logger.info range0 "[Adaptify] update file %s" file
-                                let text = FSharp.Compiler.Text.SourceText.ofString content
-                                let (_parseResult, answer) = checker.Value.ParseAndCheckFileInProject(file, 0, text, options.Value) |> Async.RunSynchronously
-        
-                                match answer with
-                                | FSharpCheckFileAnswer.Succeeded res ->    
-                                    for err in res.Errors do
-                                        let r = mkRange err.FileName (mkPos err.StartLineAlternate err.StartColumn) (mkPos err.EndLineAlternate err.EndColumn)
-                                        let kind = 
-                                            match err.Severity with
-                                            | FSharpErrorSeverity.Error -> "error"
-                                            | FSharpErrorSeverity.Warning -> "warning"
-                                        x.Logger.info r "%s: %s" kind err.Message
-
-                                    let rec allEntities (d : FSharpImplementationFileDeclaration) =
-                                        match d with
-                                        | FSharpImplementationFileDeclaration.Entity(e, ds) ->
-                                            e :: List.collect allEntities ds
-                                        | _ ->
-                                            []
-
-                                    let entities = 
-                                        res.ImplementationFile.Value.Declarations
-                                        |> Seq.toList
-                                        |> List.collect allEntities
-                                        
-
-                                    let warnings = System.Collections.Generic.List<Warning>()
-                                    let addWarning (r : range) (code : string) (str : string) =
-                                        warnings.Add {
-                                            startLine = r.StartLine
-                                            startCol = r.StartColumn
-                                            code = code
-                                            endLine = r.EndLine
-                                            endCol = r.EndColumn
-                                            message = str
-                                        }
-
-                                    let localLogger =
-                                        { new ILog with
-                                            member __.debug r fmt = x.Logger.debug r fmt
-                                            member __.info r fmt = x.Logger.debug r fmt
-                                            member __.warn r c fmt = Printf.kprintf (fun str -> addWarning r c str; x.Logger.warn r c "%s" str) fmt
-                                            member __.error r c fmt = Printf.kprintf (fun str -> addWarning r c str; x.Logger.error r c "%s" str) fmt
-                                        }
-
-
-                                    let definitions = 
-                                        entities 
-                                        |> List.choose (TypeDef.ofEntity localLogger)
-                                        |> List.map (fun l -> l.Value)
-                                        |> List.collect (TypeDefinition.ofTypeDef localLogger [])
-
-                                    let warnings = Seq.toList warnings
-
-                                    newHashes <- Map.add file { fileHash = fileHash; hasModels = not (List.isEmpty definitions); warnings = warnings } newHashes
-                                    newFiles.Add file
-                                    match definitions with
-                                    | [] ->
-                                        x.Logger.info range0 "[Adaptify] no models in %s" file
-                                    | defs ->
-                                        let file = Path.ChangeExtension(path, ".g.fs")
-
-                                        let content = TypeDefinition.toFile defs
-                                        let result = sprintf "//%s\r\n//%s\r\n" fileHash (hash content) + content
-
-                                        File.WriteAllText(file, result)
-                                        newFiles.Add file
-                                        x.Logger.info range0 "[Adaptify] generated %s" file
-
-                                | FSharpCheckFileAnswer.Aborted ->
-                                    x.Logger.warn range0 "587" "[Adaptify] could not parse %s" file
-                                    ()
-                            else
-                                x.Logger.info range0 "[Adaptify] skipping %s" file
-
-                    CacheFile.save { projectHash = projHash; fileHashes = newHashes } cacheFile
-                    results <- Seq.toArray newFiles
+                    results <- List.toArray newFiles
                     true
                 with e ->
                     x.Logger.error range0 "587" "failed: %A" e

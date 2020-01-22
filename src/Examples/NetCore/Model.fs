@@ -16,7 +16,7 @@ type MyModel =
     {
         a : Result<MyModel, string>
         b : float
-        list : HashSet<MyModel>
+        //list : HashSet<MyModel>
         map : HashMap<int, MyModel>
     }
 

@@ -19,6 +19,8 @@
     <Compile Include="CoreTypes.fs" />
     <Compile Include="Adaptor.fs" />
     <Compile Include="ProjectInfo.fs" />
+    <Compile Include="Cache.fs" />
+    <Compile Include="Runner.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
