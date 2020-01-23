@@ -185,7 +185,7 @@ module Process =
 
     let startAdaptifyServer (log : ILog) =
         let entry = Assembly.GetEntryAssembly()
-        if false && entry.GetName().Name = "adaptify" then   
+        if entry.GetName().Name = "adaptify" then   
             let info = ProcessStartInfo("dotnet", entry.Location + " --server", UseShellExecute = false, CreateNoWindow = true) 
             let proc = Process.Start(info)
             proc
