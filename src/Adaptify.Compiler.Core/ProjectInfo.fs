@@ -197,4 +197,118 @@ module ProjectInfo =
         let hash = md5.ComputeHash(ms)
         System.Guid hash |> string
 
+    [<AutoOpen>]
+    module private PickleHelpers = 
+        let pickleTarget (t : Target) =
+            match t with
+            | Target.Exe -> 0
+            | Target.Library -> 1
+            | Target.Module -> 2
+            | Target.WinExe -> 3
+        let pickleDebugType (t : DebugType) =
+            match t with
+            | DebugType.Off -> 0
+            | DebugType.PdbOnly -> 1
+            | DebugType.Portable -> 2
+            | DebugType.Full -> 3
+
+        let unpickleTarget (v : int) =
+            match v with
+            | 0 -> Target.Exe
+            | 2 -> Target.Module
+            | 3 -> Target.WinExe
+            | _ -> Target.Library
+
+        let unpickleDebugType (v : int) =
+            match v with
+            | 1 -> DebugType.PdbOnly
+            | 2 -> DebugType.Portable
+            | 3 -> DebugType.Full
+            | _ -> DebugType.Off
+
+
+
+
+
+
+    let tryUnpickleOf (stream : Stream) =
+        let p = stream.Position
+        try
+            use r = new BinaryReader(stream, System.Text.Encoding.UTF8, true)
+        
+            let project = r.ReadString()
+            let isNewStyle = r.ReadBoolean()
+            let c = r.ReadInt32()
+            let references = List.init c (fun _ -> r.ReadString())
+        
+            let c = r.ReadInt32()
+            let files = List.init c (fun _ -> r.ReadString())
+        
+            let c = r.ReadInt32()
+            let defines = List.init c (fun _ -> r.ReadString())
+
+            let target = r.ReadInt32() |> unpickleTarget
+
+            let has = r.ReadBoolean()
+            let output = if has then r.ReadString() |> Some else None
+        
+            let c = r.ReadInt32()
+            let additional = List.init c (fun _ -> r.ReadString())
+
+            let debug = r.ReadInt32() |> unpickleDebugType
+
+            Some {
+                isNewStyle  = isNewStyle
+                project     = project
+                references  = references
+                files       = files
+                target      = target
+                defines     = defines
+                additional  = additional
+                output      = output
+                debug       = debug
+            }
+        with _ ->
+            stream.Position <- p
+            None
+
+    let pickleTo (stream : Stream) (info : ProjectInfo) =
+        use w = new BinaryWriter(stream, System.Text.Encoding.UTF8, true)
+
+        w.Write info.project
+        w.Write info.isNewStyle
+
+        w.Write (List.length info.references)
+        for r in info.references do w.Write r
+
+        w.Write (List.length info.files)
+        for f in info.files do w.Write f
+
+        w.Write (List.length info.defines)
+        for f in info.defines do w.Write f
+
+        w.Write (pickleTarget info.target)
+
+        match info.output with
+        | Some o -> 
+            w.Write(true)
+            w.Write(o)
+        | None ->
+            w.Write(false)
+
+        w.Write (List.length info.additional)
+        for f in info.additional do w.Write f
+
+        w.Write(pickleDebugType info.debug)
+
+
+    let pickle (info : ProjectInfo) =
+        use ms = new System.IO.MemoryStream()
+        pickleTo ms info
+        ms.ToArray()
+
+    let tryUnpickle (arr : byte[]) =
+        use ms = new System.IO.MemoryStream(arr)
+        tryUnpickleOf ms
+        
 

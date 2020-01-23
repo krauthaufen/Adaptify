@@ -21,6 +21,8 @@
     <Compile Include="ProjectInfo.fs" />
     <Compile Include="Cache.fs" />
     <Compile Include="Runner.fs" />
+    <Compile Include="Process.fs" />
+    <Compile Include="Server.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

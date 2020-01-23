@@ -123,72 +123,23 @@ module ProjectInfo =
 let md5 = System.Security.Cryptography.MD5.Create()
 let inline hash (str : string) = 
     md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes str) |> System.Guid |> string
-    
-    
-let log (verbose : bool) =  
-
-    let useColor (c : ConsoleColor) (f : unit -> 'a) =
-        let o = Console.ForegroundColor
-        Console.ForegroundColor <- c
-        try f()
-        finally Console.ForegroundColor <- o
-
-
-    let writeRange (r : FSharp.Compiler.Range.range) =  
-        if r <> range0 then
-            Console.WriteLine(" @ {0} ({1},{2}--{3},{4})", r.FileName, r.StartLine, r.StartColumn, r.EndLine, r.EndColumn)
-        else
-            Console.WriteLine()
-    { new ILog with
-        member x.debug range fmt =
-            
-            fmt |> Printf.kprintf (fun str ->   
-                if verbose then
-                    Console.Write "> "
-                    useColor ConsoleColor.DarkGray (fun () ->
-                        Console.Write(str)
-                    )
-                    writeRange range
-            )
-            
-        member x.info range fmt =
-            fmt |> Printf.kprintf (fun str ->   
-                Console.Write "> " 
-                useColor ConsoleColor.Gray (fun () ->
-                    Console.Write(str)
-                )
-                writeRange range
-            )
-            
-        member x.warn range code fmt =
-            fmt |> Printf.kprintf (fun str ->    
-                Console.Write "> "
-                useColor ConsoleColor.DarkYellow (fun () ->
-                    Console.Write(str)
-                )
-                writeRange range
-            )
-            
-        member x.error range code fmt =
-            fmt |> Printf.kprintf (fun str ->    
-                Console.Write "> "
-                useColor ConsoleColor.Red (fun () ->
-                    Console.Write(str)
-                )
-                writeRange range
-            )
-    }
 
 [<EntryPoint>]
-let main argv =
-    
+let main argv = 
+    let log = Log.console true
+    //let close = Server.startTcp log
+
+
     if argv.Length <= 0 then
         printfn "Usage: adaptify [options] [projectfiles]"
+        printfn "  Version: %s" selfVersion
         printfn ""
         printfn "Options:"
         printfn "  -f|--force    ignore caches and regenerate files"
         printfn "  -v|--verbose  verbose output"
         printfn "  -l|--lenses   generate aether lenses for records"
+        printfn "  -c|--client   uses or creates a local server process"
+        printfn "  --server      runs as server"
         Environment.Exit 1
 
 
@@ -209,32 +160,85 @@ let main argv =
             let a = a.ToLower().Trim()
             a = "-v" || a = "--verbose"    
         )
-
-    let log = log verbose
-
-    let projFiles = 
-        if argv.Length > 0 then argv |> Array.filter (fun a -> not (a.StartsWith "-"))
-        else [| Path.Combine(__SOURCE_DIRECTORY__, "..", "Examples", "Library", "Library.fsproj") |]
-
-
-    let checker = 
-        FSharpChecker.Create(
-            projectCacheSize = 0,
-            keepAssemblyContents = true, 
-            keepAllBackgroundResolutions = false
+         
+    let client =
+        argv |> Array.exists (fun a -> 
+            let a = a.ToLower().Trim()
+            a = "-c" || a = "--client"    
+        )
+   
+    let server =
+        argv |> Array.exists (fun a -> 
+            let a = a.ToLower().Trim()
+            a = "--server"    
         )
 
-    for projFile in projFiles do
-        match ProjectInfo.tryOfProject [] projFile with
-        | Ok info ->
-            Adaptify.run (Some checker) (not force) lenses log info |> ignore
+    if server then
+        match Process.readPort 5000 with
+        | Some _port ->
+            ()
+        | None ->
+            let log = 
+                Log.ofList [
+                    Log.console verbose
+                    //Log.file verbose Process.logFile
+                ]
+            let cancel = Server.startTcp log 
 
-        | Error err ->
-            log.error range0 "" "ERRORS"
-            for e in err do 
-                log.error range0 "" "  %s" e
+            let rec wait() =
+                let line = Console.ReadLine().Trim().ToLower()
+                if line <> "exit" then wait()
+
+            wait()
+            cancel()
 
 
+        0
+    else
+
+        let projects =
+            [|
+                @"C:\Users\Schorsch\Development\aardvark.media\src\Aardvark.UI.Primitives\Aardvark.UI.Primitives.fsproj"
+                "C:\Users\Schorsch\Development\Adaptify\src\Examples\Library\Library.fsproj"
+                "C:\Users\Schorsch\Development\Adaptify\src\Examples\NetCore\NetCore.fsproj"
+                "C:\Users\Schorsch\Development\Adaptify\src\Examples\NetFramework\NetFramework.fsproj"
+                "C:\Users\Schorsch\Development\Adaptify\src\Examples\NetFrameworkOld\NetFrameworkOld.fsproj"
+            |]
+
+        projects 
+        |> Array.Parallel.choose (fun f ->
+            match ProjectInfo.tryOfProject [] f with
+            | Ok info -> Some info
+            | Error err ->
+                log.error range0 "" "%A" err
+                None
+        )
+        |> Array.Parallel.iter (fun info ->
+            Client.adaptifyTcp log info false true |> ignore
+        )
+        Environment.Exit 0
+
+        let log = Log.console verbose
+        let projFiles = argv |> Array.filter (fun a -> not (a.StartsWith "-"))
+
+        let projectInfos = 
+            projFiles |> Array.choose (fun projFile ->
+                match ProjectInfo.tryOfProject [] projFile with
+                | Ok info -> 
+                    Some info
+                | Error err ->
+                    log.error range0 "" "ERRORS in %s" projFile
+                    for e in err do 
+                        log.error range0 "" "  %s" e
+                    None
+            )
 
 
-    0 
+        projectInfos |> Array.Parallel.iter (fun info ->
+            if client then
+                Client.adaptifyTcp log info (not force) lenses |> ignore
+            else
+                Adaptify.run None (not force) lenses log info |> ignore
+        )
+
+        0 

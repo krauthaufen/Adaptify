@@ -9,7 +9,7 @@
   </ItemGroup>
 
   <UsingTask TaskName="Adaptify.MSBuild.AdaptifyTask" AssemblyFile="$(TaskAssembly)" />
-  <Target Name="UpdateGeneratedFiles" BeforeTargets="CoreCompile" Condition="'@(Compile)' != '' And '$(GenerateDomainTypes)' != 'false'">
+  <Target Name="UpdateGeneratedFiles" DependsOnTargets="ResolveAssemblyReferences" BeforeTargets="CoreCompile" Condition="'@(Compile)' != '' And '$(GenerateDomainTypes)' != 'false'">
     <ItemGroup>
       <OldItems Include="@(Compile)" />
     </ItemGroup>

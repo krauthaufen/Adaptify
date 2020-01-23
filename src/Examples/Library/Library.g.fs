@@ -1,5 +1,5 @@
 //8ef10fa2-f75c-2119-e0fd-82cedfd2cb40
-//f0aee300-d7f6-42b9-aac7-cc50690f47bb
+//442fb650-6e4b-669f-b20b-348cdce005bf
 #nowarn "49" // upper case patterns
 #nowarn "66" // upcast is unncecessary
 #nowarn "1337" // internal types
@@ -124,4 +124,11 @@ type AdaptiveObject<'a, '_prima, '_aa>(value : Object<'a>, _primainit : 'a -> Sy
     member __.a = _a_ :> FSharp.Data.Adaptive.aval<Adaptify.FSharp.Core.AdaptiveResultCase<Object<'a>, AdaptiveObject<'a, '_prima, '_aa>, AdaptiveObject<'a, '_prima, '_aa>, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>>
     member __.b = _b_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.float>
     member __.map = _map_ :> FSharp.Data.Adaptive.amap<Microsoft.FSharp.Core.int, AdaptiveObject<'a, '_prima, '_aa>>
+[<AutoOpen; System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
+module ObjectLenses = 
+    type Object<'a> with
+        static member value_ = ((fun (self : Object<'a>) -> self.value), (fun (value : 'a) (self : Object<'a>) -> { self with value = value }))
+        static member a_ = ((fun (self : Object<'a>) -> self.a), (fun (value : Microsoft.FSharp.Core.Result<Object<'a>, Microsoft.FSharp.Core.string>) (self : Object<'a>) -> { self with a = value }))
+        static member b_ = ((fun (self : Object<'a>) -> self.b), (fun (value : Microsoft.FSharp.Core.float) (self : Object<'a>) -> { self with b = value }))
+        static member map_ = ((fun (self : Object<'a>) -> self.map), (fun (value : FSharp.Data.Adaptive.HashMap<Microsoft.FSharp.Core.int, Object<'a>>) (self : Object<'a>) -> { self with map = value }))
 

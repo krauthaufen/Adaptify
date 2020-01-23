@@ -1,3 +1,6 @@
+### 0.0.12
+* experimental server mode
+
 ### 0.0.11
 * fixed shadowing problems with system type names (Object)
 * added option (GenerateLenses) to generate aether-compatible lens extensions

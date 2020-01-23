@@ -245,6 +245,7 @@ module Adaptify =
                             let warnings = System.Collections.Generic.List<Warning>()
                             let addWarning (r : range) (code : string) (str : string) =
                                 warnings.Add {
+                                    isError = false
                                     startLine = r.StartLine
                                     startCol = r.StartColumn
                                     code = code

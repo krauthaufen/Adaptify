@@ -7,6 +7,7 @@ open Adaptify.Compiler
 
 type Warning =
     {
+        isError : bool
         startLine : int
         startCol : int
         endLine : int
@@ -25,7 +26,8 @@ module Warning =
             |> Array.toList
             |> List.map (fun (l : string) ->
                 let c : string[] = l.Split([| ";" |], System.StringSplitOptions.None)
-                { 
+                {
+                    isError = false
                     startLine = int c.[0]
                     startCol = int c.[1]
                     endLine = int c.[2]

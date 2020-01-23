@@ -280,7 +280,8 @@ Target.create "MergeDotNet" (fun _ ->
         [
             "/out:../Adaptify.MSBuild.DotNet.dll"
             "/internalize"
-            
+            sprintf "/ver:%d.%d.%d.%d" notes.SemVer.Major notes.SemVer.Minor notes.SemVer.Patch (int notes.SemVer.Build)
+
             "Adaptify.MSBuild.DotNet.dll"
             "Adaptify.Compiler.Core.dll"
             "FSharp.Compiler.Service.dll"
@@ -320,6 +321,7 @@ Target.create "MergeFramework" (fun _ ->
         [
             "/out:../Adaptify.MSBuild.Framework.dll"
             "/internalize"
+            sprintf "/ver:%d.%d.%d.%d" notes.SemVer.Major notes.SemVer.Minor notes.SemVer.Patch (int notes.SemVer.Build)
             
             "Adaptify.MSBuild.Framework.dll"
             "Adaptify.Compiler.Core.dll"
