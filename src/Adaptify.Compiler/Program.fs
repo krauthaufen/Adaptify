@@ -195,29 +195,6 @@ let main argv =
 
         0
     else
-
-        let projects =
-            [|
-                @"C:\Users\Schorsch\Development\aardvark.media\src\Aardvark.UI.Primitives\Aardvark.UI.Primitives.fsproj"
-                "C:\Users\Schorsch\Development\Adaptify\src\Examples\Library\Library.fsproj"
-                "C:\Users\Schorsch\Development\Adaptify\src\Examples\NetCore\NetCore.fsproj"
-                "C:\Users\Schorsch\Development\Adaptify\src\Examples\NetFramework\NetFramework.fsproj"
-                "C:\Users\Schorsch\Development\Adaptify\src\Examples\NetFrameworkOld\NetFrameworkOld.fsproj"
-            |]
-
-        projects 
-        |> Array.Parallel.choose (fun f ->
-            match ProjectInfo.tryOfProject [] f with
-            | Ok info -> Some info
-            | Error err ->
-                log.error range0 "" "%A" err
-                None
-        )
-        |> Array.Parallel.iter (fun info ->
-            Client.adaptifyTcp log info false true |> ignore
-        )
-        Environment.Exit 0
-
         let log = Log.console verbose
         let projFiles = argv |> Array.filter (fun a -> not (a.StartsWith "-"))
 
