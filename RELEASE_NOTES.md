@@ -1,3 +1,6 @@
+### 0.0.13
+* server mode working
+
 ### 0.0.12
 * experimental server mode
 

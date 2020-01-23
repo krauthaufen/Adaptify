@@ -170,23 +170,23 @@ module Process =
 
 
     let private dotnet (log : ILog) (args : list<string>) =  
-        let start = ProcessStartInfo("dotnet", String.concat " " args, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true)
+        let start = ProcessStartInfo("dotnet", String.concat " " args, CreateNoWindow = true, UseShellExecute = false,  RedirectStandardOutput = true, RedirectStandardError = true)
         let proc = Process.Start(start)
         proc.WaitForExit()
         if proc.ExitCode <> 0 then
             while not proc.StandardOutput.EndOfStream do
                 let line = proc.StandardOutput.ReadLine()
-                log.warn range0 "" "%s" line
+                log.debug range0 "dotnet: %s" line
             while not proc.StandardError.EndOfStream do
                 let line = proc.StandardError.ReadLine()
-                log.error range0 "" "%s" line
+                log.debug range0 "dotnet: %s" line
 
             failwith "dotnet failed"
 
     let startAdaptifyServer (log : ILog) =
         let entry = Assembly.GetEntryAssembly()
-        if entry.GetName().Name = "adaptify" then   
-            let info = ProcessStartInfo("dotnet", entry.Location + " --server", CreateNoWindow = true) 
+        if false && entry.GetName().Name = "adaptify" then   
+            let info = ProcessStartInfo("dotnet", entry.Location + " --server", UseShellExecute = false, CreateNoWindow = true) 
             let proc = Process.Start(info)
             proc
         else    
@@ -195,14 +195,20 @@ module Process =
             if File.Exists toolPath then
                 log.debug range0 "found tool at %s" toolPath
             else
-                dotnet log [ 
-                    "tool"; "install"; "adaptify"
-                    "--tool-path"; sprintf "\"%s\"" toolDir
-                    "--version"; sprintf "[%s]" selfVersion
-                ]
-                log.debug range0 "installed tool at %s" toolPath
-
-            let info = ProcessStartInfo(toolPath, "--server", CreateNoWindow = true)
+                while not (File.Exists toolPath) do
+                    locked (fun () ->
+                        try
+                            dotnet log [ 
+                                "tool"; "install"; "adaptify"
+                                "--no-cache"
+                                "--tool-path"; sprintf "\"%s\"" toolDir
+                                "--version"; sprintf "[%s]" selfVersion
+                            ]
+                            log.debug range0 "installed tool at %s" toolPath
+                        with _ ->
+                            ()
+                    )
+            let info = ProcessStartInfo(toolPath, "--server", UseShellExecute = false, CreateNoWindow = true)
             let proc = Process.Start(info)
             proc
 

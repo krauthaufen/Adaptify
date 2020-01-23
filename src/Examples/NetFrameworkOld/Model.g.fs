@@ -1,5 +1,5 @@
 //f3b74a31-f78c-b76f-792e-3926982a06ec
-//91ca373d-ad53-e5ea-92dc-a8021b69c051
+//f6138536-bd18-a519-8dd8-c593102e56bd
 #nowarn "49" // upper case patterns
 #nowarn "66" // upcast is unncecessary
 #nowarn "1337" // internal types
@@ -107,10 +107,4 @@ type AdaptiveMyModel(value : MyModel) =
     member __.a = _a_ :> FSharp.Data.Adaptive.aval<Adaptify.FSharp.Core.AdaptiveResultCase<MyModel, AdaptiveMyModel, AdaptiveMyModel, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>>
     member __.b = _b_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.float>
     member __.map = _map_ :> FSharp.Data.Adaptive.amap<Microsoft.FSharp.Core.int, AdaptiveMyModel>
-[<AutoOpen; System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
-module MyModelLenses = 
-    type MyModel with
-        static member a_ = ((fun (self : MyModel) -> self.a), (fun (value : Microsoft.FSharp.Core.Result<MyModel, Microsoft.FSharp.Core.string>) (self : MyModel) -> { self with a = value }))
-        static member b_ = ((fun (self : MyModel) -> self.b), (fun (value : Microsoft.FSharp.Core.float) (self : MyModel) -> { self with b = value }))
-        static member map_ = ((fun (self : MyModel) -> self.map), (fun (value : FSharp.Data.Adaptive.HashMap<Microsoft.FSharp.Core.int, MyModel>) (self : MyModel) -> { self with map = value }))
 
