@@ -1,3 +1,7 @@
+### 0.0.17
+* fixed cache files
+* added --killserver flag
+
 ### 0.0.16
 * fixed server exit
 

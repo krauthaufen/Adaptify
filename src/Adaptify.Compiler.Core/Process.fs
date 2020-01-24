@@ -137,6 +137,23 @@ module Process =
 
         run()
 
+    let kill (log : ILog) =
+        locked (fun () -> 
+            let parts = ipc.ReadString().Split([| ';' |], StringSplitOptions.RemoveEmptyEntries)
+            match parts with
+            | [| Int32 pid; Int32 port |] ->
+                if port <> 0 then 
+                    try 
+                        let proc = Process.GetProcessById(pid)
+                        proc.Kill()
+                        log.info range0 "killed process %d" pid
+                    with _ ->
+                        ()
+            | _ ->
+                ()
+        )
+
+
     let setPort (port : int) =
         let pid = Process.GetCurrentProcess().Id
         locked (fun () ->

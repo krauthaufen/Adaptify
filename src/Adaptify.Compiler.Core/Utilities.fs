@@ -210,4 +210,3 @@ module Versions =
         | Some v -> v
         | None -> "0.0.0.0"
 
-    //let pipeName = "adaptifypipe_" + selfVersion

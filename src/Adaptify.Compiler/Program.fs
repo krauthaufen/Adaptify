@@ -181,67 +181,6 @@ type IPCLock(fileName : string, dataSize : int) =
 open System.Diagnostics
 [<EntryPoint>]
 let main argv = 
-
-    //let consoleLock = obj()
-
-    //if argv.Length = 0 then
-    //    let self = System.Reflection.Assembly.GetEntryAssembly().Location
-    //    let start (args : list<string>) =
-    //        let info = ProcessStartInfo("dotnet", String.concat " " (self :: args), CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true)
-    //        let proc = Process.Start info
-    //        proc.OutputDataReceived.Add (fun e ->
-    //            lock consoleLock (fun () ->
-    //                if not (String.IsNullOrWhiteSpace e.Data) then
-    //                    Console.WriteLine("{0}", e.Data)
-    //            )
-    //        )
-    //        proc.ErrorDataReceived.Add (fun e ->
-    //            lock consoleLock (fun () ->
-    //                if not (String.IsNullOrWhiteSpace e.Data) then
-    //                    Console.WriteLine("{0}", e.Data)
-    //            )
-    //        )
-    //        proc.BeginOutputReadLine()
-    //        proc.BeginErrorReadLine()
-    //        proc
-
-    //    let processes =
-    //        Array.init 4 (fun i ->
-    //            start [sprintf "%02d" i]
-    //        )
-
-    //    let run() = 
-    //        let _line = Console.ReadLine()
-    //        processes |> Array.iter (fun p -> p.Kill())
-    //        Environment.Exit 0
-
-    //    let thread = Thread(ThreadStart(run), IsBackground = true)
-    //    thread.Start()
-
-    //    for p in processes do
-    //        p.WaitForExit()
-
-    //else
-    //    use ipc = new IPCLock(@"C:\Users\Schorsch\Desktop\test.txt", 4096)
-    //    let name = argv.[0]
-    //    let data = System.Text.Encoding.UTF8.GetBytes name
-    //    printfn "%s running" name
-
-    //    ipc.Enter()
-    //    printfn "%s entered" name
-    //    let old = System.Text.Encoding.UTF8.GetString(ipc.ReadAll())
-    //    printfn "%s old: %s" name old
-    //    ipc.Write(data, 0, data.Length)
-    //    printfn "%s exit" name
-    //    ipc.Exit()
-        
-
-    //Environment.Exit 0
-
-    //let log = Log.console true
-    //let close = Server.startTcp log
-
-
     if argv.Length <= 0 then
         printfn "Usage: adaptify [options] [projectfiles]"
         printfn "  Version: %s" selfVersion
@@ -252,7 +191,15 @@ let main argv =
         printfn "  -l|--lenses   generate aether lenses for records"
         printfn "  -c|--client   uses or creates a local server process"
         printfn "  --server      runs as server"
+        printfn "  --killserver  kills the currently running server"
         Environment.Exit 1
+
+        
+    let killserver =
+        argv |> Array.exists (fun a -> 
+            let a = a.ToLower().Trim()
+            a = "--killserver"    
+        )
 
 
     let force =
@@ -284,8 +231,11 @@ let main argv =
             let a = a.ToLower().Trim()
             a = "--server"    
         )
-
-    if server then
+        
+    if killserver then
+        Process.kill (Log.console verbose)
+        0
+    elif server then
         match Process.readPort 5000 with
         | Some _port ->
             ()

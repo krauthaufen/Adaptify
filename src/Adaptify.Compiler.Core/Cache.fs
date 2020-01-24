@@ -76,12 +76,14 @@ module CacheFile =
                             if comp.Length > 3 then Warning.parse comp.[3]
                             else []
 
-                        comp.[0], { fileHash = comp.[1]; hasModels = System.Boolean.Parse comp.[2]; warnings = warnings }
+                        let hasModels = comp.[2].ToLower().Trim() = "true"
+
+                        comp.[0], { fileHash = comp.[1]; hasModels = hasModels; warnings = warnings }
                     )
                     |> Map.ofSeq
                 Some {
-                    projectHash = lines.[1]
-                    lenses = System.Boolean.Parse lines.[2]
+                    lenses = lines.[1].ToLower().Trim() = "true"
+                    projectHash = lines.[2]
                     fileHashes = fileHashes
                 }
             else
@@ -94,11 +96,11 @@ module CacheFile =
         try
             File.WriteAllLines(path, [|
                 yield selfVersion
-                yield string cache.lenses
+                yield if cache.lenses then "true" else "false"
                 yield cache.projectHash
                 for (file, entry) in Map.toSeq cache.fileHashes do
                     let wrn = Warning.pickle entry.warnings
-                    yield sprintf "%s;%s;%A;%s" file entry.fileHash entry.hasModels wrn
+                    yield sprintf "%s;%s;%s;%s" file entry.fileHash (if entry.hasModels then "true" else "false") wrn
             |])
         with _ ->
             ()
