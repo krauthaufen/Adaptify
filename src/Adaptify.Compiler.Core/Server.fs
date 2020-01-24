@@ -284,7 +284,7 @@ module Server =
         if not (Process.setPort port) then
             log.info range0 "server already running"
             listener.Stop()
-            cancel.Cancel()
+            Environment.Exit 0
             id
         else
             log.info range0 "server running on port %d" port

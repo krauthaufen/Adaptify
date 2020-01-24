@@ -1,3 +1,6 @@
+### 0.0.16
+* fixed server exit
+
 ### 0.0.15
 * IPC improved
 
