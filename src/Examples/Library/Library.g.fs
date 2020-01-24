@@ -1,5 +1,5 @@
-//8ef10fa2-f75c-2119-e0fd-82cedfd2cb40
-//f0aee300-d7f6-42b9-aac7-cc50690f47bb
+//3ef9b928-1574-64c7-5067-a963798fa0c2
+//012138c3-9b27-c281-8792-5d0254586505
 #nowarn "49" // upper case patterns
 #nowarn "66" // upcast is unncecessary
 #nowarn "1337" // internal types
@@ -9,6 +9,20 @@ open System
 open FSharp.Data.Adaptive
 open Adaptify
 open LibraryModel
+[<System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
+type AdaptiveThing(value : Thing) =
+    let _name_ = FSharp.Data.Adaptive.cval(value.name)
+    let mutable __value = value
+    let __adaptive = FSharp.Data.Adaptive.AVal.custom((fun (token : FSharp.Data.Adaptive.AdaptiveToken) -> __value))
+    static member Create(value : Thing) = AdaptiveThing(value)
+    static member Unpersist = Adaptify.Unpersist.create (fun (value : Thing) -> AdaptiveThing(value)) (fun (adaptive : AdaptiveThing) (value : Thing) -> adaptive.Update(value))
+    member __.Update(value : Thing) =
+        if Microsoft.FSharp.Core.Operators.not((FSharp.Data.Adaptive.ShallowEqualityComparer<Thing>.ShallowEquals(value, __value))) then
+            __value <- value
+            __adaptive.MarkOutdated()
+            _name_.Value <- value.name
+    member __.Current = __adaptive
+    member __.name = _name_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>
 [<System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
 type AdaptiveMyUnionCase =
     abstract member Update : MyUnion -> AdaptiveMyUnionCase

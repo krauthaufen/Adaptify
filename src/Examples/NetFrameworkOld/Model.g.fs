@@ -1,5 +1,5 @@
 //f3b74a31-f78c-b76f-792e-3926982a06ec
-//f6138536-bd18-a519-8dd8-c593102e56bd
+//953a981a-5bda-4432-8396-8a4d0d8403ea
 #nowarn "49" // upper case patterns
 #nowarn "66" // upcast is unncecessary
 #nowarn "1337" // internal types
@@ -87,11 +87,7 @@ type AdaptiveMyModel(value : MyModel) =
             o
         Adaptify.FSharp.Core.AdaptiveResult<Model.MyModel, Model.AdaptiveMyModel, Model.AdaptiveMyModel, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>(value.a, (fun (v : MyModel) -> AdaptiveMyModel(v) :> System.Object), (fun (o : System.Object) (v : MyModel) -> (unbox<AdaptiveMyModel> o).Update(v) :> System.Object), (fun (o : System.Object) -> unbox<AdaptiveMyModel> o), (fun (v : MyModel) -> AdaptiveMyModel(v) :> System.Object), __arg5, (fun (o : System.Object) -> unbox<AdaptiveMyModel> o), (fun (v : Microsoft.FSharp.Core.string) -> v :> System.Object), (fun (o : System.Object) (v : Microsoft.FSharp.Core.string) -> v :> System.Object), (fun (o : System.Object) -> unbox<Microsoft.FSharp.Core.string> o), (fun (v : Microsoft.FSharp.Core.string) -> FSharp.Data.Adaptive.cval(v) :> System.Object), __arg11, (fun (o : System.Object) -> unbox<FSharp.Data.Adaptive.cval<Microsoft.FSharp.Core.string>> o :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>))
     let _b_ = FSharp.Data.Adaptive.cval(value.b)
-    let _map_ =
-        let inline __arg2 (m : AdaptiveMyModel) (v : MyModel) =
-            m.Update(v)
-            m
-        FSharp.Data.Traceable.ChangeableModelMap(value.map, (fun (v : MyModel) -> AdaptiveMyModel(v)), __arg2, (fun (m : AdaptiveMyModel) -> m))
+    let _map_ = FSharp.Data.Adaptive.cval(value.map)
     let mutable __value = value
     let __adaptive = FSharp.Data.Adaptive.AVal.custom((fun (token : FSharp.Data.Adaptive.AdaptiveToken) -> __value))
     static member Create(value : MyModel) = AdaptiveMyModel(value)
@@ -102,9 +98,9 @@ type AdaptiveMyModel(value : MyModel) =
             __adaptive.MarkOutdated()
             _a_.Update(value.a)
             _b_.Value <- value.b
-            _map_.Update(value.map)
+            _map_.Value <- value.map
     member __.Current = __adaptive
     member __.a = _a_ :> FSharp.Data.Adaptive.aval<Adaptify.FSharp.Core.AdaptiveResultCase<MyModel, AdaptiveMyModel, AdaptiveMyModel, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>>
     member __.b = _b_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.float>
-    member __.map = _map_ :> FSharp.Data.Adaptive.amap<Microsoft.FSharp.Core.int, AdaptiveMyModel>
+    member __.map = _map_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.obj>
 

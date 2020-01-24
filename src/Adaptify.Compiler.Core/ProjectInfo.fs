@@ -249,7 +249,19 @@ module ProjectInfo =
             | _ -> DebugType.Off
 
 
+    let normalize (info : ProjectInfo) =
+        let path = Path.GetFullPath info.project
+        let dir = Path.GetDirectoryName path
 
+        let full (str : string) =
+            if Path.IsPathRooted str then str
+            else Path.Combine(dir, str)
+
+        { info with
+            files = info.files |> List.map full
+            references = info.references |> List.map full
+            output = info.output |> Option.map full
+        }
 
 
 
@@ -279,17 +291,19 @@ module ProjectInfo =
 
             let debug = r.ReadInt32() |> unpickleDebugType
 
-            Some {
-                isNewStyle  = isNewStyle
-                project     = project
-                references  = references
-                files       = files
-                target      = target
-                defines     = defines
-                additional  = additional
-                output      = output
-                debug       = debug
-            }
+            let project = 
+                normalize {
+                    isNewStyle  = isNewStyle
+                    project     = project
+                    references  = references
+                    files       = files
+                    target      = target
+                    defines     = defines
+                    additional  = additional
+                    output      = output
+                    debug       = debug
+                }
+            Some project
         with _ ->
             stream.Position <- p
             None

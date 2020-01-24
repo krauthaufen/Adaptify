@@ -9,7 +9,8 @@ module Adaptify =
     let private modelTypeRx = System.Text.RegularExpressions.Regex @"ModelType(Attribute)?"
 
     let run (checker : option<FSharpChecker>) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
-        
+        let projectInfo = ProjectInfo.normalize projectInfo
+
         let projectFile = projectInfo.project
         if Path.GetExtension projectFile = ".fsproj" then
             
@@ -113,7 +114,7 @@ module Adaptify =
                     | Some c -> c
                     | None -> 
                         let sw = System.Diagnostics.Stopwatch.StartNew()
-                        let res = FSharpChecker.Create(keepAssemblyContents = true)
+                        let res = FSharpChecker.Create(keepAssemblyContents = true, keepAllBackgroundResolutions = true)
                         sw.Stop()
                         log.debug range0 "[Adaptify]   creating FSharpChecker took: %.0fm" sw.Elapsed.TotalMilliseconds
                         res
@@ -131,8 +132,7 @@ module Adaptify =
 
             for file in projectInfo.files do
                 if not (file.EndsWith ".g.fs") then
-                    let path = Path.Combine(projDir, file)
-                    let content = File.ReadAllText path
+                    let content = File.ReadAllText file
                     let fileHash = hash content
 
                     let mayDefineModelTypes = modelTypeRx.IsMatch content
@@ -153,7 +153,7 @@ module Adaptify =
                             | Some oldEntry ->
                                 if oldEntry.fileHash = fileHash then
                                     if oldEntry.hasModels then
-                                        let generated = Path.ChangeExtension(path, ".g.fs")
+                                        let generated = Path.ChangeExtension(file, ".g.fs")
 
                                         let readGeneratedHash (file : string) = 
                                             use s = File.OpenRead file
@@ -263,7 +263,7 @@ module Adaptify =
                                 }
 
 
-                            let definitions = 
+                            let definitions =   
                                 entities 
                                 |> List.choose (TypeDef.ofEntity localLogger)
                                 |> List.map (fun l -> l.Value)
@@ -277,7 +277,7 @@ module Adaptify =
                             | [] ->
                                 log.info range0 "[Adaptify]   no models in %s" (relativePath projDir file)
                             | defs ->
-                                let file = Path.ChangeExtension(path, ".g.fs")
+                                let file = Path.ChangeExtension(file, ".g.fs")
 
                                 let content = TypeDefinition.toFile defs
                                 let result = sprintf "//%s\r\n//%s\r\n" fileHash (hash content) + content

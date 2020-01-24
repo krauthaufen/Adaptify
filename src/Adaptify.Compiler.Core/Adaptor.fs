@@ -99,7 +99,7 @@ module TypePatterns =
         | _ ->
             None
 
-    let rec (|AnyAdaptive|_|) (t : TypeRef) =
+    let rec (|AnyAdaptive|_|) (t : TypeRef)  =
         match t with
         | Option (AnyAdaptive _) -> 
             Some t

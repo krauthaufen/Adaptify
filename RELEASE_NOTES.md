@@ -1,3 +1,6 @@
+### 0.0.21
+* normalized (full) paths in all project infos
+
 ### 0.0.20
 * fixed embarrassing relative path error
 
