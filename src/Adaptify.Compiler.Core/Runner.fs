@@ -40,7 +40,7 @@ module Adaptify =
             
             let projectChanged = 
                 match cache with
-                | Some cache -> projHash <> cache.projectHash
+                | Some cache -> projHash <> cache.projectHash || createLenses <> cache.lenses
                 | None -> 
                     if useCache then
                         log.debug range0 "[Adaptify]   no cache file for %s" (Path.GetFileName projectFile)
@@ -295,7 +295,7 @@ module Adaptify =
                         else
                             log.info range0 "[Adaptify]   skip %s (no model types)" (relativePath projDir file)
 
-            CacheFile.save { projectHash = projHash; fileHashes = newHashes } cacheFile
+            CacheFile.save { lenses = createLenses; projectHash = projHash; fileHashes = newHashes } cacheFile
 
 
             let files = newFiles |> Seq.map (relativePath projDir) |> String.concat "; " |> sprintf "[%s]"

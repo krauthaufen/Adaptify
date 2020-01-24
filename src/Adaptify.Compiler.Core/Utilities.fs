@@ -70,6 +70,8 @@ module Log =
             member x.error _ _ fmt = Printf.kprintf ignore fmt
         }
     
+    let private consoleLock = obj()
+
     let console (verbose : bool) =  
 
         let useColor (c : ConsoleColor) (f : unit -> 'a) =
@@ -88,64 +90,90 @@ module Log =
             member x.debug range fmt =
                 fmt |> Printf.kprintf (fun str ->   
                     if verbose then 
-                        lock x (fun () ->
+                        lock consoleLock (fun () ->
                             Console.Write("> ")
                             useColor ConsoleColor.DarkGray (fun () ->
                                 Console.Write(str)
                             )
                             writeRange range
+                            Console.Out.Flush()
                         )
                 )
 
             
             member x.info range fmt =
                 fmt |> Printf.kprintf (fun str ->   
-                    lock x (fun () ->
+                    lock consoleLock (fun () ->
                         Console.Write("> ")
                         useColor ConsoleColor.Gray (fun () ->
                             Console.Write(str)
                         )
                         writeRange range
+                        Console.Out.Flush()
                     )
                 )
             
             member x.warn range code fmt =
                 fmt |> Printf.kprintf (fun str ->  
-                    lock x (fun () -> 
+                    lock consoleLock (fun () -> 
                         Console.Write("> ")
                         useColor ConsoleColor.DarkYellow (fun () ->
                             Console.Write(str)
                         )
                         writeRange range
+                        Console.Out.Flush()
                     )
                 )
             
             member x.error range code fmt =
                 fmt |> Printf.kprintf (fun str ->  
-                    lock x (fun () ->
+                    lock consoleLock (fun () ->
                         Console.Write("> ")
                         useColor ConsoleColor.Red (fun () ->
                             Console.Write(str)
                         )
                         writeRange range
+                        Console.Out.Flush()
                     )
                 )
         }
 
     let file (verbose : bool) (file : string) =
-        let lines (prefix : string) (str : string) = 
+
+        let stream = new FileStream(file, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.WriteThrough)
+
+        let enter() =
+            let mutable entered = false
+            while not entered do
+                try
+                    stream.Lock(0L, 0L)
+                    entered <- true
+                with _ ->
+                    Threading.Thread.Sleep 0
+
+        let exit() =
+            stream.Unlock(0L, 0L)
+
+        let pid = System.Diagnostics.Process.GetCurrentProcess().Id
+        let appendLine (prefix : string) (str : string) =
             let now = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss")
-            [ sprintf "%s %s %s" now prefix str ]
+            let str = sprintf "%06d %s %s %s\r\n" pid now prefix str 
+            let bytes = System.Text.Encoding.UTF8.GetBytes str
+            enter()
+            stream.Seek(0L, SeekOrigin.End) |> ignore
+            stream.Write(bytes, 0, bytes.Length)
+            stream.Flush()
+            exit()
 
         { new ILog with
-            member x.debug range fmt =
-                fmt |> Printf.kprintf (fun str -> if verbose then File.AppendAllLines(file, lines "DEBUG " str))
-            member x.info range fmt =
-                fmt |> Printf.kprintf (fun str -> File.AppendAllLines(file, lines "INFO  " str))
-            member x.warn c range fmt =
-                fmt |> Printf.kprintf (fun str -> File.AppendAllLines(file, lines "WARN  " str))
-            member x.error c range fmt =
-                fmt |> Printf.kprintf (fun str -> File.AppendAllLines(file, lines "ERR   " str))
+            member x.debug _range fmt =
+                fmt |> Printf.kprintf (fun str -> if verbose then appendLine "DEBUG " str)
+            member x.info _range fmt =
+                fmt |> Printf.kprintf (fun str -> appendLine "INFO  " str)
+            member x.warn _code _range fmt =
+                fmt |> Printf.kprintf (fun str -> appendLine "WARN  " str)
+            member x.error _code _range fmt =
+                fmt |> Printf.kprintf (fun str -> appendLine "ERR   " str)
         }
 
     let ofList (logs : list<ILog>) =
@@ -166,6 +194,7 @@ module Log =
                 }
 
             ls |> List.fold merge l
+
 
 
 [<AutoOpen>]

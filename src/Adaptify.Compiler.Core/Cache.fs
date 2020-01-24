@@ -58,6 +58,7 @@ type FileCacheEntry =
 
 type CacheFile =
     {
+        lenses : bool
         projectHash : string
         fileHashes : Map<string, FileCacheEntry>
     }
@@ -66,21 +67,25 @@ module CacheFile =
     let tryRead (log : ILog) (path : string) =
         try
             let lines = File.ReadAllLines path
-            let fileHashes =
-                Array.skip 1 lines |> Seq.map (fun l ->
-                    let comp = l.Split([|";"|], System.StringSplitOptions.None)
+            if lines.Length >= 3 && lines.[0].Trim() = selfVersion then
+                let fileHashes =
+                    Array.skip 3 lines |> Seq.map (fun l ->
+                        let comp = l.Split([|";"|], System.StringSplitOptions.None)
 
-                    let warnings =
-                        if comp.Length > 3 then Warning.parse comp.[3]
-                        else []
+                        let warnings =
+                            if comp.Length > 3 then Warning.parse comp.[3]
+                            else []
 
-                    comp.[0], { fileHash = comp.[1]; hasModels = System.Boolean.Parse comp.[2]; warnings = warnings }
-                )
-                |> Map.ofSeq
-            Some {
-                projectHash = lines.[0]
-                fileHashes = fileHashes
-            }
+                        comp.[0], { fileHash = comp.[1]; hasModels = System.Boolean.Parse comp.[2]; warnings = warnings }
+                    )
+                    |> Map.ofSeq
+                Some {
+                    projectHash = lines.[1]
+                    lenses = System.Boolean.Parse lines.[2]
+                    fileHashes = fileHashes
+                }
+            else
+                None
         with e ->
             log.debug FSharp.Compiler.Range.range0 "could not read cache file: %A" e
             None
@@ -88,6 +93,8 @@ module CacheFile =
     let save (cache : CacheFile) (path : string) =
         try
             File.WriteAllLines(path, [|
+                yield selfVersion
+                yield string cache.lenses
                 yield cache.projectHash
                 for (file, entry) in Map.toSeq cache.fileHashes do
                     let wrn = Warning.pickle entry.warnings

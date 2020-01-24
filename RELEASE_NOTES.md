@@ -1,3 +1,6 @@
+### 0.0.15
+* IPC improved
+
 ### 0.0.14
 * fixed tool
 

@@ -124,9 +124,121 @@ let md5 = System.Security.Cryptography.MD5.Create()
 let inline hash (str : string) = 
     md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes str) |> System.Guid |> string
 
+open System.Threading
+
+
+type IPCLock(fileName : string, dataSize : int) =
+    let stream = new FileStream(fileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Delete ||| FileShare.Inheritable ||| FileShare.ReadWrite, dataSize, FileOptions.WriteThrough)
+    let lockObj = obj()
+    let mutable isEntered = 0
+
+    member x.Enter() =
+        Monitor.Enter lockObj
+        isEntered <- isEntered + 1
+        if isEntered = 1 then
+            let mutable entered = false
+            while not entered do
+                try 
+                    stream.Lock(0L, int64 dataSize)
+                    entered <- true
+                with _ ->
+                    Threading.Thread.Sleep 5
+            stream.SetLength(int64 dataSize)
+
+    member x.Exit() =
+        if not (Monitor.IsEntered lockObj) then failwith "lock not entered"
+        isEntered <- isEntered - 1
+        if isEntered = 0 then
+            stream.Unlock(0L, int64 dataSize)
+        Monitor.Exit lockObj
+
+    member x.Write(data : byte[], offset : int, count : int) =
+        if not (Monitor.IsEntered lockObj) then failwith "lock not entered"
+        stream.Seek(0L, SeekOrigin.Begin) |> ignore
+        stream.Write(data, offset, count)
+        stream.Flush()
+
+    member x.ReadAll() =
+        if not (Monitor.IsEntered lockObj) then failwith "lock not entered"
+        let arr = Array.zeroCreate dataSize
+        stream.Seek(0L, SeekOrigin.Begin) |> ignore
+        
+        let mutable offset = 0
+        let mutable rem = arr.Length
+        while rem > 0 do
+            let r = stream.Read(arr, offset, rem)
+            rem <- rem - r
+            offset <- offset + r
+
+        arr
+
+    member x.Dispose() = 
+        stream.Dispose()
+
+    interface IDisposable with
+        member x.Dispose() = x.Dispose()
+
+open System.Diagnostics
 [<EntryPoint>]
 let main argv = 
-    let log = Log.console true
+
+    //let consoleLock = obj()
+
+    //if argv.Length = 0 then
+    //    let self = System.Reflection.Assembly.GetEntryAssembly().Location
+    //    let start (args : list<string>) =
+    //        let info = ProcessStartInfo("dotnet", String.concat " " (self :: args), CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true)
+    //        let proc = Process.Start info
+    //        proc.OutputDataReceived.Add (fun e ->
+    //            lock consoleLock (fun () ->
+    //                if not (String.IsNullOrWhiteSpace e.Data) then
+    //                    Console.WriteLine("{0}", e.Data)
+    //            )
+    //        )
+    //        proc.ErrorDataReceived.Add (fun e ->
+    //            lock consoleLock (fun () ->
+    //                if not (String.IsNullOrWhiteSpace e.Data) then
+    //                    Console.WriteLine("{0}", e.Data)
+    //            )
+    //        )
+    //        proc.BeginOutputReadLine()
+    //        proc.BeginErrorReadLine()
+    //        proc
+
+    //    let processes =
+    //        Array.init 4 (fun i ->
+    //            start [sprintf "%02d" i]
+    //        )
+
+    //    let run() = 
+    //        let _line = Console.ReadLine()
+    //        processes |> Array.iter (fun p -> p.Kill())
+    //        Environment.Exit 0
+
+    //    let thread = Thread(ThreadStart(run), IsBackground = true)
+    //    thread.Start()
+
+    //    for p in processes do
+    //        p.WaitForExit()
+
+    //else
+    //    use ipc = new IPCLock(@"C:\Users\Schorsch\Desktop\test.txt", 4096)
+    //    let name = argv.[0]
+    //    let data = System.Text.Encoding.UTF8.GetBytes name
+    //    printfn "%s running" name
+
+    //    ipc.Enter()
+    //    printfn "%s entered" name
+    //    let old = System.Text.Encoding.UTF8.GetString(ipc.ReadAll())
+    //    printfn "%s old: %s" name old
+    //    ipc.Write(data, 0, data.Length)
+    //    printfn "%s exit" name
+    //    ipc.Exit()
+        
+
+    //Environment.Exit 0
+
+    //let log = Log.console true
     //let close = Server.startTcp log
 
 
@@ -181,7 +293,7 @@ let main argv =
             let log = 
                 Log.ofList [
                     Log.console verbose
-                    //Log.file verbose Process.logFile
+                    Log.file verbose Process.logFile
                 ]
             let cancel = Server.startTcp log 
 

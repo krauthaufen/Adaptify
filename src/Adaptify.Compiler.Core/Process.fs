@@ -6,6 +6,73 @@ open FSharp.Compiler.Range
 open System.Reflection
 open System.Runtime.InteropServices
 open System.Diagnostics
+open System.Threading
+
+
+type IPCLock(fileName : string, dataSize : int) =
+    let stream = new FileStream(fileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Delete ||| FileShare.Inheritable ||| FileShare.ReadWrite, dataSize, FileOptions.WriteThrough)
+    let lockObj = obj()
+    let mutable isEntered = 0
+
+    member x.Enter() =
+        Monitor.Enter lockObj
+        isEntered <- isEntered + 1
+        if isEntered = 1 then
+            let mutable entered = false
+            while not entered do
+                try 
+                    stream.Lock(0L, int64 dataSize)
+                    entered <- true
+                with _ ->
+                    Threading.Thread.Sleep 5
+            stream.SetLength(int64 dataSize)
+
+    member x.Exit() =
+        if not (Monitor.IsEntered lockObj) then failwith "lock not entered"
+        isEntered <- isEntered - 1
+        if isEntered = 0 then
+            stream.Unlock(0L, int64 dataSize)
+        Monitor.Exit lockObj
+
+    member x.Write(data : byte[], offset : int, count : int) =
+        if not (Monitor.IsEntered lockObj) then failwith "lock not entered"
+        stream.Seek(0L, SeekOrigin.Begin) |> ignore
+        stream.Write(data, offset, count)
+        stream.Flush()
+
+    member x.Write(str : string) =
+        let mutable bytes = System.Text.Encoding.UTF8.GetBytes str
+        if bytes.Length > dataSize then failwithf "string too long (%d vs %d)" bytes.Length dataSize
+        x.Write(bytes, 0, bytes.Length)
+
+    member x.ReadAll() =
+        if not (Monitor.IsEntered lockObj) then failwith "lock not entered"
+        let arr = Array.zeroCreate dataSize
+        stream.Seek(0L, SeekOrigin.Begin) |> ignore
+        
+        let mutable offset = 0
+        let mutable rem = arr.Length
+        while rem > 0 do
+            let r = stream.Read(arr, offset, rem)
+            rem <- rem - r
+            offset <- offset + r
+
+        arr
+
+    member x.ReadString() =
+        let data = x.ReadAll()
+        System.Text.Encoding.UTF8.GetString data
+
+    member x.Dispose() = 
+        lock lockObj (fun () ->
+            if isEntered > 0 then 
+                isEntered <- 0
+                stream.Unlock(0L, int64 dataSize)
+        )
+        stream.Dispose()
+
+    interface IDisposable with
+        member x.Dispose() = x.Dispose()
 
 
 module Process = 
@@ -14,107 +81,38 @@ module Process =
         if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then ".exe"
         else ""
 
-    let logFile =
-        let folder = Path.Combine(Path.GetTempPath(), "adaptify", string selfVersion)
-        if not (Directory.Exists folder) then Directory.CreateDirectory folder |> ignore
-        Path.Combine(folder, "log.txt")
+    let private directory =
+        let path = Path.Combine(Path.GetTempPath(), "adaptify", string selfVersion)
+        while not (Directory.Exists path) do 
+            try Directory.CreateDirectory path |> ignore
+            with _ -> ()
+        path
 
-    let getProcesses() =
-        let folder = Path.Combine(Path.GetTempPath(), "adaptify", string selfVersion)
-        if Directory.Exists folder then 
-            let selfId = Process.GetCurrentProcess().Id
-            Directory.GetFiles(folder, "*.proc")
-            |> Array.choose (fun file ->
-                match Int32.TryParse (Path.GetFileNameWithoutExtension file) with
-                | (true, pid) ->  
-                    if pid <> selfId then
-                        try 
-                            let proc = Process.GetProcessById(pid)
-                            if isNull proc then 
-                                try File.Delete file with _ -> ()
-                                None
-                            else 
-                                Some proc
-                        with _ -> 
-                            try File.Delete file with _ -> ()
-                            None
-                    else
-                        None
-                | _ -> 
-                    None
-            )
-        else
-            [||]
-            
-    //let internal getPort() =
-    //    let folder = Path.Combine(Path.GetTempPath(), "adaptify", string selfVersion)
-    //    if Directory.Exists folder then 
-    //        let selfId = Process.GetCurrentProcess().Id
-    //        Directory.GetFiles(folder, "*.proc")
-    //        |> Array.tryPick (fun file ->
-    //            match Int32.TryParse (Path.GetFileNameWithoutExtension file) with
-    //            | (true, pid) ->  
-    //                if true || pid <> selfId then
-    //                    try 
-    //                        let proc = Process.GetProcessById(pid)
-    //                        if isNull proc then 
-    //                            try File.Delete file with _ -> ()
-    //                            None
-    //                        else 
-    //                            match Int32.TryParse((File.ReadAllText file)) with
-    //                            | (true, port) -> Some port
-    //                            | _ -> None
-    //                    with _ -> 
-    //                        try File.Delete file with _ -> ()
-    //                        None
-    //                else
-    //                    None
-    //            | _ -> 
-    //                None
-    //        )
-    //    else
-    //        None
-
-    //let internal createProcFile(port : int) =
-    //    let folder = Path.Combine(Path.GetTempPath(), "adaptify", string selfVersion)
-    //    let pid = System.Diagnostics.Process.GetCurrentProcess().Id
-    //    let procFile = Path.Combine(folder, sprintf "%d.proc" pid)
-    //    if not (Directory.Exists folder) then Directory.CreateDirectory folder |> ignore
-    //    File.WriteAllText(procFile, string port)
-
-    //let internal deleteProcFile() =
-    //    let folder = Path.Combine(Path.GetTempPath(), "adaptify", string selfVersion)
-    //    let pid = System.Diagnostics.Process.GetCurrentProcess().Id
-    //    let procFile = Path.Combine(folder, sprintf "%d.proc" pid)
-    //    if File.Exists procFile then File.Delete procFile
-
-    open System.IO.MemoryMappedFiles
-
-    let private sem = 
-        let mutexName = "adaptify_" + selfVersion + "_mutex"
-        match System.Threading.Semaphore.TryOpenExisting mutexName with
-        | (true, sem) -> sem
-        | _ -> new System.Threading.Semaphore(1, 1, mutexName)
+    let ipc = 
+        let path = Path.Combine(directory, "process.lock")
+        new IPCLock(path, 4096)
+        
+    let logFile = Path.Combine(directory, "log.txt")
 
     let rec locked (action : unit -> 'r) =
+        ipc.Enter()
         try 
-            let mutable worked = sem.WaitOne()
-            while not worked do
-                worked <- sem.WaitOne()
             action()
         finally
-            sem.Release() |> ignore
+            ipc.Exit()
 
-    let file = MemoryMappedFile.CreateOrOpen("adaptify_" + selfVersion, 8L, MemoryMappedFileAccess.ReadWrite, MemoryMappedFileOptions.None, HandleInheritability.Inheritable)
-                
+    let private (|Int32|_|) (str : string) =
+        match Int32.TryParse str with
+        | (true, v) -> Some v
+        | _ -> None
+
     let readPort (timeout : int) =
         let sw = System.Diagnostics.Stopwatch.StartNew()
         let read() =
             locked (fun () -> 
-                use view = file.CreateViewAccessor()
-                if view.Capacity >= 8L then
-                    let port = view.ReadInt32(0L)
-                    let pid = view.ReadInt32(4L)
+                let parts = ipc.ReadString().Split([| ';' |], StringSplitOptions.RemoveEmptyEntries)
+                match parts with
+                | [| Int32 pid; Int32 port |] ->
                     if port = 0 then 
                         None
                     else
@@ -123,12 +121,12 @@ module Process =
                             Some port
                         with _ ->
                             None
-                else
+                | _ ->
                     None
             )
 
         let rec run() =
-            if sw.Elapsed.TotalMilliseconds > float timeout then
+            if timeout > 0 && sw.Elapsed.TotalMilliseconds > float timeout then
                 None
             else
                 try 
@@ -141,33 +139,14 @@ module Process =
 
     let setPort (port : int) =
         let pid = Process.GetCurrentProcess().Id
-        let mapName = "adaptify_" + selfVersion
-
-
         locked (fun () ->
-            let file = MemoryMappedFile.CreateOrOpen(mapName, 8L, MemoryMappedFileAccess.ReadWrite, MemoryMappedFileOptions.None, HandleInheritability.Inheritable)
-            use view = file.CreateViewAccessor()
-            
-            let runningPort = view.ReadInt32(0L)
-            let running = view.ReadInt32(4L)
-            if running <> 0 && runningPort <> 0 then
-                let working = 
-                    try Process.GetProcessById running |> ignore; true
-                    with _ -> false
-                if working then 
-                    file.Dispose()
-                    failwith "dead"
-
-
-            view.Write(0L, port)
-            view.Write(4L, pid)
-            view.Flush()
-            
-            file :> IDisposable
+            match readPort 0 with
+            | Some other ->
+                false
+            | None -> 
+                ipc.Write(sprintf "%d;%d" pid port)
+                true
         )
-
-
-
 
     let private dotnet (log : ILog) (args : list<string>) =  
         let start = ProcessStartInfo("dotnet", String.concat " " args, CreateNoWindow = true, UseShellExecute = false,  RedirectStandardOutput = true, RedirectStandardError = true)
@@ -190,8 +169,7 @@ module Process =
             let proc = Process.Start(info)
             proc
         else    
-            let toolDir = Path.Combine(Path.GetTempPath(), "adaptify", string selfVersion)
-            let toolPath = Path.Combine(toolDir, "adaptify" + executableExtension)
+            let toolPath = Path.Combine(directory, "adaptify" + executableExtension)
             if File.Exists toolPath then
                 log.debug range0 "found tool at %s" toolPath
             else
@@ -201,7 +179,7 @@ module Process =
                             dotnet log [ 
                                 "tool"; "install"; "adaptify"
                                 "--no-cache"
-                                "--tool-path"; sprintf "\"%s\"" toolDir
+                                "--tool-path"; sprintf "\"%s\"" directory
                                 "--version"; sprintf "[%s]" selfVersion
                             ]
                             log.debug range0 "installed tool at %s" toolPath

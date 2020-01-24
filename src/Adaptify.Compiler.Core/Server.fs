@@ -217,11 +217,11 @@ module internal NetworkStreamExtensions =
 
 
 module Server =
-    let private processMessage (log : ILog) (checker : FSharpChecker) (data : byte[]) =
+    let private processMessage (cid : int) (log : ILog) (checker : FSharpChecker) (data : byte[]) =
         try
             match IPC.Command.tryUnpickle data with
             | Some (IPC.Command.Adaptify(project, cache, lenses)) ->
-            
+                log.debug range0 "  %04d: %s %A %A" cid (Path.GetFileName project.project) cache lenses
                 let w = obj()
                 let mutable messages = []
 
@@ -245,22 +245,21 @@ module Server =
                         member x.debug r fmt = 
                             fmt |> Printf.kprintf (fun str -> 
                                 addMessage (IPC.MessageKind.Debug) r str
-                                log.debug r "%s" str
                             )
                         member x.info r fmt = 
                             fmt |> Printf.kprintf (fun str -> 
                                 addMessage (IPC.MessageKind.Info) r str
-                                log.info r "%s" str
+                                log.debug r "  %04d: %s" cid str
                             )
                         member x.warn r c fmt =
                             fmt |> Printf.kprintf (fun str -> 
                                 addMessage (IPC.MessageKind.Warning c) r str
-                                log.warn r c "%s" str
+                                log.debug r "  %04d: warning %s" cid str
                             )
                         member x.error r c fmt =
                             fmt |> Printf.kprintf (fun str -> 
                                 addMessage (IPC.MessageKind.Error c) r str
-                                log.error r c "%s" str
+                                log.debug r  "  %04d: error %s" cid str
                             )
                     }
 
@@ -282,62 +281,81 @@ module Server =
         let cancel = new CancellationTokenSource()
         
         let port = (unbox<IPEndPoint> listener.LocalEndpoint).Port
-        use __ = Process.setPort port
-        log.info range0 "server running on port %d" port
-
-        let checker = FSharpChecker.Create(keepAssemblyContents = true, keepAllBackgroundResolutions = true)
-
-        let mutable working = 0
-        let mutable lastRequest = DateTime.Now
-
-        let timeout = TimeSpan.FromMinutes 8.0
-        let tick _ =
-            let dt = DateTime.Now - lastRequest
-            if working = 0 && dt > timeout then 
-                listener.Stop()
-                cancel.Cancel()
-                Environment.Exit 0
-
-        let period = int (timeout.TotalMilliseconds / 10.0) |> max 1000
-        let timer =
-            new Timer(TimerCallback tick, null, period, period)
-        
-        let run = 
-            async {
-                try
-                    while true do
-                        let! client = listener.AcceptTcpClientAsync() |> Async.AwaitTask
-                        lastRequest <- DateTime.Now
-                        Async.Start <|
-                            async {
-                                Interlocked.Increment(&working) |> ignore
-                                try
-                                    try
-                                        use stream = client.GetStream()
-                                        let! msg = stream.ReadMessageAsync()
-                                        do! Async.SwitchToThreadPool()
-                                        let reply = processMessage log checker msg
-                                        do! stream.WriteAsync(BitConverter.GetBytes reply.Length, 0, 4) |> Async.AwaitTask
-                                        stream.Write(reply, 0, reply.Length)
-                                        client.Dispose()
-                                    with _ ->
-                                        ()
-                                finally
-                                    Interlocked.Decrement(&working) |> ignore
-                                    lastRequest <- DateTime.Now
-                            }
-                finally
-                    log.info range0 "shutdown"
-                    listener.Stop()
-                    timer.Dispose()
-            }
-
-        let task = Async.StartAsTask(run, cancellationToken = cancel.Token)
-        fun () ->
+        if not (Process.setPort port) then
+            log.info range0 "server already running"
             listener.Stop()
             cancel.Cancel()
-            try task.Wait()
-            with _ -> ()
+            id
+        else
+            log.info range0 "server running on port %d" port
+
+            let sw = System.Diagnostics.Stopwatch.StartNew()
+            let checker = FSharpChecker.Create(keepAssemblyContents = true, keepAllBackgroundResolutions = true)
+            sw.Stop()
+            log.debug range0 "creating FSharpChecker took: %.3fms" sw.Elapsed.TotalMilliseconds
+
+            let mutable working = 0
+            let mutable lastRequest = DateTime.Now
+
+            let timeout = TimeSpan.FromMinutes 8.0
+            let tick _ =
+                let dt = DateTime.Now - lastRequest
+                if working = 0 && dt > timeout then 
+                    log.info range0 "exiting due to timeout (inactive for %A)" dt
+                    listener.Stop()
+                    cancel.Cancel()
+                    Environment.Exit 0
+
+            let period = int (timeout.TotalMilliseconds / 10.0) |> max 1000
+            let timer =
+                new Timer(TimerCallback tick, null, period, period)
+        
+            let mutable currentId = 0
+            let newId() = Interlocked.Increment(&currentId)
+
+            let run = 
+                async {
+                    try
+                        while true do
+                            let! client = listener.AcceptTcpClientAsync() |> Async.AwaitTask
+                            let cid = newId()
+
+                            lastRequest <- DateTime.Now
+                            Async.Start <|
+                                async {
+                                    Interlocked.Increment(&working) |> ignore
+                                    try
+                                        try
+                                            use stream = client.GetStream()
+                                            let! msg = stream.ReadMessageAsync()
+                                            log.debug range0 "got %04d with %d bytes" cid msg.Length
+                                            let sw = System.Diagnostics.Stopwatch.StartNew()
+                                            do! Async.SwitchToThreadPool()
+                                            let reply = processMessage cid log checker msg
+                                            do! stream.WriteAsync(BitConverter.GetBytes reply.Length, 0, 4) |> Async.AwaitTask
+                                            do! stream.WriteAsync(reply, 0, reply.Length) |> Async.AwaitTask
+                                            client.Dispose()
+                                            sw.Stop()
+                                            log.info range0 "%04d took %.3fms" cid sw.Elapsed.TotalMilliseconds
+                                        with e ->
+                                            log.warn range0 "" "%04d failed: %A" cid e
+                                            ()
+                                    finally
+                                        Interlocked.Decrement(&working) |> ignore
+                                        lastRequest <- DateTime.Now
+                                }
+                    finally
+                        log.info range0 "shutdown"
+                        listener.Stop()
+                        timer.Dispose()
+                }
+
+            let task = Async.StartAsTask(run, cancellationToken = cancel.Token)
+            fun () ->
+                listener.Stop()
+                cancel.Cancel()
+                try task.Wait()
+                with _ -> ()
 
 
 
