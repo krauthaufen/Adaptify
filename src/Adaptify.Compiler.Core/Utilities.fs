@@ -1,8 +1,20 @@
 ﻿namespace Adaptify.Compiler
 
 open System
+open System.IO
 open FSharp.Compiler.SourceCodeServices
 open FSharp.Compiler.Range
+
+module Directory =
+    let ensure (path : string) =
+        while not (Directory.Exists path) do 
+            try Directory.CreateDirectory path |> ignore
+            with _ -> ()
+        path
+
+module File =
+    let ensureDirectory (path : string) =
+        Directory.ensure (Path.GetDirectoryName path) |> ignore
 
 
 [<AutoOpen>]
@@ -140,6 +152,7 @@ module Log =
 
     let file (verbose : bool) (file : string) =
 
+        File.ensureDirectory file
         let stream = new FileStream(file, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.WriteThrough)
 
         let enter() =

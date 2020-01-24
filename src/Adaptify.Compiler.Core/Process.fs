@@ -8,7 +8,6 @@ open System.Runtime.InteropServices
 open System.Diagnostics
 open System.Threading
 
-
 type IPCLock(fileName : string) =
     let mutable stream : FileStream = null
     let lockObj = obj()
@@ -17,7 +16,8 @@ type IPCLock(fileName : string) =
     member x.Enter() =
         Monitor.Enter lockObj
 
-        if isNull stream then
+        if isNull stream then   
+            File.ensureDirectory fileName
             stream <- new FileStream(fileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Inheritable ||| FileShare.ReadWrite, 4096, FileOptions.WriteThrough)
 
         isEntered <- isEntered + 1
@@ -91,18 +91,15 @@ module Process =
         if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then ".exe"
         else ""
 
-    let private directory =
+    let private directory() =
         let path = Path.Combine(Path.GetTempPath(), "adaptify", string selfVersion)
-        while not (Directory.Exists path) do 
-            try Directory.CreateDirectory path |> ignore
-            with _ -> ()
-        path
+        Directory.ensure path
 
     let ipc = 
-        let path = Path.Combine(directory, "process.lock")
+        let path = Path.Combine(directory(), "process.lock")
         new IPCLock(path)
         
-    let logFile = Path.Combine(directory, "log.txt")
+    let logFile = Path.Combine(directory(), "log.txt")
 
     let rec locked (action : unit -> 'r) =
         ipc.Enter()
@@ -202,7 +199,7 @@ module Process =
             let proc = Process.Start(info)
             proc
         else    
-            let toolPath = Path.Combine(directory, "adaptify" + executableExtension)
+            let toolPath = Path.Combine(directory(), "adaptify" + executableExtension)
             if File.Exists toolPath then
                 log.debug range0 "found tool at %s" toolPath
             else
@@ -212,7 +209,7 @@ module Process =
                             dotnet log [ 
                                 "tool"; "install"; "adaptify"
                                 "--no-cache"
-                                "--tool-path"; sprintf "\"%s\"" directory
+                                "--tool-path"; sprintf "\"%s\"" (directory())
                                 "--version"; sprintf "[%s]" selfVersion
                             ]
                             log.debug range0 "installed tool at %s" toolPath

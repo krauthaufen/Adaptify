@@ -1,3 +1,6 @@
+### 0.0.19
+* fixed folder creation
+
 ### 0.0.18
 * fixed IPC lock
 
