@@ -1,3 +1,6 @@
+### 0.0.20
+* fixed embarrassing relative path error
+
 ### 0.0.19
 * fixed folder creation
 

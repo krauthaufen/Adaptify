@@ -35,30 +35,40 @@ module ProjectInfo =
 
     let ofFscArgs (isNewStyle : bool) (path : string) (args : list<string>) =
         let mutable parsed = Set.empty
+        let path = Path.GetFullPath path
+        let dir = Path.GetDirectoryName path
+
+        let full (str : string) =
+            if Path.IsPathRooted str then str
+            else Path.Combine(dir, str)
+
 
         let removeArg (a : string) = parsed <- Set.add a parsed
 
         let references = 
             args |> List.choose (fun a ->
-                if a.StartsWith "-r:" then removeArg a; Some (a.Substring 3)
-                elif a.StartsWith "--reference:" then removeArg a; Some (a.Substring 12)
+                if a.StartsWith "-r:" then removeArg a; Some (full (a.Substring 3))
+                elif a.StartsWith "--reference:" then removeArg a; Some (full (a.Substring 12))
                 else None
             )
 
         let files =
-            args |> List.filter (fun a -> 
+            args |> List.choose (fun a -> 
                 if not (a.StartsWith "-") then
                     let isAssemblyInfo = (Path.GetFileName(a).ToLower().EndsWith "assemblyinfo.fs")
                     removeArg a
-                    not isAssemblyInfo
+                    if not isAssemblyInfo then
+                        Some (full a)
+                    else
+                        None
                 else
-                    false
+                    None
             ) 
 
         let output =
             args |> List.tryPick (fun a ->
-                if a.StartsWith "-o:" then removeArg a; Some (a.Substring 3)
-                elif a.StartsWith "--out:" then removeArg a; Some (a.Substring 6)
+                if a.StartsWith "-o:" then removeArg a; Some (full (a.Substring 3))
+                elif a.StartsWith "--out:" then removeArg a; Some (full (a.Substring 6))
                 else None
             )
 
@@ -122,7 +132,7 @@ module ProjectInfo =
 
         {
             isNewStyle  = isNewStyle
-            project = path
+            project     = path
             //fscArgs     = args
             references  = references
             files       = files
@@ -141,14 +151,26 @@ module ProjectInfo =
 
             match info.debug with
             | DebugType.Off ->
-                yield "--debug-"
+                ()
             | DebugType.Full -> 
+                yield "-g"
                 yield "--debug:full"
             | DebugType.Portable -> 
+                yield "-g"
                 yield "--debug:portable"
             | DebugType.PdbOnly -> 
+                yield "-g"
                 yield "--debug:pdbonly"
                 
+            match info.target with
+            | Target.Exe -> yield "--target:exe"
+            | Target.Library -> yield "--target:library"
+            | Target.WinExe -> yield "--target:winexe"
+            | Target.Module -> yield "--target:module"
+
+            for d in info.defines do
+                yield sprintf "-d:%s" d
+
             for a in info.additional do
                 yield a
 
