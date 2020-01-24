@@ -281,7 +281,7 @@ module Server =
         let cancel = new CancellationTokenSource()
         
         let port = (unbox<IPEndPoint> listener.LocalEndpoint).Port
-        if not (Process.setPort port) then
+        if not (Process.setPort log port) then
             log.info range0 "server already running"
             listener.Stop()
             Environment.Exit 0
@@ -385,7 +385,7 @@ module Client =
 
 
     let tryAdaptifyAsyncTcp (log : ILog) (project : ProjectInfo) (useCache : bool) (generateLenses : bool) =
-        match Process.readPort 1000 with
+        match Process.readPort log 1000 with
         | None -> 
             async { return None }
         | Some port ->

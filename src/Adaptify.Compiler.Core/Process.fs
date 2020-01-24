@@ -9,45 +9,52 @@ open System.Diagnostics
 open System.Threading
 
 
-type IPCLock(fileName : string, dataSize : int) =
-    let stream = new FileStream(fileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Delete ||| FileShare.Inheritable ||| FileShare.ReadWrite, dataSize, FileOptions.WriteThrough)
+type IPCLock(fileName : string) =
+    let mutable stream : FileStream = null
     let lockObj = obj()
     let mutable isEntered = 0
 
     member x.Enter() =
         Monitor.Enter lockObj
+
+        if isNull stream then
+            stream <- new FileStream(fileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Inheritable ||| FileShare.ReadWrite, 4096, FileOptions.WriteThrough)
+
         isEntered <- isEntered + 1
         if isEntered = 1 then
             let mutable entered = false
             while not entered do
                 try 
-                    stream.Lock(0L, int64 dataSize)
+                    stream.Lock(0L, 0L)
                     entered <- true
                 with _ ->
                     Threading.Thread.Sleep 5
-            stream.SetLength(int64 dataSize)
 
     member x.Exit() =
         if not (Monitor.IsEntered lockObj) then failwith "lock not entered"
         isEntered <- isEntered - 1
         if isEntered = 0 then
-            stream.Unlock(0L, int64 dataSize)
+            stream.Unlock(0L, 0L)
+            stream.Dispose()
+            stream <- null
+
         Monitor.Exit lockObj
 
     member x.Write(data : byte[], offset : int, count : int) =
         if not (Monitor.IsEntered lockObj) then failwith "lock not entered"
+        stream.SetLength(int64 count)
         stream.Seek(0L, SeekOrigin.Begin) |> ignore
         stream.Write(data, offset, count)
         stream.Flush()
 
     member x.Write(str : string) =
-        let mutable bytes = System.Text.Encoding.UTF8.GetBytes str
-        if bytes.Length > dataSize then failwithf "string too long (%d vs %d)" bytes.Length dataSize
+        let bytes = System.Text.Encoding.UTF8.GetBytes str
         x.Write(bytes, 0, bytes.Length)
 
     member x.ReadAll() =
         if not (Monitor.IsEntered lockObj) then failwith "lock not entered"
-        let arr = Array.zeroCreate dataSize
+        let arr = Array.zeroCreate (int stream.Length)
+        stream.Flush()
         stream.Seek(0L, SeekOrigin.Begin) |> ignore
         
         let mutable offset = 0
@@ -67,9 +74,12 @@ type IPCLock(fileName : string, dataSize : int) =
         lock lockObj (fun () ->
             if isEntered > 0 then 
                 isEntered <- 0
-                stream.Unlock(0L, int64 dataSize)
+                stream.Flush()
+                stream.Unlock(0L, 0L)
+            if not (isNull stream) then
+                stream.Dispose()
+                stream <- null
         )
-        stream.Dispose()
 
     interface IDisposable with
         member x.Dispose() = x.Dispose()
@@ -90,7 +100,7 @@ module Process =
 
     let ipc = 
         let path = Path.Combine(directory, "process.lock")
-        new IPCLock(path, 4096)
+        new IPCLock(path)
         
     let logFile = Path.Combine(directory, "log.txt")
 
@@ -106,7 +116,7 @@ module Process =
         | (true, v) -> Some v
         | _ -> None
 
-    let readPort (timeout : int) =
+    let readPort (log : ILog) (timeout : int) =
         let sw = System.Diagnostics.Stopwatch.StartNew()
         let read() =
             locked (fun () -> 
@@ -118,6 +128,7 @@ module Process =
                     else
                         try 
                             let proc = Process.GetProcessById(pid)
+                            log.info range0 "found server with pid: %d and port: %d" pid port
                             Some port
                         with _ ->
                             None
@@ -130,7 +141,12 @@ module Process =
                 None
             else
                 try 
-                    read()
+                    match read() with
+                    | Some port -> 
+                        Some port
+                    | None ->
+                        log.debug range0 "no running server"
+                        None
                 with _ -> 
                     Threading.Thread.Sleep 100
                     run()
@@ -154,10 +170,10 @@ module Process =
         )
 
 
-    let setPort (port : int) =
+    let setPort (log : ILog) (port : int) =
         let pid = Process.GetCurrentProcess().Id
         locked (fun () ->
-            match readPort 0 with
+            match readPort Log.empty 0 with
             | Some other ->
                 false
             | None -> 

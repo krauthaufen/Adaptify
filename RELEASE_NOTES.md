@@ -1,3 +1,6 @@
+### 0.0.18
+* fixed IPC lock
+
 ### 0.0.17
 * fixed cache files
 * added --killserver flag

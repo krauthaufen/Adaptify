@@ -124,61 +124,6 @@ let md5 = System.Security.Cryptography.MD5.Create()
 let inline hash (str : string) = 
     md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes str) |> System.Guid |> string
 
-open System.Threading
-
-
-type IPCLock(fileName : string, dataSize : int) =
-    let stream = new FileStream(fileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Delete ||| FileShare.Inheritable ||| FileShare.ReadWrite, dataSize, FileOptions.WriteThrough)
-    let lockObj = obj()
-    let mutable isEntered = 0
-
-    member x.Enter() =
-        Monitor.Enter lockObj
-        isEntered <- isEntered + 1
-        if isEntered = 1 then
-            let mutable entered = false
-            while not entered do
-                try 
-                    stream.Lock(0L, int64 dataSize)
-                    entered <- true
-                with _ ->
-                    Threading.Thread.Sleep 5
-            stream.SetLength(int64 dataSize)
-
-    member x.Exit() =
-        if not (Monitor.IsEntered lockObj) then failwith "lock not entered"
-        isEntered <- isEntered - 1
-        if isEntered = 0 then
-            stream.Unlock(0L, int64 dataSize)
-        Monitor.Exit lockObj
-
-    member x.Write(data : byte[], offset : int, count : int) =
-        if not (Monitor.IsEntered lockObj) then failwith "lock not entered"
-        stream.Seek(0L, SeekOrigin.Begin) |> ignore
-        stream.Write(data, offset, count)
-        stream.Flush()
-
-    member x.ReadAll() =
-        if not (Monitor.IsEntered lockObj) then failwith "lock not entered"
-        let arr = Array.zeroCreate dataSize
-        stream.Seek(0L, SeekOrigin.Begin) |> ignore
-        
-        let mutable offset = 0
-        let mutable rem = arr.Length
-        while rem > 0 do
-            let r = stream.Read(arr, offset, rem)
-            rem <- rem - r
-            offset <- offset + r
-
-        arr
-
-    member x.Dispose() = 
-        stream.Dispose()
-
-    interface IDisposable with
-        member x.Dispose() = x.Dispose()
-
-open System.Diagnostics
 [<EntryPoint>]
 let main argv = 
     if argv.Length <= 0 then
@@ -236,7 +181,7 @@ let main argv =
         Process.kill (Log.console verbose)
         0
     elif server then
-        match Process.readPort 5000 with
+        match Process.readPort Log.empty 5000 with
         | Some _port ->
             ()
         | None ->

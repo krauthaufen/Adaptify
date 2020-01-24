@@ -201,7 +201,7 @@ module Log =
 module Versions =   
     open System.Reflection
 
-    let selfVersion =
+    let selfVersion = 
         let version = 
             typeof<ILog>.Assembly.GetCustomAttributes(typeof<AssemblyVersionAttribute>, true)
             |> Array.choose (function :? AssemblyVersionAttribute as a -> Some a.Version | _ -> None)
