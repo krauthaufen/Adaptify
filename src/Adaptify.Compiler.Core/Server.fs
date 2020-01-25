@@ -145,10 +145,10 @@ module private IPC =
 
 
 module Server =
-    let private processMessage (cid : int) (log : ILog) (checker : FSharpChecker) (data : byte[]) =
+    let private processMessage (cid : int) (log : ILog) (checker : FSharpChecker) (data : IPC.Command) =
         try
-            match IPC.Command.tryUnpickle data with
-            | Some (IPC.Command.Adaptify(project, cache, lenses)) ->
+            match data with
+            | IPC.Command.Adaptify(project, cache, lenses) ->
                 log.debug range0 "  %04d: %s %A %A" cid (Path.GetFileName project.project) cache lenses
                 let w = obj()
                 let mutable messages = []
@@ -192,14 +192,12 @@ module Server =
                             )
                     }
 
-                let newFiles = Adaptify.run (Some checker) cache lenses innerLog project
+                let newFiles = Adaptify.run checker cache lenses innerLog project
                 let reply = IPC.Reply.Success(newFiles, messages)
                 reply
-            | Some IPC.Command.Exit ->
+            | IPC.Command.Exit ->
                 IPC.Reply.Shutdown
 
-            | None ->
-                IPC.Reply.Fatal "could not parse command"
         with e ->
             IPC.Reply.Fatal (string e)
     
@@ -210,8 +208,7 @@ module Server =
         let port = (unbox<IPEndPoint> listener.LocalEndpoint).Port
         let cancel = new CancellationTokenSource()
         
-        let checker = lazy (FSharpChecker.Create(keepAssemblyContents = true, keepAllBackgroundResolutions = true))
-
+        let workingLock = obj()
         let mutable working = 0
         let mutable lastRequest = DateTime.Now
 
@@ -234,29 +231,63 @@ module Server =
         let readyLock = obj()
         let mutable ready = false
 
+        let newChecker() =
+            log.warn range0 "" "creating new checker"
+            newChecker()
+
+        let checker = newChecker()
+
+        let addWorking() =
+            lock workingLock (fun () ->
+                working <- working + 1
+                Monitor.PulseAll workingLock
+            )
+        let removeWorking() =
+            lock workingLock (fun () ->
+                working <- working - 1
+                Monitor.PulseAll workingLock
+            )
+
+        let waitWorking() =
+            lock workingLock (fun () ->
+                while working > 0 do
+                    Monitor.Wait workingLock |> ignore
+            )
+            
+
         let run = 
             async {
                 try
-                    while true do
+                    let mutable keepRunning = true
+                    while keepRunning do
                         if not ready then
                             lock readyLock (fun () ->
                                 ready <- true
                                 Monitor.PulseAll readyLock
                             )
                         let! client = listener.AcceptTcpClientAsync() |> Async.AwaitTask
+                        
+                        addWorking()
+                        
                         let cid = newId()
                         lastRequest <- DateTime.Now
                         Async.Start <|
                             async {
-                                Interlocked.Increment(&working) |> ignore
                                 try
                                     try
+                                        do! Async.SwitchToThreadPool()
                                         use stream = client.GetStream()
                                         let! msg = stream.ReadMessageAsync()
                                         log.debug range0 "got %04d with %d bytes" cid msg.Length
                                         let sw = System.Diagnostics.Stopwatch.StartNew()
                                         do! Async.SwitchToThreadPool()
-                                        let reply = processMessage cid log checker.Value msg
+                                        let reply = 
+                                            match IPC.Command.tryUnpickle msg with
+                                            | Some msg ->
+                                                processMessage cid log checker msg
+                                            | None ->
+                                                IPC.Reply.Fatal "could not parse command"
+
                                         do! stream.WriteMessageAsync(IPC.Reply.pickle reply)
                                         client.Dispose()
                                         sw.Stop()
@@ -273,9 +304,17 @@ module Server =
                                         log.warn range0 "" "%04d failed: %A" cid e
                                         ()
                                 finally
-                                    Interlocked.Decrement(&working) |> ignore
+                                    removeWorking()
                                     lastRequest <- DateTime.Now
                             }
+
+                        let mem = System.GC.GetTotalMemory(false)
+                        if mem > 2147483648L then
+                            let gb = float mem / 2147483648.0 
+                            log.warn range0 "" "shutdown due to large memory: %.3fGB" gb
+                            Process.releasePort port
+                            keepRunning <- false
+                            waitWorking()
                 finally
                     listener.Stop()
                     timer.Dispose()
@@ -366,11 +405,12 @@ module Client =
     let tryAdaptify (log : ILog)  (project : ProjectInfo) (useCache : bool) (generateLenses : bool) =
         tryAdaptivfyAsync log project useCache generateLenses |> Async.RunSynchronously
 
-    let adaptify (log : ILog)  (project : ProjectInfo) (useCache : bool) (generateLenses : bool) =
+    let adaptify (log : ILog) (project : ProjectInfo) (useCache : bool) (generateLenses : bool) =
         let rec run (retries : int) =
             if retries = 0 then
                 log.warn range0 "" "falling back to local adaptify"
-                Adaptify.run None useCache generateLenses log project
+                let checker = newChecker()
+                Adaptify.run checker useCache generateLenses log project
             else
                 match tryAdaptify log project useCache generateLenses with
                 | Some files -> 

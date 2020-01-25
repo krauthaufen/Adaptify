@@ -229,6 +229,10 @@ module Log =
 [<AutoOpen>]
 module Versions =   
     open System.Reflection
+    
+    let newChecker() =
+        let c = FSharpChecker.Create(projectCacheSize = 200, keepAssemblyContents = true)
+        c.ImplicitlyStartBackgroundWork <- false
 
     let selfVersion = 
         let version = 

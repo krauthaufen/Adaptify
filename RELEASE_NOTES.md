@@ -1,3 +1,6 @@
+### 0.0.24
+* automatic server shutdown when memory large
+
 ### 0.0.23
 * fixed VS integration problems (called before references built)
 * verbose server logs everything now

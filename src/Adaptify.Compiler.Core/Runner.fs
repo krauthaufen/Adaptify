@@ -35,7 +35,7 @@ module Adaptify =
         run 0 infos
 
 
-    let run (checker : option<FSharpChecker>) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
+    let run (checker : FSharpChecker) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
         let projectInfo = ProjectInfo.normalize projectInfo
 
         let projectFile = projectInfo.project
@@ -134,22 +134,10 @@ module Adaptify =
             let md5 = System.Security.Cryptography.MD5.Create()
             let inline hash (str : string) = 
                 md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes str) |> System.Guid |> string
-                    
-            let checker = 
-                lazy (
-                    match checker with
-                    | Some c -> c
-                    | None -> 
-                        let sw = System.Diagnostics.Stopwatch.StartNew()
-                        let res = FSharpChecker.Create(keepAssemblyContents = true, keepAllBackgroundResolutions = true)
-                        sw.Stop()
-                        log.debug range0 "[Adaptify]   creating FSharpChecker took: %.0fm" sw.Elapsed.TotalMilliseconds
-                        res
-                )
-                    
+
             let options = 
                 lazy (
-                    checker.Value.GetProjectOptionsFromCommandLineArgs(
+                    checker.GetProjectOptionsFromCommandLineArgs(
                         projectFile, 
                         ProjectInfo.toFscArgs projectInfo |> List.toArray
                     )
@@ -275,7 +263,7 @@ module Adaptify =
                             addWarning true range "internal" missing
                             log.debug range "%s" missing
                         else
-                            let (_parseResult, answer) = checker.Value.ParseAndCheckFileInProject(file, 0, text, options.Value) |> Async.RunSynchronously
+                            let (_parseResult, answer) = checker.ParseAndCheckFileInProject(file, 0, text, options.Value) |> Async.RunSynchronously
         
                             match answer with
                             | FSharpCheckFileAnswer.Succeeded res ->  
