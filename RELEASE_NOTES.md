@@ -1,3 +1,6 @@
+### 0.0.25
+* server shutdown improvements
+
 ### 0.0.24
 * automatic server shutdown when memory large
 
