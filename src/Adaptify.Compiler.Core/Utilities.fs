@@ -233,6 +233,7 @@ module Versions =
     let newChecker() =
         let c = FSharpChecker.Create(projectCacheSize = 200, keepAssemblyContents = true)
         c.ImplicitlyStartBackgroundWork <- false
+        c
 
     let selfVersion = 
         let version = 
