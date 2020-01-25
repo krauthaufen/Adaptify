@@ -1,3 +1,6 @@
+### 0.0.26
+* better server/client implementation
+
 ### 0.0.25
 * server shutdown improvements
 

@@ -86,10 +86,12 @@ type IPCLock(fileName : string) =
     interface IDisposable with
         member x.Dispose() = x.Dispose()
 
-[<AutoOpen>]
-module internal NetworkStreamExtensions =
+
+
+module TCP =
     open System.Net
     open System.Net.Sockets
+    open System.Threading
     open System.Threading.Tasks
 
     let private attempt (timeout : int) (create : CancellationToken -> Task) =
@@ -124,8 +126,24 @@ module internal NetworkStreamExtensions =
 
         retry()
 
+    let private withTimeout (timeout : int) (start : Async<'a>) =
+        let cancel = new CancellationTokenSource()
+        let run = Async.StartAsTask(start, cancellationToken = cancel.Token)
+        let timeout = Task.Delay(timeout)
+
+        async {
+            let! fin = Task.WhenAny((run :> Task), timeout) |> Async.AwaitTask
+            if fin = timeout then
+                cancel.Cancel()
+                return raise <| TimeoutException()
+            else
+                let! res = Async.AwaitTask run
+                return res
+        }
+
+
     type TcpClient with
-        member x.TryConnectAsync(address : IPAddress, port : int, ?timeout : int) =
+        member x.TryConnectAsync(address : IPAddress, port : int, ?timeout : int, ?ct : CancellationToken) =
             match timeout with
             | Some timeout when timeout > 0 ->
                 attempt timeout (fun ct ->
@@ -139,126 +157,194 @@ module internal NetworkStreamExtensions =
                     with _ ->
                         return false
                 }
-                
-            //async {
-            //    match timeout with
-            //    | Some timeout when timeout > 0 ->
-            //        let timeout = Task.Delay(timeout).ContinueWith(fun _ -> false)
-
-            //        let connect = 
-            //            Async.StartAsTask <| async {
-                            
-            //                try
-            //                    do! x.ConnectAsync(address, port) |> Async.AwaitTask
-            //                    return true
-            //                with _ ->
-            //                    return false
-            //            }
-
-            //        let! t = Task.WhenAny(connect, timeout) |> Async.AwaitTask
-            //        return! Async.AwaitTask t
-            //    | _ -> 
-            //        try
-            //            do! x.ConnectAsync(address, port) |> Async.AwaitTask
-            //            return true
-            //        with _ ->
-            //            return false
-                
-            //}
-
+         
     type NetworkStream with
-        member x.ReadInt32() =
-            let data = Array.zeroCreate 4
-            let mutable r = 0
-            while r < 4 do
-                let rr = x.Read(data, r, 4 - r)
-                if rr = 0 then raise <| ObjectDisposedException("stream")
-                r <- r + rr
-            BitConverter.ToInt32(data, 0)
-            
-        member x.ReadInt32Async() =
+        member x.ReadForSure(arr : byte[], offset : int, len : int) =
             async {
-                let mutable canceled = false
                 let! ct = Async.CancellationToken
-                try
-                    use reg = ct.Register (fun () -> canceled <- true; x.Dispose())
-                    let data = Array.zeroCreate 4
-                    let mutable r = 0
-                    while r < 4 do
-                        let! rr = x.ReadAsync(data, r, 4 - r) |> Async.AwaitTask
-                        if rr = 0 then raise <| ObjectDisposedException("stream")
-                        r <- r + rr
-                    return BitConverter.ToInt32(data, 0)
-                with e ->
-                    if canceled then raise <| OperationCanceledException()
-                    else raise e
-                    return -1
-                    
-            }
-
-        member x.ReadMessage(ct : CancellationToken) =
-            let mutable canceled = false
-            try
-                let mutable offset = 0
-
-                use reg = ct.Register (fun () -> canceled <- true; x.Dispose())
-                let len = x.ReadInt32()
-                let buffer = Array.zeroCreate len
-                let mutable length = buffer.Length
-
-                while offset < len do
-                    let read = x.Read(buffer, offset, length)
-                    if read = 0 then raise <| ObjectDisposedException("stream")
+                let mutable remaining = len
+                let mutable offset = offset
+                while remaining > 0 do
+                    let! read = x.ReadAsync(arr, offset, remaining, ct) |> Async.AwaitTask
+                    if read <= 0 then raise <| ObjectDisposedException("stream")
+                    remaining <- remaining - read
                     offset <- offset + read
-                    length <- length - read
+            }
 
-                buffer
-            with :? ObjectDisposedException ->
-                if canceled then
-                    raise <| OperationCanceledException()
-                else
-                    reraise()
-                    
         member x.ReadMessage() =
-            x.ReadMessage(CancellationToken.None)
+            async {
+                let lenBuffer = Array.zeroCreate 4
+                do! x.ReadForSure(lenBuffer, 0, 4)
+                let len = BitConverter.ToInt32(lenBuffer, 0)
 
-        member x.ReadMessageAsync() =
+                let message = Array.zeroCreate len
+                do! x.ReadForSure(message, 0, len)
+
+                return message
+            }
+
+        member x.WriteMessage(message : byte[]) =
             async {
                 let! ct = Async.CancellationToken
-                let mutable canceled = false
-                try
-                    let mutable offset = 0
-
-                    use reg = ct.Register (fun () -> canceled <- true; x.Dispose())
-                    let! len = x.ReadInt32Async()
-                    let buffer = Array.zeroCreate len
-                    let mutable length = buffer.Length
-
-                    while offset < len do
-                        let! read = x.ReadAsync(buffer, offset, length) |> Async.AwaitTask
-                        if read = 0 then raise <| ObjectDisposedException("stream")
-                        offset <- offset + read
-                        length <- length - read
-
-                    return buffer
-                with :? ObjectDisposedException as e ->
-                    if canceled then
-                        raise <| OperationCanceledException()
-                    else
-                        raise e
-                    return [||]
+                let lenBuffer = BitConverter.GetBytes message.Length
+                do! x.WriteAsync(lenBuffer, 0, 4, ct) |> Async.AwaitTask
+                do! x.WriteAsync(message, 0, message.Length, ct) |> Async.AwaitTask
             }
 
-        member x.WriteMessageAsync(message : byte[]) =
+
+    type private TaskSet() =
+        let tasks = System.Collections.Generic.Dictionary<Task, Task>()
+
+        let rem task =
+            lock tasks (fun () ->
+                tasks.Remove task |> ignore
+            )
+            
+        let add task =
+            lock tasks (fun () ->
+                tasks.[task] <- task.ContinueWith (fun _ -> rem task)
+            )
+
+        member x.Add(task : Task) =
+            add task
+
+        member x.Wait() =
+            let all = lock tasks (fun () -> Seq.toArray tasks.Values)
+            if all.Length > 0 then
+                try 
+                    Task.WaitAll(all)
+                    x.Wait()
+                with _ -> 
+                    ()
+
+        member x.WaitAsync() =
             async {
-                let len = BitConverter.GetBytes message.Length
-                do! x.WriteAsync(len, 0, len.Length) |> Async.AwaitTask
-                do! x.WriteAsync(message, 0, message.Length) |> Async.AwaitTask
-                do! x.FlushAsync() |> Async.AwaitTask
+                let all = lock tasks (fun () -> Seq.toArray tasks.Values)
+                if all.Length > 0 then
+                    try
+                        do! Task.WhenAll(all) |> Async.AwaitTask
+                        return! x.WaitAsync()
+                    with _ ->
+                        ()
             }
+
+    type Server(address : IPAddress, processMessage : Server -> byte[] -> Async<byte[]>) as this =
+        let listener = TcpListener(address, 0)
+        do listener.Start()
+
+        let listenLock = obj()
+        let mutable listening = false
+        let mutable shouldListen = true
+        let port = (unbox<IPEndPoint> listener.LocalEndpoint).Port
+
+        let runClient (c : TcpClient) =
+            c.NoDelay <- true
+            async {
+                try
+                    do! Async.SwitchToThreadPool()
+                    use s = c.GetStream()
+                    try
+                        let! msg = s.ReadMessage() |> withTimeout 2000
+                        do! Async.SwitchToThreadPool()
+                        let! reply = processMessage this msg
+                        do! s.WriteMessage reply
+                        do! s.FlushAsync() |> Async.AwaitTask
+                    with _ ->
+                        ()
+                finally
+                    try c.Dispose()
+                    with _ -> ()
+            }
+
+        let tasks = TaskSet()
+
+        let stopListening() =
+            if shouldListen then
+                lock listenLock (fun () ->
+                    if shouldListen then
+                        shouldListen <- false
+                        if listening then
+                            try listener.Stop()
+                            with _ -> ()
+                )
+
+        let run =
+            async {
+                try
+                    while shouldListen do
+                        if not listening then
+                            lock listenLock (fun () ->
+                                listening <- true
+                                Monitor.PulseAll listenLock
+                            )
+                        let! client = listener.AcceptTcpClientAsync() |> Async.AwaitTask
+                        try tasks.Add (runClient client |> Async.StartAsTask)
+                        with _ -> ()
+                with _ ->
+                    ()
+                    
+                do! Async.SwitchToThreadPool()
+                lock listenLock (fun () ->
+                    listening <- false
+                    Monitor.PulseAll listenLock
+                )
+                printfn "stopped listening"
+                do! tasks.WaitAsync()
+                printfn "clients done"
+                listener.Stop()
+            }
+
+        let task = Async.StartAsTask run
+
+        do
+            lock listenLock (fun () ->
+                while not listening do
+                    Monitor.Wait listenLock |> ignore
+            )
+            printfn "server running"
+
+        member x.WaitForListenerClosed() =
+            lock listenLock (fun () ->
+                while listening do
+                    Monitor.Wait listenLock |> ignore
+            )
+
+        member x.WaitForExit() =
+            try task.Wait()
+            with _ -> ()
+
+        member x.Stop() =
+            stopListening()
+
+        member x.Port = port
+
+
+    module Client =
+        let tryGetAsync (address : IPAddress) (port : int) (timeout : int) (message : byte[]) =
+            async {
+                use c = new TcpClient()
+                c.NoDelay <- true
+                match! c.TryConnectAsync(address, port, 0) with
+                | true -> 
+                    try
+                        use s = c.GetStream()
+                        do! s.WriteMessage message
+                        do! s.FlushAsync() |> Async.AwaitTask
+                        let! res = s.ReadMessage() |> withTimeout timeout
+                        return Some res
+                    with _ ->
+                        return None
+                | false ->
+                    return None
+
+            }
+            
+        let tryGet (address : IPAddress) (port : int) (timeout : int) (message : byte[]) =
+            tryGetAsync address port timeout message |> Async.RunSynchronously
 
 
 module Process = 
+    open TCP
     open System.Threading
     open System.Threading.Tasks
 
