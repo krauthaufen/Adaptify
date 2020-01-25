@@ -171,7 +171,9 @@ module internal NetworkStreamExtensions =
             let data = Array.zeroCreate 4
             let mutable r = 0
             while r < 4 do
-                r <- r + x.Read(data, r, 4 - r)
+                let rr = x.Read(data, r, 4 - r)
+                if rr = 0 then raise <| ObjectDisposedException("stream")
+                r <- r + rr
             BitConverter.ToInt32(data, 0)
             
         member x.ReadInt32Async() =
@@ -184,6 +186,7 @@ module internal NetworkStreamExtensions =
                     let mutable r = 0
                     while r < 4 do
                         let! rr = x.ReadAsync(data, r, 4 - r) |> Async.AwaitTask
+                        if rr = 0 then raise <| ObjectDisposedException("stream")
                         r <- r + rr
                     return BitConverter.ToInt32(data, 0)
                 with e ->
@@ -205,6 +208,7 @@ module internal NetworkStreamExtensions =
 
                 while offset < len do
                     let read = x.Read(buffer, offset, length)
+                    if read = 0 then raise <| ObjectDisposedException("stream")
                     offset <- offset + read
                     length <- length - read
 
@@ -232,6 +236,7 @@ module internal NetworkStreamExtensions =
 
                     while offset < len do
                         let! read = x.ReadAsync(buffer, offset, length) |> Async.AwaitTask
+                        if read = 0 then raise <| ObjectDisposedException("stream")
                         offset <- offset + read
                         length <- length - read
 
@@ -274,7 +279,7 @@ module Process =
         
     let logFile = Path.Combine(directory(), "log.txt")
 
-    let rec private locked (action : unit -> 'r) =
+    let locked (action : unit -> 'r) =
         ipc.Enter()
         try action()
         finally ipc.Exit()

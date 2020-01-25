@@ -203,6 +203,39 @@ module Server =
     
     open System.Net
     open System.Net.Sockets
+    open System.Threading.Tasks
+
+    type TaskSet() =
+        let tasks = System.Collections.Generic.Dictionary<Task, Task>()
+
+
+        let rem task =
+            lock tasks (fun () ->
+                tasks.Remove task |> ignore
+            )
+            
+        let add task =
+            lock tasks (fun () ->
+                tasks.[task] <- task.ContinueWith (fun _ -> rem task)
+            )
+
+        member x.Add(task : Task) =
+            add task
+
+        member x.Wait() =
+            let all = lock tasks (fun () -> Seq.toArray tasks.Values)
+            if all.Length > 0 then
+                Task.WaitAll(all)
+
+        member x.WaitAsync() =
+            async {
+                let all = lock tasks (fun () -> Seq.toArray tasks.Values)
+                if all.Length > 0 then
+                    do! Task.WhenAll(all) |> Async.AwaitTask
+                    return! x.WaitAsync()
+
+            }
+
 
     let private startServer (log : ILog) (listener : TcpListener) =
         let port = (unbox<IPEndPoint> listener.LocalEndpoint).Port
@@ -230,11 +263,6 @@ module Server =
 
         let readyLock = obj()
         let mutable ready = false
-
-        let newChecker() =
-            log.warn range0 "" "creating new checker"
-            newChecker()
-
         let checker = newChecker()
 
         let addWorking() =
@@ -255,6 +283,8 @@ module Server =
             )
             
 
+        
+        let tasks = TaskSet()
         let run = 
             async {
                 try
@@ -271,8 +301,9 @@ module Server =
                         
                         let cid = newId()
                         lastRequest <- DateTime.Now
-                        Async.Start <|
-                            async {
+                        
+                        let task = 
+                            Async.StartAsTask <| async {
                                 try
                                     try
                                         do! Async.SwitchToThreadPool()
@@ -298,6 +329,7 @@ module Server =
                                             listener.Stop()
                                             timer.Dispose()
                                             Process.releasePort port
+                                            Process.startAdaptifyServer log |> ignore
                                         | _ ->
                                             ()
                                     with e ->
@@ -308,13 +340,16 @@ module Server =
                                     lastRequest <- DateTime.Now
                             }
 
+                        tasks.Add task |> ignore
+
                         let mem = System.GC.GetTotalMemory(false)
-                        if mem > 2147483648L then
-                            let gb = float mem / 2147483648.0 
+                        if mem > 3L * 1073741824L then
+                            let gb = float mem / 1073741824.0 
                             log.warn range0 "" "shutdown due to large memory: %.3fGB" gb
                             Process.releasePort port
+                            Process.startAdaptifyServer log |> ignore
                             keepRunning <- false
-                            waitWorking()
+                            do! tasks.WaitAsync()
                 finally
                     listener.Stop()
                     timer.Dispose()

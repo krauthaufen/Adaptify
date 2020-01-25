@@ -235,12 +235,12 @@ module Versions =
         c.ImplicitlyStartBackgroundWork <- false
         c
 
-    let selfVersion = 
-        let version = 
-            typeof<ILog>.Assembly.GetCustomAttributes(typeof<AssemblyVersionAttribute>, true)
-            |> Array.choose (function :? AssemblyVersionAttribute as a -> Some a.Version | _ -> None)
-            |> Array.tryHead
-        match version with
-        | Some v -> v
-        | None -> "0.0.0.0"
+    let selfVersion = "0.0.24.0"
+        //let version = 
+        //    typeof<ILog>.Assembly.GetCustomAttributes(typeof<AssemblyVersionAttribute>, true)
+        //    |> Array.choose (function :? AssemblyVersionAttribute as a -> Some a.Version | _ -> None)
+        //    |> Array.tryHead
+        //match version with
+        //| Some v -> v
+        //| None -> "0.0.0.0"
 
