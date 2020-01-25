@@ -13,6 +13,8 @@ type IPCLock(fileName : string) =
     let lockObj = obj()
     let mutable isEntered = 0
 
+    static let lockLength = 4096L
+
     member x.Enter() =
         Monitor.Enter lockObj
 
@@ -25,7 +27,7 @@ type IPCLock(fileName : string) =
             let mutable entered = false
             while not entered do
                 try 
-                    stream.Lock(0L, 0L)
+                    stream.Lock(0L, lockLength)
                     entered <- true
                 with _ ->
                     Threading.Thread.Sleep 5
@@ -34,7 +36,7 @@ type IPCLock(fileName : string) =
         if not (Monitor.IsEntered lockObj) then failwith "lock not entered"
         isEntered <- isEntered - 1
         if isEntered = 0 then
-            stream.Unlock(0L, 0L)
+            stream.Unlock(0L, lockLength)
             stream.Dispose()
             stream <- null
 
@@ -75,7 +77,7 @@ type IPCLock(fileName : string) =
             if isEntered > 0 then 
                 isEntered <- 0
                 stream.Flush()
-                stream.Unlock(0L, 0L)
+                stream.Unlock(0L, lockLength)
             if not (isNull stream) then
                 stream.Dispose()
                 stream <- null
@@ -84,98 +86,262 @@ type IPCLock(fileName : string) =
     interface IDisposable with
         member x.Dispose() = x.Dispose()
 
+[<AutoOpen>]
+module internal NetworkStreamExtensions =
+    open System.Net
+    open System.Net.Sockets
+    open System.Threading.Tasks
+
+    let private attempt (timeout : int) (create : CancellationToken -> Task) =
+        let timeout = Task.Delay(timeout)
+        let cancel = new CancellationTokenSource()
+
+        let rec retry() =
+            async {
+                if timeout.IsCompleted then
+                    cancel.Cancel()
+                    return false
+                else
+                    let run = 
+                        try create cancel.Token |> Some
+                        with _ -> None
+                    match run with
+                    | Some run -> 
+                        let! finished = Task.WhenAny(run, timeout) |> Async.AwaitTask
+                        if finished = run then
+                            try 
+                                finished.Wait()
+                                return true
+                            with _ ->
+                                return! retry()
+                        else
+                            cancel.Cancel()
+                            return false
+                    | None ->
+                        do! Async.Sleep 0
+                        return! retry()
+            }
+
+        retry()
+
+    type TcpClient with
+        member x.TryConnectAsync(address : IPAddress, port : int, ?timeout : int) =
+            match timeout with
+            | Some timeout when timeout > 0 ->
+                attempt timeout (fun ct ->
+                    x.ConnectAsync(address, port)
+                )
+            | _ ->
+                async {
+                    try
+                        do! x.ConnectAsync(address, port) |> Async.AwaitTask
+                        return true
+                    with _ ->
+                        return false
+                }
+                
+            //async {
+            //    match timeout with
+            //    | Some timeout when timeout > 0 ->
+            //        let timeout = Task.Delay(timeout).ContinueWith(fun _ -> false)
+
+            //        let connect = 
+            //            Async.StartAsTask <| async {
+                            
+            //                try
+            //                    do! x.ConnectAsync(address, port) |> Async.AwaitTask
+            //                    return true
+            //                with _ ->
+            //                    return false
+            //            }
+
+            //        let! t = Task.WhenAny(connect, timeout) |> Async.AwaitTask
+            //        return! Async.AwaitTask t
+            //    | _ -> 
+            //        try
+            //            do! x.ConnectAsync(address, port) |> Async.AwaitTask
+            //            return true
+            //        with _ ->
+            //            return false
+                
+            //}
+
+    type NetworkStream with
+        member x.ReadInt32() =
+            let data = Array.zeroCreate 4
+            let mutable r = 0
+            while r < 4 do
+                r <- r + x.Read(data, r, 4 - r)
+            BitConverter.ToInt32(data, 0)
+            
+        member x.ReadInt32Async() =
+            async {
+                let mutable canceled = false
+                let! ct = Async.CancellationToken
+                try
+                    use reg = ct.Register (fun () -> canceled <- true; x.Dispose())
+                    let data = Array.zeroCreate 4
+                    let mutable r = 0
+                    while r < 4 do
+                        let! rr = x.ReadAsync(data, r, 4 - r) |> Async.AwaitTask
+                        r <- r + rr
+                    return BitConverter.ToInt32(data, 0)
+                with e ->
+                    if canceled then raise <| OperationCanceledException()
+                    else raise e
+                    return -1
+                    
+            }
+
+        member x.ReadMessage(ct : CancellationToken) =
+            let mutable canceled = false
+            try
+                let mutable offset = 0
+
+                use reg = ct.Register (fun () -> canceled <- true; x.Dispose())
+                let len = x.ReadInt32()
+                let buffer = Array.zeroCreate len
+                let mutable length = buffer.Length
+
+                while offset < len do
+                    let read = x.Read(buffer, offset, length)
+                    offset <- offset + read
+                    length <- length - read
+
+                buffer
+            with :? ObjectDisposedException ->
+                if canceled then
+                    raise <| OperationCanceledException()
+                else
+                    reraise()
+                    
+        member x.ReadMessage() =
+            x.ReadMessage(CancellationToken.None)
+
+        member x.ReadMessageAsync() =
+            async {
+                let! ct = Async.CancellationToken
+                let mutable canceled = false
+                try
+                    let mutable offset = 0
+
+                    use reg = ct.Register (fun () -> canceled <- true; x.Dispose())
+                    let! len = x.ReadInt32Async()
+                    let buffer = Array.zeroCreate len
+                    let mutable length = buffer.Length
+
+                    while offset < len do
+                        let! read = x.ReadAsync(buffer, offset, length) |> Async.AwaitTask
+                        offset <- offset + read
+                        length <- length - read
+
+                    return buffer
+                with :? ObjectDisposedException as e ->
+                    if canceled then
+                        raise <| OperationCanceledException()
+                    else
+                        raise e
+                    return [||]
+            }
+
+        member x.WriteMessageAsync(message : byte[]) =
+            async {
+                let len = BitConverter.GetBytes message.Length
+                do! x.WriteAsync(len, 0, len.Length) |> Async.AwaitTask
+                do! x.WriteAsync(message, 0, message.Length) |> Async.AwaitTask
+                do! x.FlushAsync() |> Async.AwaitTask
+            }
+
 
 module Process = 
+    open System.Threading
+    open System.Threading.Tasks
 
     let private executableExtension =
         if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then ".exe"
         else ""
 
+    let private executableName =
+        "adaptify" + executableExtension
+
     let private directory() =
         let path = Path.Combine(Path.GetTempPath(), "adaptify", string selfVersion)
         Directory.ensure path
 
-    let ipc = 
+    let private ipc = 
         let path = Path.Combine(directory(), "process.lock")
         new IPCLock(path)
         
     let logFile = Path.Combine(directory(), "log.txt")
 
-    let rec locked (action : unit -> 'r) =
+    let rec private locked (action : unit -> 'r) =
         ipc.Enter()
-        try 
-            action()
-        finally
-            ipc.Exit()
+        try action()
+        finally ipc.Exit()
 
     let private (|Int32|_|) (str : string) =
         match Int32.TryParse str with
         | (true, v) -> Some v
         | _ -> None
 
-    let readPort (log : ILog) (timeout : int) =
-        let sw = System.Diagnostics.Stopwatch.StartNew()
-        let read() =
-            locked (fun () -> 
-                let parts = ipc.ReadString().Split([| ';' |], StringSplitOptions.RemoveEmptyEntries)
-                match parts with
-                | [| Int32 pid; Int32 port |] ->
-                    if port = 0 then 
-                        None
-                    else
-                        try 
-                            let proc = Process.GetProcessById(pid)
-                            log.info range0 "found server with pid: %d and port: %d" pid port
-                            Some port
-                        with _ ->
-                            None
-                | _ ->
-                    None
-            )
 
-        let rec run() =
-            if timeout > 0 && sw.Elapsed.TotalMilliseconds > float timeout then
-                None
-            else
-                try 
-                    match read() with
-                    | Some port -> 
-                        Some port
-                    | None ->
-                        log.debug range0 "no running server"
-                        None
-                with _ -> 
-                    Threading.Thread.Sleep 100
-                    run()
-
-        run()
-
-    let kill (log : ILog) =
+    let readProcessAndPort () =
         locked (fun () -> 
             let parts = ipc.ReadString().Split([| ';' |], StringSplitOptions.RemoveEmptyEntries)
             match parts with
             | [| Int32 pid; Int32 port |] ->
-                if port <> 0 then 
-                    try 
-                        let proc = Process.GetProcessById(pid)
-                        proc.Kill()
-                        log.info range0 "killed process %d" pid
+                if pid = 0 then 
+                    None
+                else
+                    try
+                        let proc = Process.GetProcessById pid
+                        if not proc.HasExited then
+                            Some(proc, port)
+                        else
+                            None
                     with _ ->
-                        ()
+                        None
             | _ ->
-                ()
+                None
         )
 
+    let private testServer (port : int) (timeout : int) =
+        try 
+            use c = new System.Net.Sockets.TcpClient()
+            let connected = c.TryConnectAsync(Net.IPAddress.Loopback, port, timeout) |> Async.RunSynchronously
+            c.Dispose()
+            if connected then
+                true
+            else
+                false
+        with e ->
+            false
 
-    let setPort (log : ILog) (port : int) =
+    let trySetPort (port : int) =
         let pid = Process.GetCurrentProcess().Id
         locked (fun () ->
-            match readPort Log.empty 0 with
-            | Some other ->
-                false
+            match readProcessAndPort () with
+            | Some(proc, otherPort) ->
+                if testServer otherPort 500 then
+                    Choice2Of2(proc.Id, otherPort)
+                else
+                    proc.Kill()
+                    ipc.Write(sprintf "%d;%d" pid otherPort)
+                    Choice1Of2 ()
             | None -> 
                 ipc.Write(sprintf "%d;%d" pid port)
-                true
+                Choice1Of2 ()
+        )
+
+    let releasePort (port : int) =
+        let pid = Process.GetCurrentProcess().Id
+        locked (fun () ->
+            let parts = ipc.ReadString().Split([| ';' |], StringSplitOptions.RemoveEmptyEntries)
+            match parts with
+            | [| Int32 fpid; Int32 fport |] when fpid = pid && fport = port ->
+                ipc.Write("0;0")
+            | _ ->
+                ()
         )
 
     let private dotnet (log : ILog) (args : list<string>) =  
@@ -193,16 +359,26 @@ module Process =
             failwith "dotnet failed"
 
     let startAdaptifyServer (log : ILog) =
-        let entry = Assembly.GetEntryAssembly()
-        if entry.GetName().Name = "adaptify" then   
-            let info = ProcessStartInfo("dotnet", entry.Location + " --server", UseShellExecute = false, CreateNoWindow = true) 
+        let entryPath = try Assembly.GetEntryAssembly().Location with _ -> "foo.dll"
+        let executablePath = try Process.GetCurrentProcess().MainModule.FileName with _ -> "bar"
+
+        if Path.GetFileName(executablePath) = executableName then
+            log.info range0 "starting self-executable"
+            let info = ProcessStartInfo(executablePath, "--server", UseShellExecute = false, CreateNoWindow = true) 
             let proc = Process.Start(info)
             proc
+
+        elif Path.GetFileName(entryPath) = "adaptify.dll" then  
+            log.info range0 "starting self-dll" 
+            let info = ProcessStartInfo("dotnet", "\"" + entryPath + "\" --server", UseShellExecute = false, CreateNoWindow = true) 
+            let proc = Process.Start(info)
+            proc
+
         else    
-            let toolPath = Path.Combine(directory(), "adaptify" + executableExtension)
-            if File.Exists toolPath then
-                log.debug range0 "found tool at %s" toolPath
-            else
+            let toolPath = Path.Combine(directory(), executableName)
+            if not (File.Exists toolPath) then
+                log.info range0 "adaptify tool %s not found (installing)" selfVersion
+
                 while not (File.Exists toolPath) do
                     locked (fun () ->
                         try
@@ -212,11 +388,18 @@ module Process =
                                 "--tool-path"; sprintf "\"%s\"" (directory())
                                 "--version"; sprintf "[%s]" selfVersion
                             ]
-                            log.debug range0 "installed tool at %s" toolPath
+                            log.info range0 "installed tool at %s" toolPath
                         with _ ->
                             ()
                     )
-            let info = ProcessStartInfo(toolPath, "--server", UseShellExecute = false, CreateNoWindow = true)
-            let proc = Process.Start(info)
-            proc
+            
+            match readProcessAndPort() with
+            | None ->
+                log.info range0 "starting %s" toolPath 
+                let info = ProcessStartInfo(toolPath, "--server", UseShellExecute = false, CreateNoWindow = true)
+                let proc = Process.Start(info)
+                proc
+            | Some(otherProc, _) ->
+                otherProc
+                
 

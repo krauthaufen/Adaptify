@@ -1,3 +1,7 @@
+### 0.0.22
+* fixed locking 
+* cooperative server shutdown
+
 ### 0.0.21
 * normalized (full) paths in all project infos
 

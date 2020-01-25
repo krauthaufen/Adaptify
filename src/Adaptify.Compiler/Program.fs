@@ -124,8 +124,74 @@ let md5 = System.Security.Cryptography.MD5.Create()
 let inline hash (str : string) = 
     md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes str) |> System.Guid |> string
 
+module IPCTest =
+    open System.Diagnostics
+    open System.Reflection
+    open System.IO.MemoryMappedFiles
+    open Microsoft.FSharp.NativeInterop
+    open System.Threading
+
+    let run (args : string[]) =
+        let consoleLock = obj()
+        let run (arg : int) =
+            let name = sprintf "%02d" arg
+            let dll = Assembly.GetEntryAssembly().Location
+            let info = ProcessStartInfo("dotnet", dll + " " + name + " --server", UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true)
+            let proc = new Process(StartInfo = info)
+
+            proc.EnableRaisingEvents <- true
+            proc.OutputDataReceived.Add(fun e -> 
+                if not (String.IsNullOrWhiteSpace e.Data) then
+                    lock consoleLock (fun () ->
+                        Console.WriteLine("{0}{1}", name, e.Data)
+                    )
+            )
+            proc.ErrorDataReceived.Add(fun e -> 
+                if not (String.IsNullOrWhiteSpace e.Data) then
+                    lock consoleLock (fun () ->
+                        Console.WriteLine("{0}{1}", name, e.Data)
+                    )
+            )
+
+            if not (proc.Start()) then printfn "could not start process"
+            proc.BeginOutputReadLine()
+            proc.BeginErrorReadLine()
+
+            name, proc
+
+        if args.Length = 0 then
+            let cnt = 24
+            let all = Array.init cnt run
+
+            let mutable line = Console.ReadLine()
+            while line <> "exit" do
+                line <- Console.ReadLine()
+
+            if Client.shutdown () then
+                printfn "cooperative shutdown"
+
+
+            for (name, a) in all do 
+                if not a.HasExited then
+                    try a.Kill()
+                    with _ -> ()
+                    printfn "%s killed" name
+            Environment.Exit 0
+               
+      
+
+let startThread (run : unit -> unit) =
+    let thread = System.Threading.Thread(System.Threading.ThreadStart(run), IsBackground = true)
+    thread.Start()
+    thread
+
+
+
 [<EntryPoint>]
 let main argv = 
+    //IPCTest.run argv
+    
+
     if argv.Length <= 0 then
         printfn "Usage: adaptify [options] [projectfiles]"
         printfn "  Version: %s" selfVersion
@@ -178,29 +244,47 @@ let main argv =
         )
         
     if killserver then
-        Process.kill (Log.console verbose)
+        let log = Log.console verbose
+        if Client.shutdown () then
+            log.info range0 "server shutdown"
+        else
+            log.info range0 "no server running"
         0
     elif server then
-        match Process.readPort Log.empty 5000 with
-        | Some _port ->
-            ()
-        | None ->
-            let log = 
-                Log.ofList [
-                    Log.console verbose
-                    Log.file verbose Process.logFile
-                ]
-            let cancel = Server.startTcp log 
+        let log = 
+            Log.ofList [
+                Log.console verbose
+                Log.file verbose Process.logFile
+            ]
 
-            let rec wait() =
-                let line = Console.ReadLine().Trim().ToLower()
-                if line <> "exit" then wait()
+        match Server.start log with
+        | Some (wait, cancel) ->
+            let hasConsole = try ignore Console.WindowHeight; true with _ -> false
+            if hasConsole then
+                startThread (fun () ->
+                    let rec run() =
+                        let line = Console.ReadLine().Trim().ToLower()
+                        if line <> "exit" then run()
+                    run()
+                    cancel()
+                ) |> ignore
 
             wait()
-            cancel()
+            0
 
+        | None ->
+            1
 
-        0
+        //if running then
+        //    let rec wait() =
+        //        let line = Console.ReadLine().Trim().ToLower()
+        //        if line <> "exit" then wait()
+
+        //    wait()
+        //    cancel()
+        //    0
+        //else
+        //    1
     else
         let log = Log.console verbose
         let projFiles = argv |> Array.filter (fun a -> not (a.StartsWith "-"))
@@ -220,7 +304,7 @@ let main argv =
 
         projectInfos |> Array.Parallel.iter (fun info ->
             if client then
-                Client.adaptifyTcp log info (not force) lenses |> ignore
+                Client.adaptify log info (not force) lenses |> ignore
             else
                 Adaptify.run None (not force) lenses log info |> ignore
         )

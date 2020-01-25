@@ -29,6 +29,7 @@ module private IPC =
 
     type Command =
         | Adaptify of project : ProjectInfo * useCache : bool * lenses : bool
+        | Exit
 
     module Command =
         let pickle (cmd : Command) =
@@ -40,6 +41,8 @@ module private IPC =
                 ProjectInfo.pickleTo ms p
                 w.Write(c)
                 w.Write(l)
+            | Exit ->
+                w.Write 2
             ms.ToArray()
 
         let tryUnpickle (data : byte[]) =
@@ -54,12 +57,15 @@ module private IPC =
                     Some (Adaptify(p, c, l))
                 | None ->
                     None
+            | 2 ->
+                Some Exit
             | _ ->
                 None
 
     type Reply =
         | Success of files : list<string> * messages : list<AdaptifyMessage>
         | Fatal of message : string
+        | Shutdown
 
     module Reply =
         let pickle (r : Reply) =
@@ -91,6 +97,9 @@ module private IPC =
             | Fatal str ->
                 w.Write(2)
                 w.Write(str)
+            | Shutdown ->
+                w.Write(3)
+
             
             ms.ToArray()
 
@@ -126,93 +135,12 @@ module private IPC =
 
             | 2 ->
                 r.ReadString() |> Fatal |> Some
+            | 3 ->
+                Some Shutdown
             | _ ->
                 None
 
 
-
-[<AutoOpen>]
-module internal NetworkStreamExtensions =
-    open System.Net
-    open System.Net.Sockets
-
-    type NetworkStream with
-        member x.ReadInt32() =
-            let data = Array.zeroCreate 4
-            let mutable r = 0
-            while r < 4 do
-                r <- r + x.Read(data, r, 4 - r)
-            BitConverter.ToInt32(data, 0)
-            
-        member x.ReadInt32Async() =
-            async {
-                let mutable canceled = false
-                let! ct = Async.CancellationToken
-                try
-                    use reg = ct.Register (fun () -> canceled <- true; x.Dispose())
-                    let data = Array.zeroCreate 4
-                    let mutable r = 0
-                    while r < 4 do
-                        let! rr = x.ReadAsync(data, r, 4 - r) |> Async.AwaitTask
-                        r <- r + rr
-                    return BitConverter.ToInt32(data, 0)
-                with e ->
-                    if canceled then raise <| OperationCanceledException()
-                    else raise e
-                    return -1
-                    
-            }
-
-        member x.ReadMessage(ct : CancellationToken) =
-            let mutable canceled = false
-            try
-                let mutable offset = 0
-
-                use reg = ct.Register (fun () -> canceled <- true; x.Dispose())
-                let len = x.ReadInt32()
-                let buffer = Array.zeroCreate len
-                let mutable length = buffer.Length
-
-                while offset < len do
-                    let read = x.Read(buffer, offset, length)
-                    offset <- offset + read
-                    length <- length - read
-
-                buffer
-            with :? ObjectDisposedException ->
-                if canceled then
-                    raise <| OperationCanceledException()
-                else
-                    reraise()
-                    
-        member x.ReadMessage() =
-            x.ReadMessage(CancellationToken.None)
-
-        member x.ReadMessageAsync() =
-            async {
-                let! ct = Async.CancellationToken
-                let mutable canceled = false
-                try
-                    let mutable offset = 0
-
-                    use reg = ct.Register (fun () -> canceled <- true; x.Dispose())
-                    let! len = x.ReadInt32Async()
-                    let buffer = Array.zeroCreate len
-                    let mutable length = buffer.Length
-
-                    while offset < len do
-                        let! read = x.ReadAsync(buffer, offset, length) |> Async.AwaitTask
-                        offset <- offset + read
-                        length <- length - read
-
-                    return buffer
-                with :? ObjectDisposedException as e ->
-                    if canceled then
-                        raise <| OperationCanceledException()
-                    else
-                        raise e
-                    return [||]
-            }
 
 
 
@@ -265,190 +193,235 @@ module Server =
 
                 let newFiles = Adaptify.run (Some checker) cache lenses innerLog project
                 let reply = IPC.Reply.Success(newFiles, messages)
-                IPC.Reply.pickle reply
+                reply
+            | Some IPC.Command.Exit ->
+                IPC.Reply.Shutdown
+
             | None ->
-                IPC.Reply.pickle (IPC.Reply.Fatal "could not parse command")
+                IPC.Reply.Fatal "could not parse command"
         with e ->
-            IPC.Reply.pickle (IPC.Reply.Fatal (string e))
+            IPC.Reply.Fatal (string e)
     
     open System.Net
     open System.Net.Sockets
 
-    let startTcp (log : ILog) =
-        let listener = new TcpListener(IPAddress.Loopback, 0)
-        listener.Start()
-        
+    let private startServer (log : ILog) (listener : TcpListener) =
+        let port = (unbox<IPEndPoint> listener.LocalEndpoint).Port
         let cancel = new CancellationTokenSource()
         
-        let port = (unbox<IPEndPoint> listener.LocalEndpoint).Port
-        if not (Process.setPort log port) then
-            log.info range0 "server already running"
-            listener.Stop()
-            Environment.Exit 0
-            id
-        else
-            log.info range0 "server running on port %d" port
+        let checker = lazy (FSharpChecker.Create(keepAssemblyContents = true, keepAllBackgroundResolutions = true))
 
-            let sw = System.Diagnostics.Stopwatch.StartNew()
-            let checker = FSharpChecker.Create(keepAssemblyContents = true, keepAllBackgroundResolutions = true)
-            sw.Stop()
-            log.debug range0 "creating FSharpChecker took: %.3fms" sw.Elapsed.TotalMilliseconds
+        let mutable working = 0
+        let mutable lastRequest = DateTime.Now
 
-            let mutable working = 0
-            let mutable lastRequest = DateTime.Now
-
-            let timeout = TimeSpan.FromMinutes 8.0
-            let tick _ =
-                let dt = DateTime.Now - lastRequest
-                if working = 0 && dt > timeout then 
-                    log.info range0 "exiting due to timeout (inactive for %A)" dt
-                    listener.Stop()
-                    cancel.Cancel()
-                    Environment.Exit 0
-
-            let period = int (timeout.TotalMilliseconds / 10.0) |> max 1000
-            let timer =
-                new Timer(TimerCallback tick, null, period, period)
-        
-            let mutable currentId = 0
-            let newId() = Interlocked.Increment(&currentId)
-
-            let run = 
-                async {
-                    try
-                        while true do
-                            let! client = listener.AcceptTcpClientAsync() |> Async.AwaitTask
-                            let cid = newId()
-
-                            lastRequest <- DateTime.Now
-                            Async.Start <|
-                                async {
-                                    Interlocked.Increment(&working) |> ignore
-                                    try
-                                        try
-                                            use stream = client.GetStream()
-                                            let! msg = stream.ReadMessageAsync()
-                                            log.debug range0 "got %04d with %d bytes" cid msg.Length
-                                            let sw = System.Diagnostics.Stopwatch.StartNew()
-                                            do! Async.SwitchToThreadPool()
-                                            let reply = processMessage cid log checker msg
-                                            do! stream.WriteAsync(BitConverter.GetBytes reply.Length, 0, 4) |> Async.AwaitTask
-                                            do! stream.WriteAsync(reply, 0, reply.Length) |> Async.AwaitTask
-                                            client.Dispose()
-                                            sw.Stop()
-                                            log.info range0 "%04d took %.3fms" cid sw.Elapsed.TotalMilliseconds
-                                        with e ->
-                                            log.warn range0 "" "%04d failed: %A" cid e
-                                            ()
-                                    finally
-                                        Interlocked.Decrement(&working) |> ignore
-                                        lastRequest <- DateTime.Now
-                                }
-                    finally
-                        log.info range0 "shutdown"
-                        listener.Stop()
-                        timer.Dispose()
-                }
-
-            let task = Async.StartAsTask(run, cancellationToken = cancel.Token)
-            fun () ->
+        let timeout = TimeSpan.FromMinutes 8.0
+        let tick _ =
+            let dt = DateTime.Now - lastRequest
+            if working = 0 && dt > timeout then 
+                log.info range0 "exiting due to timeout (inactive for %A)" dt
                 listener.Stop()
                 cancel.Cancel()
-                try task.Wait()
-                with _ -> ()
+                Environment.Exit 0
+
+        let period = int (timeout.TotalMilliseconds / 10.0) |> max 1000
+        let timer =
+            new Timer(TimerCallback tick, null, period, period)
+        
+        let mutable currentId = 0
+        let newId() = Interlocked.Increment(&currentId)
+
+        let readyLock = obj()
+        let mutable ready = false
+
+        let run = 
+            async {
+                try
+                    while true do
+                        if not ready then
+                            lock readyLock (fun () ->
+                                ready <- true
+                                Monitor.PulseAll readyLock
+                            )
+                        let! client = listener.AcceptTcpClientAsync() |> Async.AwaitTask
+                        let cid = newId()
+                        lastRequest <- DateTime.Now
+                        Async.Start <|
+                            async {
+                                Interlocked.Increment(&working) |> ignore
+                                try
+                                    try
+                                        use stream = client.GetStream()
+                                        let! msg = stream.ReadMessageAsync()
+                                        log.debug range0 "got %04d with %d bytes" cid msg.Length
+                                        let sw = System.Diagnostics.Stopwatch.StartNew()
+                                        do! Async.SwitchToThreadPool()
+                                        let reply = processMessage cid log checker.Value msg
+                                        do! stream.WriteMessageAsync(IPC.Reply.pickle reply)
+                                        client.Dispose()
+                                        sw.Stop()
+                                        log.info range0 "%04d took %.3fms" cid sw.Elapsed.TotalMilliseconds
+                                        match reply with
+                                        | IPC.Reply.Shutdown ->
+                                            log.info range0 "shutdown requested"
+                                            listener.Stop()
+                                            timer.Dispose()
+                                            Process.releasePort port
+                                        | _ ->
+                                            ()
+                                    with e ->
+                                        log.warn range0 "" "%04d failed: %A" cid e
+                                        ()
+                                finally
+                                    Interlocked.Decrement(&working) |> ignore
+                                    lastRequest <- DateTime.Now
+                            }
+                finally
+                    listener.Stop()
+                    timer.Dispose()
+            }
+
+        let task = Async.StartAsTask(run, cancellationToken = cancel.Token)
+
+        lock readyLock (fun () ->
+            while not ready do
+                Monitor.Wait readyLock |> ignore
+        )
+
+        let cancel() =
+            try listener.Stop() with _ -> ()
+            try cancel.Cancel() with _ -> ()
+            try task.Wait() with _ -> ()
+
+        let wait() =
+            try task.Wait() with _ -> ()
+
+        wait, cancel
+
+    let start (log : ILog) =
+        let listener = new TcpListener(IPAddress.Loopback, 0)
+        listener.Start()
+        let port = (unbox<IPEndPoint> listener.LocalEndpoint).Port
+        
+        let wait, cancel = startServer log listener
+
+        match Process.trySetPort port with
+        | Choice1Of2 () ->
+            log.info range0 "server running on port %d" port
+            Some (wait, cancel)
+        | Choice2Of2(otherPid, otherPort) ->
+            log.info range0 "server already running with pid %d and port %d" otherPid otherPort
+            cancel()
+            None
 
 
 
 module Client =
     open System.Net
     open System.Net.Sockets
+    open System.Threading
+    open System.Threading.Tasks
 
-    type NetworkStream with
-        member stream.ReadMessageAsync() =
-            async {
-                let mutable offset = 0
-                let mutable cont = true
+    let tryAdaptivfyAsync (log : ILog) (project : ProjectInfo) (useCache : bool) (generateLenses : bool) =
+        async {
+            match Process.readProcessAndPort() with
+            | Some (_proc, port) ->
+                use client = new TcpClient()
+                match! client.TryConnectAsync(IPAddress.Loopback, port, 500) with
+                | true ->
+                    let cmd = IPC.Command.Adaptify(project, useCache, generateLenses)
+                    let data = IPC.Command.pickle cmd
+                    use stream = client.GetStream()
+                    do! stream.WriteMessageAsync data
+                    let! reply = stream.ReadMessageAsync()
 
-                let len = Array.zeroCreate 4
-                let! _ = stream.ReadAsync(len, 0, 4) |> Async.AwaitTask
-                let len = BitConverter.ToInt32(len, 0)
-                let buffer = Array.zeroCreate len
-                let mutable length = buffer.Length
+                    match IPC.Reply.tryUnpickle reply with
+                    | Some (IPC.Reply.Success(files, messages)) ->
+                        for m in messages do
+                            let range = mkRange m.file (mkPos m.startLine m.startCol) (mkPos m.endLine m.endCol)
+                            match m.kind with
+                            | IPC.MessageKind.Debug -> log.debug range "%s" m.message
+                            | IPC.MessageKind.Info -> log.info range "%s" m.message
+                            | IPC.MessageKind.Warning c -> log.warn range c "%s" m.message
+                            | IPC.MessageKind.Error c -> log.error range c "%s" m.message
 
-                while offset < len do
-                    let! read = stream.ReadAsync(buffer, offset, length) |> Async.AwaitTask
-                    offset <- offset + read
-                    length <- length - read
+                        return Some files
 
-                return buffer
-            }
+                    | Some (IPC.Reply.Fatal msg) ->
+                        log.debug range0 "server: %s" msg
+                        return None
 
+                    | Some IPC.Reply.Shutdown ->
+                        log.debug range0 "server: shutdown"
+                        return None
 
-    let tryAdaptifyAsyncTcp (log : ILog) (project : ProjectInfo) (useCache : bool) (generateLenses : bool) =
-        match Process.readPort log 1000 with
-        | None -> 
-            async { return None }
-        | Some port ->
-            let client = new TcpClient()
-            async {
-                let sw = System.Diagnostics.Stopwatch.StartNew()
-                while sw.Elapsed.TotalMilliseconds < 1000.0 && not client.Connected do
-                    try
-                        do! client.ConnectAsync(IPAddress.Loopback, port) |> Async.AwaitTask
-                    with _ ->
-                        do! Async.Sleep 100
-                        ()
-
-                let cmd = IPC.Command.Adaptify(project, useCache, generateLenses)
-                let data = IPC.Command.pickle cmd
-                use stream = client.GetStream()
-                do! stream.WriteAsync(BitConverter.GetBytes data.Length, 0, 4) |> Async.AwaitTask
-                do! stream.WriteAsync(data, 0, data.Length) |> Async.AwaitTask
-                do! stream.FlushAsync() |> Async.AwaitTask
-
-                let! reply = stream.ReadMessageAsync()
-                client.Dispose()
-
-                match IPC.Reply.tryUnpickle reply with
-                | Some (IPC.Reply.Success(files, messages)) ->
-                    for m in messages do
-                        let range = mkRange m.file (mkPos m.startLine m.startCol) (mkPos m.endLine m.endCol)
-                        match m.kind with
-                        | IPC.MessageKind.Debug -> log.debug range "%s" m.message
-                        | IPC.MessageKind.Info -> log.info range "%s" m.message
-                        | IPC.MessageKind.Warning c -> log.warn range c "%s" m.message
-                        | IPC.MessageKind.Error c -> log.error range c "%s" m.message
-
-                    return Some files
-
-                | Some (IPC.Reply.Fatal msg) ->
-                    log.debug range0 "server: %s" msg
+                    | None ->
+                        return None
+                | false ->
                     return None
-
-                | None ->
-                    return None
-            }
+            | None ->
+                return None
+        }
       
-    let tryAdaptifyTcp (log : ILog)  (project : ProjectInfo) (useCache : bool) (generateLenses : bool) =
-        tryAdaptifyAsyncTcp log project useCache generateLenses |> Async.RunSynchronously
+    let tryAdaptify (log : ILog)  (project : ProjectInfo) (useCache : bool) (generateLenses : bool) =
+        tryAdaptivfyAsync log project useCache generateLenses |> Async.RunSynchronously
 
-    let adaptifyTcp (log : ILog)  (project : ProjectInfo) (useCache : bool) (generateLenses : bool) =
+    let adaptify (log : ILog)  (project : ProjectInfo) (useCache : bool) (generateLenses : bool) =
         let rec run (retries : int) =
             if retries = 0 then
                 log.warn range0 "" "falling back to local adaptify"
                 Adaptify.run None useCache generateLenses log project
             else
-                match tryAdaptifyTcp log project useCache generateLenses with
+                match tryAdaptify log project useCache generateLenses with
                 | Some files -> 
                     files
                 | None -> 
                     log.debug range0 "connection failed"
                     Process.startAdaptifyServer log |> ignore
-                    Threading.Thread.Sleep 100
+
+                    let sw = System.Diagnostics.Stopwatch.StartNew()
+                    let rec wait (timeout : int) =
+                        if sw.Elapsed.TotalMilliseconds > float timeout then    
+                            false
+                        else
+                            match Process.readProcessAndPort() with
+                            | Some _ -> true
+                            | None ->
+                                Threading.Thread.Sleep 100
+                                wait timeout
+
+                    wait 2000 |> ignore
                     run (retries - 1)
                             
 
         run 5
     
-    
+    let shutdownAsync () =
+        async {
+            match Process.readProcessAndPort() with
+            | Some(proc, port) ->
+                use client = new TcpClient()
+                match! client.TryConnectAsync(IPAddress.Loopback, port, 500) with
+                | true ->
+                    use stream = client.GetStream()
+                    do! stream.WriteMessageAsync(IPC.Command.pickle IPC.Command.Exit)
+                    let! res = stream.ReadMessageAsync()
+                    match IPC.Reply.tryUnpickle res with
+                    | Some IPC.Reply.Shutdown ->
+                        if proc.WaitForExit(1000) then
+                            return true
+                        else
+                            proc.Kill()
+                            return true
+                    | _ ->
+                        return false
+                | false ->
+                    proc.Kill()
+                    return true
+            | None ->
+                return true
+            
+    }
+
+    let shutdown () =
+        shutdownAsync () |> Async.RunSynchronously
     

@@ -103,7 +103,7 @@ type AdaptifyTask() =
                             debug = DebugType.Off
                         }
 
-                    let newFiles = Client.adaptifyTcp x.Logger projInfo true createLenses
+                    let newFiles = Client.adaptify x.Logger projInfo true createLenses
                     //let newFiles = Adaptify.run None true createLenses x.Logger projInfo
 
                     results <- List.toArray newFiles

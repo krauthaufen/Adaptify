@@ -85,7 +85,9 @@ module Log =
     let private consoleLock = obj()
 
     let console (verbose : bool) =  
-
+        let colored = 
+            try ignore Console.WindowHeight; true
+            with _ -> false
         let useColor (c : ConsoleColor) (f : unit -> 'a) =
             let o = Console.ForegroundColor
             Console.ForegroundColor <- c
@@ -97,18 +99,26 @@ module Log =
                 Console.WriteLine(" @ {0} ({1},{2}--{3},{4})", r.FileName, r.StartLine, r.StartColumn, r.EndLine, r.EndColumn)
             else
                 Console.WriteLine()
+                
+        let rangeString (r : FSharp.Compiler.Range.range) =  
+            if r <> range0 then
+                String.Format(" @ {0} ({1},{2}--{3},{4})", r.FileName, r.StartLine, r.StartColumn, r.EndLine, r.EndColumn)
+            else
+                ""
 
         { new ILog with
             member x.debug range fmt =
                 fmt |> Printf.kprintf (fun str ->   
                     if verbose then 
                         lock consoleLock (fun () ->
-                            Console.Write("> ")
-                            useColor ConsoleColor.DarkGray (fun () ->
-                                Console.Write(str)
-                            )
-                            writeRange range
-                            Console.Out.Flush()
+                            if colored then
+                                Console.Write("> ")
+                                useColor ConsoleColor.DarkGray (fun () ->
+                                    Console.Write(str)
+                                )
+                                writeRange range
+                            else
+                                Console.WriteLine("> {0}{1}", str, rangeString range)
                         )
                 )
 
@@ -116,36 +126,42 @@ module Log =
             member x.info range fmt =
                 fmt |> Printf.kprintf (fun str ->   
                     lock consoleLock (fun () ->
-                        Console.Write("> ")
-                        useColor ConsoleColor.Gray (fun () ->
-                            Console.Write(str)
-                        )
-                        writeRange range
-                        Console.Out.Flush()
+                        if colored then
+                            Console.Write("> ")
+                            useColor ConsoleColor.Gray (fun () ->
+                                Console.Write(str)
+                            )
+                            writeRange range
+                        else
+                            Console.WriteLine("> {0}{1}", str, rangeString range)
                     )
                 )
             
             member x.warn range code fmt =
                 fmt |> Printf.kprintf (fun str ->  
-                    lock consoleLock (fun () -> 
-                        Console.Write("> ")
-                        useColor ConsoleColor.DarkYellow (fun () ->
-                            Console.Write(str)
-                        )
-                        writeRange range
-                        Console.Out.Flush()
+                    lock consoleLock (fun () ->
+                        if colored then
+                            Console.Write("> ")
+                            useColor ConsoleColor.DarkYellow (fun () ->
+                                Console.Write(str)
+                            )
+                            writeRange range
+                        else
+                            Console.WriteLine("> {0}{1}", str, rangeString range)
                     )
                 )
             
             member x.error range code fmt =
                 fmt |> Printf.kprintf (fun str ->  
                     lock consoleLock (fun () ->
-                        Console.Write("> ")
-                        useColor ConsoleColor.Red (fun () ->
-                            Console.Write(str)
-                        )
-                        writeRange range
-                        Console.Out.Flush()
+                        if colored then
+                            Console.Write("> ")
+                            useColor ConsoleColor.Red (fun () ->
+                                Console.Write(str)
+                            )
+                            writeRange range
+                        else
+                            Console.WriteLine("> {0}{1}", str, rangeString range)
                     )
                 )
         }

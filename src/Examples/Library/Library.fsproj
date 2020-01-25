@@ -29,5 +29,5 @@
       <HintPath>..\..\..\bin\Release\netstandard2.0\Adaptify.Core.dll</HintPath>
     </Reference>
   </ItemGroup>
-  <!-- <Import Project="$(MSBuildThisFileDirectory)..\..\..\bin\Release\Adaptify.MSBuild.targets" /> -->
+  <Import Project="$(MSBuildThisFileDirectory)..\..\..\bin\Release\Adaptify.MSBuild.targets" />
 </Project>
