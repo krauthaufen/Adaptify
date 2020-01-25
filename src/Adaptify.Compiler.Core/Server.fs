@@ -173,6 +173,7 @@ module Server =
                         member x.debug r fmt = 
                             fmt |> Printf.kprintf (fun str -> 
                                 addMessage (IPC.MessageKind.Debug) r str
+                                log.debug r "  %04d: %s" cid str
                             )
                         member x.info r fmt = 
                             fmt |> Printf.kprintf (fun str -> 

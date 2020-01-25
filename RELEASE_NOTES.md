@@ -1,3 +1,7 @@
+### 0.0.23
+* fixed VS integration problems (called before references built)
+* verbose server logs everything now
+
 ### 0.0.22
 * fixed locking 
 * cooperative server shutdown

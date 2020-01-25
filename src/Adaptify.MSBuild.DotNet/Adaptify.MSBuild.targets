@@ -9,7 +9,7 @@
   </ItemGroup>
 
   <UsingTask TaskName="Adaptify.MSBuild.AdaptifyTask" AssemblyFile="$(TaskAssembly)" />
-  <Target Name="UpdateGeneratedFiles" DependsOnTargets="ResolveAssemblyReferences" BeforeTargets="CoreCompile" Condition="'@(Compile)' != '' And '$(GenerateDomainTypes)' != 'false'">
+  <Target Name="UpdateGeneratedFiles" DependsOnTargets="ResolveProjectReferences;ResolveAssemblyReferences" BeforeTargets="CoreCompile" Condition="'@(Compile)' != '' And '$(GenerateDomainTypes)' != 'false'">
     <ItemGroup>
       <OldItems Include="@(Compile)" />
     </ItemGroup>
@@ -27,7 +27,7 @@
     <FilesToClean Include="$(MSBuildProjectDirectory)\.adaptifycache" />
     <FilesToClean Include="$(MSBuildProjectDirectory)\**\*.g.fs" />
   </ItemGroup>
-  <Target Name="DeleteAdaptifyCache"  BeforeTargets="Clean;Rebuild">
+  <Target Name="DeleteAdaptifyCache" BeforeTargets="Clean;Rebuild">
     <Delete Files="@(FilesToClean)" />
   </Target>
 

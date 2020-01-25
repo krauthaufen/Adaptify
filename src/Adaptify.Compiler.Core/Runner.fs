@@ -8,6 +8,33 @@ open FSharp.Compiler.SourceCodeServices
 module Adaptify =
     let private modelTypeRx = System.Text.RegularExpressions.Regex @"ModelType(Attribute)?"
 
+    let private waitUntilExisting (log : ILog) (timeout : int) (files : seq<string>) =
+        let sw = System.Diagnostics.Stopwatch.StartNew()
+
+        let rec run (iter : int) (infos : FileInfo[]) = 
+            if infos.Length = 0 then
+                [||]
+            elif iter = 0 || sw.Elapsed.TotalMilliseconds <= float timeout then
+                if iter > 0 then log.debug range0 "%d references missing -> retry" infos.Length
+                let remaining = 
+                    infos |> Array.filter (fun f ->
+                        f.Refresh()
+                        if f.Exists then false
+                        else true
+                    )
+
+                if remaining.Length > 0 then
+                    run (iter + 1) remaining
+                else
+                    [||]
+            else
+                if iter > 0 then log.debug range0 "%d references missing" infos.Length
+                infos |> Array.map (fun f -> f.FullName)
+
+        let infos = files |> Seq.map FileInfo |> Seq.toArray
+        run 0 infos
+
+
     let run (checker : option<FSharpChecker>) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
         let projectInfo = ProjectInfo.normalize projectInfo
 
@@ -130,6 +157,11 @@ module Adaptify =
 
             let mutable changed = false
 
+            let wait =
+                lazy (
+                    waitUntilExisting log 100 projectInfo.references
+                )
+
             for file in projectInfo.files do
                 if not (file.EndsWith ".g.fs") then
                     let content = File.ReadAllText file
@@ -181,14 +213,19 @@ module Adaptify =
                                                 ""
 
                                         if File.Exists(generated) && readGeneratedHash generated = fileHash then
+                                            let mutable hadErrors = false
                                             newFiles.Add file
                                             newFiles.Add generated
                                             newHashes <- Map.add file oldEntry newHashes
                                             for w in oldEntry.warnings do   
-                                                let range = mkRange file (mkPos w.startLine w.startCol) (mkPos w.endLine w.endCol)
-                                                log.warn range w.code "%s" w.message
-
-                                            false, true
+                                                if w.isError then hadErrors <- true
+                                                if w.code <> "internal" then
+                                                    let range = mkRange file (mkPos w.startLine w.startCol) (mkPos w.endLine w.endCol)
+                                                    if w.isError then log.error range w.code "%s" w.message
+                                                    else log.warn range w.code "%s" w.message
+                                                
+                                            if hadErrors then changed <- true
+                                            hadErrors, true
                                         else
                                             changed <- true
                                             log.debug range0 "[Adaptify]   %s: generated file invalid" (relativePath projDir file)
@@ -196,10 +233,6 @@ module Adaptify =
                                     else
                                         newFiles.Add file
                                         newHashes <- Map.add file oldEntry newHashes
-                                                
-                                        for w in oldEntry.warnings do   
-                                            let range = mkRange file (mkPos w.startLine w.startCol) (mkPos w.endLine w.endCol)
-                                            log.warn range w.code "%s" w.message
 
                                         false, true
                                 else
@@ -215,80 +248,101 @@ module Adaptify =
                             true, true
                                 
                     if needsUpdate then
+                        let warnings = System.Collections.Generic.List<Warning>()
+                        let addWarning (isError : bool) (r : range) (code : string) (str : string) =
+                            warnings.Add {
+                                isError = isError
+                                startLine = r.StartLine
+                                startCol = r.StartColumn
+                                code = code
+                                endLine = r.EndLine
+                                endCol = r.EndColumn
+                                message = str
+                            }
+
                         //log.info range0 "[Adaptify]   update file %s" (relativePath projDir file)
                         let text = FSharp.Compiler.Text.SourceText.ofString content
-                        let (_parseResult, answer) = checker.Value.ParseAndCheckFileInProject(file, 0, text, options.Value) |> Async.RunSynchronously
+                        let missingReferences = wait.Value
+                        if missingReferences.Length > 0 then
+                            let range = mkRange (relativePath projDir file) pos0 pos0
+                            let missing =
+                                missingReferences |> Array.map (fun m ->
+                                    relativePath projDir m |> sprintf "  %s"
+                                )
+                                |> String.concat "\r\n"
+                                |> sprintf "missing references:\r\n%s"
+
+                            addWarning true range "internal" missing
+                            log.debug range "%s" missing
+                        else
+                            let (_parseResult, answer) = checker.Value.ParseAndCheckFileInProject(file, 0, text, options.Value) |> Async.RunSynchronously
         
-                        match answer with
-                        | FSharpCheckFileAnswer.Succeeded res ->    
-                            for err in res.Errors do
-                                let r = mkRange err.FileName (mkPos err.StartLineAlternate err.StartColumn) (mkPos err.EndLineAlternate err.EndColumn)
-                                let kind = 
-                                    match err.Severity with
-                                    | FSharpErrorSeverity.Error -> "error"
-                                    | FSharpErrorSeverity.Warning -> "warning"
-                                log.debug r "compiler %s: %s" kind err.Message
+                            match answer with
+                            | FSharpCheckFileAnswer.Succeeded res ->  
+                                let localLogger =
+                                    { new ILog with
+                                        member __.debug r fmt = log.debug r fmt
+                                        member __.info r fmt = log.debug r fmt
+                                        member __.warn r c fmt = Printf.kprintf (fun str -> addWarning false r c str; log.warn r c "%s" str) fmt
+                                        member __.error r c fmt = Printf.kprintf (fun str -> addWarning true r c str; log.error r c "%s" str) fmt
+                                    }
 
-                            let rec allEntities (d : FSharpImplementationFileDeclaration) =
-                                match d with
-                                | FSharpImplementationFileDeclaration.Entity(e, ds) ->
-                                    e :: List.collect allEntities ds
-                                | _ ->
-                                    []
+                                let errs, wrns = res.Errors |> Array.partition (fun err -> err.Severity = FSharpErrorSeverity.Error)
+                                if errs.Length > 0 then
+                                    let errorStrings =
+                                        errs |> Seq.map (fun err ->
+                                            sprintf "  (%d,%d): %s" err.StartLineAlternate err.StartColumn err.Message
+                                        )
+                                        |> String.concat "\r\n"
+                                        |> sprintf "compiler errors:\r\n%s"
 
-                            let entities = 
-                                res.ImplementationFile.Value.Declarations
-                                |> Seq.toList
-                                |> List.collect allEntities
+                                    let range = mkRange (relativePath projDir file) pos0 pos0
+                                    addWarning true range "internal" errorStrings
+
+                                for err in wrns do
+                                    let p0 = mkPos err.StartLineAlternate err.StartColumn
+                                    let p1 = mkPos err.EndLineAlternate err.EndColumn
+                                    let range = mkRange (relativePath projDir err.FileName) p0 p1
+                                    localLogger.warn range (sprintf "%04d" err.ErrorNumber) "%s" err.Message
+
+                                let rec allEntities (d : FSharpImplementationFileDeclaration) =
+                                    match d with
+                                    | FSharpImplementationFileDeclaration.Entity(e, ds) ->
+                                        e :: List.collect allEntities ds
+                                    | _ ->
+                                        []
+
+                                let entities = 
+                                    res.ImplementationFile.Value.Declarations
+                                    |> Seq.toList
+                                    |> List.collect allEntities
                                         
+                                let definitions =   
+                                    entities 
+                                    |> List.choose (TypeDef.ofEntity localLogger)
+                                    |> List.map (fun l -> l.Value)
+                                    |> List.collect (TypeDefinition.ofTypeDef localLogger createLenses [])
 
-                            let warnings = System.Collections.Generic.List<Warning>()
-                            let addWarning (r : range) (code : string) (str : string) =
-                                warnings.Add {
-                                    isError = false
-                                    startLine = r.StartLine
-                                    startCol = r.StartColumn
-                                    code = code
-                                    endLine = r.EndLine
-                                    endCol = r.EndColumn
-                                    message = str
-                                }
+                                let warnings = Seq.toList warnings
 
-                            let localLogger =
-                                { new ILog with
-                                    member __.debug r fmt = log.debug r fmt
-                                    member __.info r fmt = log.debug r fmt
-                                    member __.warn r c fmt = Printf.kprintf (fun str -> addWarning r c str; log.warn r c "%s" str) fmt
-                                    member __.error r c fmt = Printf.kprintf (fun str -> addWarning r c str; log.error r c "%s" str) fmt
-                                }
-
-
-                            let definitions =   
-                                entities 
-                                |> List.choose (TypeDef.ofEntity localLogger)
-                                |> List.map (fun l -> l.Value)
-                                |> List.collect (TypeDefinition.ofTypeDef localLogger createLenses [])
-
-                            let warnings = Seq.toList warnings
-
-                            newHashes <- Map.add file { fileHash = fileHash; hasModels = not (List.isEmpty definitions); warnings = warnings } newHashes
-                            newFiles.Add file
-                            match definitions with
-                            | [] ->
-                                log.info range0 "[Adaptify]   no models in %s" (relativePath projDir file)
-                            | defs ->
-                                let file = Path.ChangeExtension(file, ".g.fs")
-
-                                let content = TypeDefinition.toFile defs
-                                let result = sprintf "//%s\r\n//%s\r\n" fileHash (hash content) + content
-
-                                File.WriteAllText(file, result)
+                                newHashes <- Map.add file { fileHash = fileHash; hasModels = not (List.isEmpty definitions); warnings = warnings } newHashes
                                 newFiles.Add file
-                                log.info range0 "[Adaptify]   gen  %s" (relativePath projDir file)
+                                match definitions with
+                                | [] ->
+                                    log.info range0 "[Adaptify]   no models in %s" (relativePath projDir file)
+                                | defs ->
+                                    let file = Path.ChangeExtension(file, ".g.fs")
 
-                        | FSharpCheckFileAnswer.Aborted ->
-                            log.error range0 "587" "[Adaptify]   could not parse %s" (relativePath projDir file)
-                            ()
+                                    let content = TypeDefinition.toFile defs
+                                    let result = sprintf "//%s\r\n//%s\r\n" fileHash (hash content) + content
+
+                                    File.WriteAllText(file, result)
+                                    newFiles.Add file
+                                    log.info range0 "[Adaptify]   gen  %s" (relativePath projDir file)
+
+                            | FSharpCheckFileAnswer.Aborted ->
+                                log.error range0 "587" "[Adaptify]   could not parse %s" (relativePath projDir file)
+                                ()
                     else
                         if containsModels then
                             log.info range0 "[Adaptify]   skip %s (up to date)" (relativePath projDir file)
