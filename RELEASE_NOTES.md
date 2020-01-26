@@ -1,3 +1,6 @@
+### 0.0.27
+* attempt at linux compat 
+
 ### 0.0.26
 * better server/client implementation
 

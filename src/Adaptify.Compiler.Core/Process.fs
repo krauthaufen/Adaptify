@@ -343,7 +343,7 @@ module TCP =
             tryGetAsync address port timeout message |> Async.RunSynchronously
 
 
-module Process = 
+module ProcessManagement = 
     open TCP
     open System.Threading
     open System.Threading.Tasks
@@ -436,18 +436,26 @@ module Process =
         )
 
     let private dotnet (log : ILog) (args : list<string>) =  
-        let start = ProcessStartInfo("dotnet", String.concat " " args, CreateNoWindow = true, UseShellExecute = false,  RedirectStandardOutput = true, RedirectStandardError = true)
-        let proc = Process.Start(start)
-        proc.WaitForExit()
-        if proc.ExitCode <> 0 then
-            while not proc.StandardOutput.EndOfStream do
-                let line = proc.StandardOutput.ReadLine()
-                log.debug range0 "dotnet: %s" line
-            while not proc.StandardError.EndOfStream do
-                let line = proc.StandardError.ReadLine()
-                log.debug range0 "dotnet: %s" line
-
+        let output = System.Collections.Generic.List<string>()
+        let proc = 
+            Process.tryStart {
+                file = "dotnet"
+                args = args
+                output = OutputMode.Custom (fun s l ->
+                    lock output (fun () -> output.Add l)
+                )
+                workDir = ""
+            }
+        match proc with
+        | Some proc ->
+            proc.WaitForExit()
+            if proc.ExitCode <> 0 then
+                for line in output do
+                    log.debug range0 "dotnet: %s" line
+                failwith "dotnet failed"
+        | None ->
             failwith "dotnet failed"
+            
 
     let startAdaptifyServer (log : ILog) =
         let entryPath = try Assembly.GetEntryAssembly().Location with _ -> "foo.dll"
@@ -455,15 +463,19 @@ module Process =
 
         if Path.GetFileName(executablePath) = executableName then
             log.info range0 "starting self-executable"
-            let info = ProcessStartInfo(executablePath, "--server", UseShellExecute = false, CreateNoWindow = true) 
-            let proc = Process.Start(info)
-            proc
+            match Process.tryStart { file = executablePath; args = ["--server"]; workDir = ""; output = OutputMode.None } with
+            | Some proc ->
+                proc
+            | None ->
+                failwithf "could not start %s" executablePath
 
         elif Path.GetFileName(entryPath) = "adaptify.dll" then  
             log.info range0 "starting self-dll" 
-            let info = ProcessStartInfo("dotnet", "\"" + entryPath + "\" --server", UseShellExecute = false, CreateNoWindow = true) 
-            let proc = Process.Start(info)
-            proc
+            match Process.tryStart { file = "dotnet"; args = [sprintf "\"%s\"" entryPath; "--server"]; workDir = ""; output = OutputMode.None } with
+            | Some proc ->
+                proc
+            | None ->
+                failwithf "could not start %s" entryPath
 
         else    
             let toolPath = Path.Combine(directory(), executableName)
@@ -487,9 +499,11 @@ module Process =
             match readProcessAndPort() with
             | None ->
                 log.info range0 "starting %s" toolPath 
-                let info = ProcessStartInfo(toolPath, "--server", UseShellExecute = false, CreateNoWindow = true)
-                let proc = Process.Start(info)
-                proc
+                match Process.tryStart { file = toolPath; args = ["--server"]; workDir = ""; output = OutputMode.None } with
+                | Some proc ->
+                    proc
+                | None ->
+                    failwithf "could not start %s" executablePath
             | Some(otherProc, _) ->
                 otherProc
                 

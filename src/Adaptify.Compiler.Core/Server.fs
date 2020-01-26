@@ -226,15 +226,15 @@ module Server =
                     if mem > 4L * 1073741824L then
                         let gb = float mem / 1073741824.0 
                         log.warn range0 "" "shutdown due to large memory: %.3fGB" gb
-                        Process.releasePort self.Port
-                        Process.startAdaptifyServer log |> ignore
+                        ProcessManagement.releasePort self.Port
+                        ProcessManagement.startAdaptifyServer log |> ignore
                         self.Stop()
 
                     return IPC.Reply.pickle reply
                 }
             )
 
-        match Process.trySetPort server.Port with
+        match ProcessManagement.trySetPort server.Port with
         | Choice1Of2 () ->
             log.info range0 "server running on port %d" server.Port
             Some server
@@ -251,7 +251,7 @@ module Client =
 
     let tryAdaptivfyAsync (log : ILog) (project : ProjectInfo) (useCache : bool) (generateLenses : bool) =
         async {
-            match Process.readProcessAndPort() with
+            match ProcessManagement.readProcessAndPort() with
             | Some (_proc, port) ->
                 let cmd = IPC.Command.Adaptify(project, useCache, generateLenses)
                 let data = IPC.Command.pickle cmd
@@ -300,14 +300,14 @@ module Client =
                     files
                 | None -> 
                     log.debug range0 "connection failed"
-                    Process.startAdaptifyServer log |> ignore
+                    ProcessManagement.startAdaptifyServer log |> ignore
 
                     let sw = System.Diagnostics.Stopwatch.StartNew()
                     let rec wait (timeout : int) =
                         if sw.Elapsed.TotalMilliseconds > float timeout then    
                             false
                         else
-                            match Process.readProcessAndPort() with
+                            match ProcessManagement.readProcessAndPort() with
                             | Some _ -> true
                             | None ->
                                 Threading.Thread.Sleep 100
@@ -321,7 +321,7 @@ module Client =
     
     let shutdownAsync (log : ILog) =
         async {
-            match Process.readProcessAndPort() with
+            match ProcessManagement.readProcessAndPort() with
             | Some(proc, port) ->
                 match! TCP.Client.tryGetAsync IPAddress.Loopback port 10000 (IPC.Command.pickle IPC.Command.Exit) with
                 | Some res ->

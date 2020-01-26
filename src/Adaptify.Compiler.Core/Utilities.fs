@@ -226,14 +226,100 @@ module Log =
 
 
 
+
+[<RequireQualifiedAccess>]
+type OutputStream =
+    | Stdout
+    | Stderr
+
+[<RequireQualifiedAccess>]
+type OutputMode =
+    | None
+    | Inline
+    | Custom of (OutputStream -> string -> unit)
+
+type ProcessConfig =
+    {
+        file        : string
+        workDir     : string
+        args        : list<string>
+        output      : OutputMode
+    }
+
+module Process =
+    open System.Diagnostics
+
+    let tryStart (cfg : ProcessConfig) =
+        try
+            let cwd = if String.IsNullOrWhiteSpace cfg.workDir then Environment.CurrentDirectory else cfg.workDir
+            let info = 
+                ProcessStartInfo(
+                    cfg.file, String.concat " " cfg.args,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = cwd
+                )
+
+            let proc = new Process()
+            proc.StartInfo <- info
+
+            match cfg.output with
+            | OutputMode.None -> ()
+            | OutputMode.Inline ->
+                proc.OutputDataReceived.Add (fun e ->
+                    if not (String.IsNullOrEmpty e.Data) then
+                        Console.WriteLine("{0}", e.Data)                    
+                )
+                proc.ErrorDataReceived.Add (fun e ->
+                    if not (String.IsNullOrEmpty e.Data) then
+                        Console.Error.WriteLine("{0}", e.Data)                    
+                )
+            | OutputMode.Custom write ->
+                proc.OutputDataReceived.Add (fun e ->
+                    if not (String.IsNullOrEmpty e.Data) then
+                        write OutputStream.Stdout e.Data              
+                )
+                proc.ErrorDataReceived.Add (fun e ->
+                    if not (String.IsNullOrEmpty e.Data) then
+                        write OutputStream.Stderr e.Data                           
+                )
+
+
+            if proc.Start() then
+                match cfg.output with
+                | OutputMode.None -> 
+                    proc.StandardOutput.Close()
+                    proc.StandardError.Close()
+                | _ ->
+                    proc.BeginOutputReadLine()
+                    proc.BeginErrorReadLine()
+
+                Some proc
+            else
+                None 
+        with e -> 
+            None               
+
+
+
+
 [<AutoOpen>]
 module Versions =   
     open System.Reflection
-    
+    open System.Threading
+
     let newChecker() =
         let c = FSharpChecker.Create(projectCacheSize = 200, keepAssemblyContents = true)
         c.ImplicitlyStartBackgroundWork <- false
         c
+
+    let startThread (run : unit -> unit) =
+        let thread = Thread(ThreadStart(run), IsBackground = true)
+        thread.Start()
+        thread
+
 
     let selfVersion = 
         let version = 

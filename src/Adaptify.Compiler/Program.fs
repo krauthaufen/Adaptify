@@ -125,64 +125,6 @@ let md5 = System.Security.Cryptography.MD5.Create()
 let inline hash (str : string) = 
     md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes str) |> System.Guid |> string
 
-module IPCTest =
-    open System.Diagnostics
-    open System.Reflection
-    open System.IO.MemoryMappedFiles
-    open Microsoft.FSharp.NativeInterop
-    open System.Threading
-
-    let run (args : string[]) =
-        let consoleLock = obj()
-        let run (arg : int) =
-            let name = sprintf "%02d" arg
-            let dll = Assembly.GetEntryAssembly().Location
-            let info = ProcessStartInfo("dotnet", dll + " " + name + " --server", UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true)
-            let proc = new Process(StartInfo = info)
-
-            proc.EnableRaisingEvents <- true
-            proc.OutputDataReceived.Add(fun e -> 
-                if not (String.IsNullOrWhiteSpace e.Data) then
-                    lock consoleLock (fun () ->
-                        Console.WriteLine("{0}{1}", name, e.Data)
-                    )
-            )
-            proc.ErrorDataReceived.Add(fun e -> 
-                if not (String.IsNullOrWhiteSpace e.Data) then
-                    lock consoleLock (fun () ->
-                        Console.WriteLine("{0}{1}", name, e.Data)
-                    )
-            )
-
-            if not (proc.Start()) then printfn "could not start process"
-            proc.BeginOutputReadLine()
-            proc.BeginErrorReadLine()
-
-            name, proc
-
-        if args.Length = 0 then
-            let cnt = 24
-            let all = Array.init cnt run
-
-            let mutable line = Console.ReadLine()
-            while line <> "exit" do
-                line <- Console.ReadLine()
-
-            Client.shutdown Log.empty
-
-            for (name, a) in all do 
-                if not a.HasExited then
-                    try a.Kill()
-                    with _ -> ()
-                    printfn "%s killed" name
-            Environment.Exit 0
-               
-      
-
-let startThread (run : unit -> unit) =
-    let thread = System.Threading.Thread(System.Threading.ThreadStart(run), IsBackground = true)
-    thread.Start()
-    thread
 
 [<EntryPoint>]
 let main argv = 
@@ -246,7 +188,7 @@ let main argv =
         let log = 
             Log.ofList [
                 Log.console verbose
-                Log.file verbose Process.logFile
+                Log.file verbose ProcessManagement.logFile
             ]
 
         match Server.start log with
