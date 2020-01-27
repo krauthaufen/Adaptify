@@ -270,7 +270,11 @@ module Adaptor =
         let m = new Var("m", a.mType)
 
         let init = Expr.Lambda([v], a.init (Var v))
-        let update = Expr.Lambda([m], Expr.Lambda([v], Seq(a.update (Var m) (Var v), Var m)))
+        let update = 
+            let b = a.update (Var m) (Var v)
+            match b.Type with
+            | TUnit -> Expr.Lambda([m], Expr.Lambda([v], Seq(b, Var m)))
+            | _ -> Expr.Lambda([m], Expr.Lambda([v], b))
         let view = Expr.Lambda([m], a.view (Var m))
 
         {
