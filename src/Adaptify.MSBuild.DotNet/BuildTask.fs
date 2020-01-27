@@ -11,6 +11,7 @@ open FSharp.Compiler.Range
 type AdaptifyTask() =
     inherit Task()
 
+    let mutable designTime = false
     let mutable debug = false
     let mutable files : string[] = [||]
     let mutable references : string[] = [||]
@@ -19,6 +20,7 @@ type AdaptifyTask() =
     let mutable framework : string = ""
     let mutable outputType : string = ""
     let mutable createLenses = false
+    let mutable defines = ""
 
     let mutable log : option<ILog> = None
 
@@ -79,6 +81,7 @@ type AdaptifyTask() =
         if debug then
             System.Diagnostics.Debugger.Launch() |> ignore
             
+
         match Path.GetExtension projectFile with
             | ".fsproj" -> 
                 try
@@ -90,21 +93,22 @@ type AdaptifyTask() =
 
                     let isNetFramework = references |> Array.exists (fun r -> Path.GetFileNameWithoutExtension(r).ToLower() = "mscorlib")
                     
+                    let defines = defines.Split([|';'|], System.StringSplitOptions.RemoveEmptyEntries)
+
                     let projInfo =
                         {
                             project = projectFile
                             isNewStyle = not isNetFramework
                             references = Array.toList references
                             files = Array.toList files
-                            defines = []
+                            defines = Array.toList defines
                             target = targetType
                             output = Some (Path.GetTempFileName() + ".dll")
                             additional = ["--noframework"]
                             debug = DebugType.Off
                         }
 
-                    let newFiles = Client.adaptify x.Logger projInfo true createLenses
-                    //let newFiles = Adaptify.run None true createLenses x.Logger projInfo
+                    let newFiles = Client.adaptify x.Logger projInfo designTime true createLenses
 
                     results <- List.toArray newFiles
                     true
@@ -115,7 +119,10 @@ type AdaptifyTask() =
             | _other -> 
                 results <- files
                 true
-              
+          
+    member x.DesignTime
+        with get() = designTime
+        and set d = designTime <- d
               
     member x.GenerateLenses
         with get() = createLenses
@@ -132,6 +139,10 @@ type AdaptifyTask() =
     member x.OutputType
         with get() = outputType
         and set t = outputType <- t
+
+    member x.Defines 
+        with get() = defines
+        and set d = defines <- d
 
     [<Required>]
     member x.Files

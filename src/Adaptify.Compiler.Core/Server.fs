@@ -28,7 +28,7 @@ module private IPC =
         }
 
     type Command =
-        | Adaptify of project : ProjectInfo * useCache : bool * lenses : bool
+        | Adaptify of project : ProjectInfo * designTime : bool * useCache : bool * lenses : bool
         | Exit
 
     module Command =
@@ -36,9 +36,10 @@ module private IPC =
             use ms = new MemoryStream()
             use w = new BinaryWriter(ms)
             match cmd with
-            | Adaptify(p, c, l) ->  
+            | Adaptify(p, d, c, l) ->  
                 w.Write 1
                 ProjectInfo.pickleTo ms p
+                w.Write(d)
                 w.Write(c)
                 w.Write(l)
             | Exit ->
@@ -52,9 +53,10 @@ module private IPC =
             | 1 ->
                 match ProjectInfo.tryUnpickleOf ms with
                 | Some p ->
+                    let d = r.ReadBoolean()
                     let c = r.ReadBoolean()
                     let l = r.ReadBoolean()
-                    Some (Adaptify(p, c, l))
+                    Some (Adaptify(p, d, c, l))
                 | None ->
                     None
             | 2 ->
@@ -142,57 +144,59 @@ module private IPC =
 
 
 module Server =
-    let private processMessage (cid : int) (log : ILog) (checker : FSharpChecker) project cache lenses =
-        try
-            log.debug range0 "  %04d: %s %A %A" cid (Path.GetFileName project.project) cache lenses
-            let w = obj()
-            let mutable messages = []
+    let private processMessage (cid : int) (log : ILog) (checker : FSharpChecker) project designTime cache lenses = 
+        async {
+            try
+                log.debug range0 "  %04d: %s %A %A %A" cid (Path.GetFileName project.project) designTime cache lenses
+                let w = obj()
+                let mutable messages = []
 
-            let addMessage (kind : IPC.MessageKind) (r : range) (str : string) =
-                lock w (fun () ->
-                    let message =
-                        {
-                            IPC.file = r.FileName
-                            IPC.kind = kind
-                            IPC.startLine = r.StartLine
-                            IPC.startCol = r.StartColumn
-                            IPC.endLine = r.EndLine
-                            IPC.endCol = r.EndColumn
-                            IPC.message = str
-                        }
-                    messages <- messages @ [message]
-                )
+                let addMessage (kind : IPC.MessageKind) (r : range) (str : string) =
+                    lock w (fun () ->
+                        let message =
+                            {
+                                IPC.file = r.FileName
+                                IPC.kind = kind
+                                IPC.startLine = r.StartLine
+                                IPC.startCol = r.StartColumn
+                                IPC.endLine = r.EndLine
+                                IPC.endCol = r.EndColumn
+                                IPC.message = str
+                            }
+                        messages <- messages @ [message]
+                    )
 
-            let innerLog =
-                { new ILog with
-                    member x.debug r fmt = 
-                        fmt |> Printf.kprintf (fun str -> 
-                            addMessage (IPC.MessageKind.Debug) r str
-                            log.debug r "  %04d: %s" cid str
-                        )
-                    member x.info r fmt = 
-                        fmt |> Printf.kprintf (fun str -> 
-                            addMessage (IPC.MessageKind.Info) r str
-                            log.debug r "  %04d: %s" cid str
-                        )
-                    member x.warn r c fmt =
-                        fmt |> Printf.kprintf (fun str -> 
-                            addMessage (IPC.MessageKind.Warning c) r str
-                            log.debug r "  %04d: warning %s" cid str
-                        )
-                    member x.error r c fmt =
-                        fmt |> Printf.kprintf (fun str -> 
-                            addMessage (IPC.MessageKind.Error c) r str
-                            log.debug r  "  %04d: error %s" cid str
-                        )
-                }
+                let innerLog =
+                    { new ILog with
+                        member x.debug r fmt = 
+                            fmt |> Printf.kprintf (fun str -> 
+                                addMessage (IPC.MessageKind.Debug) r str
+                                log.debug r "  %04d: %s" cid str
+                            )
+                        member x.info r fmt = 
+                            fmt |> Printf.kprintf (fun str -> 
+                                addMessage (IPC.MessageKind.Info) r str
+                                log.debug r "  %04d: %s" cid str
+                            )
+                        member x.warn r c fmt =
+                            fmt |> Printf.kprintf (fun str -> 
+                                addMessage (IPC.MessageKind.Warning c) r str
+                                log.debug r "  %04d: warning %s" cid str
+                            )
+                        member x.error r c fmt =
+                            fmt |> Printf.kprintf (fun str -> 
+                                addMessage (IPC.MessageKind.Error c) r str
+                                log.debug r  "  %04d: error %s" cid str
+                            )
+                    }
 
-            let newFiles = Adaptify.run checker cache lenses innerLog project
-            let reply = IPC.Reply.Success(newFiles, messages)
-            reply
+                let! newFiles = Adaptify.runAsync checker designTime cache lenses innerLog project
+                let reply = IPC.Reply.Success(newFiles, messages)
+                return reply
 
-        with e ->
-            IPC.Reply.Fatal (string e)
+            with e ->
+                return IPC.Reply.Fatal (string e)
+        }
     
     open System.Net
 
@@ -208,17 +212,17 @@ module Server =
                     log.debug range0 "%04d: %d bytes" cid msg.Length
                     let sw = System.Diagnostics.Stopwatch.StartNew()
                     do! Async.SwitchToThreadPool()
-                    let reply = 
+                    let! reply = 
                         match IPC.Command.tryUnpickle msg with
                         | Some msg ->
                             match msg with
                             | IPC.Command.Exit ->
                                 self.Stop()
-                                IPC.Reply.Shutdown
-                            | IPC.Command.Adaptify(project, cache, lenses) -> 
-                                processMessage cid log checker project cache lenses
+                                async { return IPC.Reply.Shutdown }
+                            | IPC.Command.Adaptify(project, designTime, cache, lenses) -> 
+                                processMessage cid log checker project designTime cache lenses
                         | None ->
-                            IPC.Reply.Fatal "could not parse command"
+                            async { return IPC.Reply.Fatal "could not parse command" }
                     sw.Stop()
                     log.info range0 "%04d took %.3fms" cid sw.Elapsed.TotalMilliseconds
 
@@ -249,11 +253,11 @@ module Server =
 module Client =
     open System.Net
 
-    let tryAdaptivfyAsync (log : ILog) (project : ProjectInfo) (useCache : bool) (generateLenses : bool) =
+    let tryAdaptivfyAsync (log : ILog) (project : ProjectInfo) (designTime : bool) (useCache : bool) (generateLenses : bool) =
         async {
             match ProcessManagement.readProcessAndPort() with
             | Some (_proc, port) ->
-                let cmd = IPC.Command.Adaptify(project, useCache, generateLenses)
+                let cmd = IPC.Command.Adaptify(project, designTime, useCache, generateLenses)
                 let data = IPC.Command.pickle cmd
                 match! TCP.Client.tryGetAsync IPAddress.Loopback port 60000 data with
                 | Some reply ->
@@ -285,17 +289,17 @@ module Client =
                 return None
         }
       
-    let tryAdaptify (log : ILog)  (project : ProjectInfo) (useCache : bool) (generateLenses : bool) =
-        tryAdaptivfyAsync log project useCache generateLenses |> Async.RunSynchronously
+    let tryAdaptify (log : ILog)  (project : ProjectInfo) (designTime : bool) (useCache : bool) (generateLenses : bool) =
+        tryAdaptivfyAsync log project designTime useCache generateLenses |> Async.RunSynchronously
 
-    let adaptify (log : ILog) (project : ProjectInfo) (useCache : bool) (generateLenses : bool) =
+    let adaptify (log : ILog) (project : ProjectInfo) (designTime : bool) (useCache : bool) (generateLenses : bool) =
         let rec run (retries : int) =
             if retries = 0 then
                 log.warn range0 "" "falling back to local adaptify"
                 let checker = newChecker()
-                Adaptify.run checker useCache generateLenses log project
+                Adaptify.run checker designTime useCache generateLenses log project
             else
-                match tryAdaptify log project useCache generateLenses with
+                match tryAdaptify log project designTime useCache generateLenses with
                 | Some files -> 
                     files
                 | None -> 

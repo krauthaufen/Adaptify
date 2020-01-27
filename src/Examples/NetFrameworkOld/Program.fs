@@ -8,7 +8,7 @@ open Adaptify
 
 [<EntryPoint>]
 let main _argv =
-    let _ = Unpersist.instance<MyUnion, AdaptiveMyUnion>
+    let _up = Unpersist.instance<MyUnion, AdaptiveMyUnion>
     let test = Unpersist.instance<MyModel, AdaptiveMyModel>
 
     let v = test.init { a = Error "bad"; b = 3.0; map = HashMap.empty }

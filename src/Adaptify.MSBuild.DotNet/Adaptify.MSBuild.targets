@@ -9,11 +9,20 @@
   </ItemGroup>
 
   <UsingTask TaskName="Adaptify.MSBuild.AdaptifyTask" AssemblyFile="$(TaskAssembly)" />
-  <Target Name="UpdateGeneratedFiles" DependsOnTargets="ResolveProjectReferences;ResolveAssemblyReferences" BeforeTargets="CoreCompile" Condition="'@(Compile)' != '' And '$(GenerateDomainTypes)' != 'false' And '$(DesignTimeBuild)' != 'true'">
+  <Target Name="UpdateGeneratedFiles" DependsOnTargets="ResolveProjectReferences;ResolveAssemblyReferences" BeforeTargets="CoreCompile" Condition="'@(Compile)' != '' And '$(GenerateDomainTypes)' != 'false'">
     <ItemGroup>
       <OldItems Include="@(Compile)" />
     </ItemGroup>
-    <AdaptifyTask GenerateLenses="$(GenerateLenses)" TargetFramework="$(TargetFramework)" Debug="$(DebugHate)" Files="@(OldItems)" References="@(_ResolveAssemblyReferenceResolvedFiles)" ProjectFile="$(MSBuildProjectFullPath)" OutputType="$(OutputType)">
+    <AdaptifyTask 
+        GenerateLenses="$(GenerateLenses)" 
+        TargetFramework="$(TargetFramework)" 
+        Debug="$(DebugHate)" 
+        Files="@(OldItems)" 
+        References="@(_ResolveAssemblyReferenceResolvedFiles)" 
+        ProjectFile="$(MSBuildProjectFullPath)"
+        DesignTime="$(DesignTimeBuild)"
+        Defines="$(DefineConstants)"
+        OutputType="$(OutputType)" >
       <Output TaskParameter="Results" ItemName="Results" />
     </AdaptifyTask>
     <ItemGroup>

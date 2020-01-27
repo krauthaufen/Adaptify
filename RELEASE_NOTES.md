@@ -1,3 +1,8 @@
+### 0.0.28
+* preprocessor defines handled correctly
+* special logic for DesignTime builds
+* Adaptify.runAsync no longer blocking on FSharpChecker
+
 ### 0.0.27
 * attempt at linux compat 
 

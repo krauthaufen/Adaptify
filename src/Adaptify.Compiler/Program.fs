@@ -241,7 +241,7 @@ let main argv =
                 Client.adaptify log info (not force) lenses |> ignore
             else
                 let checker = newChecker()
-                Adaptify.run checker (not force) lenses log info |> ignore
+                Adaptify.run checker false (not force) lenses log info |> ignore
         )
 
         0 

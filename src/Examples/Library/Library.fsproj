@@ -13,9 +13,7 @@
   
   <ItemGroup>
     <Compile Include="Library.fs" />
-    <Compile Include="Library.g.fs" />
     <Compile Include="Model2.fs" />
-    <Compile Include="Model2.g.fs" />
     <Compile Include="Test.fs" />
   </ItemGroup>
   <ItemGroup>
