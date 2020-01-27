@@ -5,6 +5,7 @@ open FSharp.Compiler.Range
 open FSharp.Core
 open Adaptify.Compiler
 open System.Runtime.CompilerServices
+open System.Threading
 
 module ProjectInfo =
     open Dotnet.ProjInfo
@@ -254,7 +255,7 @@ let main argv =
                 | None -> "."
 
             if client then
-                Client.adaptify log info outputPath false (not force) lenses |> ignore<list<string>>
+                Client.adaptify CancellationToken.None log info outputPath false (not force) lenses |> ignore<list<string>>
             else
                 let checker = newChecker()
                 Adaptify.run checker outputPath false (not force) lenses log info |> ignore<list<string>>

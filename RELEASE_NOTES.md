@@ -1,3 +1,7 @@
+### 0.0.30
+* fixed HashMap<_,ModelType> handling for union types
+* cancellable MSBuild task
+
 ### 0.0.29
 * output written to intermediate folder
 * caching improvements

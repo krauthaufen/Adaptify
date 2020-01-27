@@ -6,6 +6,7 @@ open Microsoft.Build.Framework
 open System.IO
 open FSharp.Compiler.SourceCodeServices
 open FSharp.Compiler.Range
+open System.Threading
 
 
 type AdaptifyTask() =
@@ -25,6 +26,13 @@ type AdaptifyTask() =
 
     let mutable log : option<ILog> = None
 
+    let mutable cancel : CancellationTokenSource = null
+
+    member x.Cancel() =
+        if not (isNull cancel) then cancel.Cancel()
+
+    interface ICancelableTask with
+        member x.Cancel() = x.Cancel()
 
     member x.Logger =
         match log with
@@ -78,12 +86,14 @@ type AdaptifyTask() =
             log <- Some l
             l
 
-    override x.Execute() =
-        if debug then
-            System.Diagnostics.Debugger.Launch() |> ignore
+    override x.Execute() =  
+        cancel <- new CancellationTokenSource()
+        try
+            if debug then
+                System.Diagnostics.Debugger.Launch() |> ignore
             
 
-        match Path.GetExtension projectFile with
+            match Path.GetExtension projectFile with
             | ".fsproj" -> 
                 try
                     let targetType = 
@@ -109,17 +119,20 @@ type AdaptifyTask() =
                             debug = DebugType.Off
                         }
 
-                    let newFiles = Client.adaptify x.Logger projInfo outputPath designTime true createLenses
-
+                    let newFiles = Client.adaptify cancel.Token x.Logger projInfo outputPath designTime true createLenses
+    
                     results <- List.toArray newFiles
-                    true
+                    not cancel.IsCancellationRequested
                 with e ->
                     x.Logger.error range0 "587" "failed: %A" e
-                    false
+                    not cancel.IsCancellationRequested
               
             | _other -> 
                 results <- files
                 true
+        finally
+            cancel.Dispose()
+            cancel <- null
           
     member x.DesignTime
         with get() = designTime

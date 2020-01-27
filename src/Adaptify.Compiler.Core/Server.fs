@@ -291,36 +291,43 @@ module Client =
                 return None
         }
       
-    let tryAdaptify (log : ILog)  (project : ProjectInfo) (outputPath : string) (designTime : bool) (useCache : bool) (generateLenses : bool) =
-        tryAdaptivfyAsync log project outputPath designTime useCache generateLenses |> Async.RunSynchronously
+    let tryAdaptify (ct : CancellationToken) (log : ILog) (project : ProjectInfo) (outputPath : string) (designTime : bool) (useCache : bool) (generateLenses : bool) =
+        let run = tryAdaptivfyAsync log project outputPath designTime useCache generateLenses
+        try Async.RunSynchronously(run, cancellationToken = ct)
+        with _ -> None
 
-    let adaptify (log : ILog) (project : ProjectInfo) (outputPath : string) (designTime : bool) (useCache : bool) (generateLenses : bool) =
+    let adaptify (ct : CancellationToken) (log : ILog) (project : ProjectInfo) (outputPath : string) (designTime : bool) (useCache : bool) (generateLenses : bool) =
         let rec run (retries : int) =
             if retries = 0 then
                 log.warn range0 "" "falling back to local adaptify"
                 let checker = newChecker()
-                Adaptify.run checker outputPath designTime useCache generateLenses log project
+                let run = Adaptify.runAsync checker outputPath designTime useCache generateLenses log project
+                try Async.RunSynchronously(run, cancellationToken = ct)
+                with _ -> project.files
             else
-                match tryAdaptify log project outputPath designTime useCache generateLenses with
+                match tryAdaptify ct log project outputPath designTime useCache generateLenses with
                 | Some files -> 
                     files
                 | None -> 
-                    log.debug range0 "connection failed"
-                    ProcessManagement.startAdaptifyServer log |> ignore
+                    if not ct.IsCancellationRequested then
+                        log.debug range0 "connection failed"
+                        ProcessManagement.startAdaptifyServer log |> ignore
 
-                    let sw = System.Diagnostics.Stopwatch.StartNew()
-                    let rec wait (timeout : int) =
-                        if sw.Elapsed.TotalMilliseconds > float timeout then    
-                            false
-                        else
-                            match ProcessManagement.readProcessAndPort() with
-                            | Some _ -> true
-                            | None ->
-                                Threading.Thread.Sleep 100
-                                wait timeout
+                        let sw = System.Diagnostics.Stopwatch.StartNew()
+                        let rec wait (timeout : int) =
+                            if sw.Elapsed.TotalMilliseconds > float timeout then    
+                                false
+                            else
+                                match ProcessManagement.readProcessAndPort() with
+                                | Some _ -> true
+                                | None ->
+                                    Threading.Thread.Sleep 100
+                                    wait timeout
 
-                    wait 2000 |> ignore
-                    run (retries - 1)
+                        wait 2000 |> ignore
+                        run (retries - 1)
+                    else
+                        project.files
                             
 
         run 5
