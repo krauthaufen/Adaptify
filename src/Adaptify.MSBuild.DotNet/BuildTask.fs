@@ -21,6 +21,7 @@ type AdaptifyTask() =
     let mutable outputType : string = ""
     let mutable createLenses = false
     let mutable defines = ""
+    let mutable outputPath = "."
 
     let mutable log : option<ILog> = None
 
@@ -108,7 +109,7 @@ type AdaptifyTask() =
                             debug = DebugType.Off
                         }
 
-                    let newFiles = Client.adaptify x.Logger projInfo designTime true createLenses
+                    let newFiles = Client.adaptify x.Logger projInfo outputPath designTime true createLenses
 
                     results <- List.toArray newFiles
                     true
@@ -143,6 +144,10 @@ type AdaptifyTask() =
     member x.Defines 
         with get() = defines
         and set d = defines <- d
+
+    member x.OutputPath 
+        with get() = outputPath
+        and set p = outputPath <- p
 
     [<Required>]
     member x.Files

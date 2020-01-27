@@ -138,6 +138,7 @@ let main argv =
         printfn "  -v|--verbose  verbose output"
         printfn "  -l|--lenses   generate aether lenses for records"
         printfn "  -c|--client   uses or creates a local server process"
+        printfn "  -r|--release  generate release files"
         printfn "  --server      runs as server"
         printfn "  --killserver  kills the currently running server"
         Environment.Exit 1
@@ -162,6 +163,11 @@ let main argv =
             a = "-l" || a = "--lenses"    
         )
         
+    let release =
+        argv |> Array.exists (fun a -> 
+            let a = a.ToLower().Trim()
+            a = "-r" || a = "--release"    
+        )
     let verbose =
         argv |> Array.exists (fun a -> 
             let a = a.ToLower().Trim()
@@ -223,9 +229,14 @@ let main argv =
         let log = Log.console verbose
         let projFiles = argv |> Array.filter (fun a -> not (a.StartsWith "-"))
 
+        let props =
+            [
+                if release then "Configuration", "Release"
+            ]
+
         let projectInfos = 
             projFiles |> Array.choose (fun projFile ->
-                match ProjectInfo.tryOfProject [] projFile with
+                match ProjectInfo.tryOfProject props projFile with
                 | Ok info -> 
                     Some info
                 | Error err ->
@@ -237,11 +248,16 @@ let main argv =
 
 
         projectInfos |> Array.Parallel.iter (fun info ->
+            let outputPath = 
+                match info.output with
+                | Some output -> Path.GetDirectoryName output
+                | None -> "."
+
             if client then
-                Client.adaptify log info (not force) lenses |> ignore
+                Client.adaptify log info outputPath false (not force) lenses |> ignore<list<string>>
             else
                 let checker = newChecker()
-                Adaptify.run checker false (not force) lenses log info |> ignore
+                Adaptify.run checker outputPath false (not force) lenses log info |> ignore<list<string>>
         )
 
         0 

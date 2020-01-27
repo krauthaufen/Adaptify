@@ -182,19 +182,51 @@ module ProjectInfo =
 
         ]
 
+    let normalize (info : ProjectInfo) =
+        let path = Path.GetFullPath info.project
+        let dir = Path.GetDirectoryName path
+
+        let full (str : string) =
+            if Path.IsPathRooted str then str
+            else Path.Combine(dir, str)
+
+        { info with
+            project = path
+            files = info.files |> List.map full
+            references = info.references |> List.map full
+            output = info.output |> Option.map full
+        }
+
     let computeHash (info : ProjectInfo) =
         use ms = new MemoryStream()
         use w = new StreamWriter(ms)
+        let info = normalize info
 
-        w.WriteLine(info.project)
+        let projDir = Path.GetDirectoryName info.project
+        let relativePath (name : string) =
+            let dirFull = Path.GetFullPath projDir
+            let nameFull = Path.GetFullPath name
+            if nameFull.StartsWith dirFull then
+                nameFull.Substring(dirFull.Length).TrimStart [| System.IO.Path.DirectorySeparatorChar; System.IO.Path.AltDirectorySeparatorChar |]
+            else
+                name
+
+        w.WriteLine(Path.GetFileName info.project)
         w.WriteLine(
             if info.isNewStyle then "newstyle"
             else "oldstyle"
         )
         w.WriteLine "references"
-        for r in List.sort info.references do w.WriteLine(r)
+        for r in List.sort info.references do 
+            let fileInfo = FileInfo r
+            if fileInfo.Exists then
+                w.WriteLine(fileInfo.LastWriteTimeUtc.ToString("o"))
+            w.WriteLine(relativePath r)
+
         w.WriteLine "files"
-        for f in info.files do w.WriteLine f
+        for f in info.files do 
+            w.WriteLine(relativePath f)
+
         w.WriteLine "defines"
         for f in List.sort info.defines do w.WriteLine f
         w.WriteLine(
@@ -214,9 +246,9 @@ module ProjectInfo =
             | DebugType.Portable -> "portable"
         )
 
-        ms.Seek(0L, SeekOrigin.Begin) |> ignore
+        let data = ms.ToArray()
         let md5 = System.Security.Cryptography.MD5.Create()
-        let hash = md5.ComputeHash(ms)
+        let hash = md5.ComputeHash(data)
         System.Guid hash |> string
 
     [<AutoOpen>]
@@ -248,20 +280,6 @@ module ProjectInfo =
             | 3 -> DebugType.Full
             | _ -> DebugType.Off
 
-
-    let normalize (info : ProjectInfo) =
-        let path = Path.GetFullPath info.project
-        let dir = Path.GetDirectoryName path
-
-        let full (str : string) =
-            if Path.IsPathRooted str then str
-            else Path.Combine(dir, str)
-
-        { info with
-            files = info.files |> List.map full
-            references = info.references |> List.map full
-            output = info.output |> Option.map full
-        }
 
 
 

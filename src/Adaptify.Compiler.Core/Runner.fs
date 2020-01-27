@@ -56,12 +56,31 @@ module Adaptify =
             Stamp = None
         }
 
-    let runAsync (checker : FSharpChecker) (designTime : bool) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
+    let runAsync (checker : FSharpChecker) (outputPath : string) (designTime : bool) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
         async {
             do! Async.SwitchToThreadPool()
             let projectInfo = ProjectInfo.normalize projectInfo
 
             let projectFile = projectInfo.project
+            let projDir = Path.GetDirectoryName projectFile
+            let outputDirectory = Path.Combine(projDir, outputPath)
+
+            let relativePath (name : string) =
+                let dirFull = Path.GetFullPath projDir
+                let nameFull = Path.GetFullPath name
+                if nameFull.StartsWith dirFull then
+                    nameFull.Substring(dirFull.Length).TrimStart [| System.IO.Path.DirectorySeparatorChar; System.IO.Path.AltDirectorySeparatorChar |]
+                else
+                    name
+
+            let getOutputFile (file : string) =
+                let rel = relativePath file
+                let path = Path.ChangeExtension(Path.Combine(outputDirectory, rel), ".g.fs")
+                File.ensureDirectory path
+                path
+
+
+
             if Path.GetExtension projectFile = ".fsproj" then
             
                 let realFiles = projectInfo.files
@@ -73,22 +92,22 @@ module Adaptify =
                         | [s] when projectInfo.target = Target.Exe -> [s]
                         | [s] -> 
                             if s.EndsWith ".g.fs" then [s]
-                            else [s; Path.ChangeExtension(s, ".g.fs")]
+                            else [s; getOutputFile s]
                         | h :: t ->
                             match t with
-                            | hh :: t when hh = Path.ChangeExtension(h, ".g.fs") ->
+                            | hh :: t when hh = getOutputFile h ->
                                 h :: hh :: appendGenerated t
                             | _ ->
-                                h :: Path.ChangeExtension(h, ".g.fs") :: appendGenerated t
+                                h :: getOutputFile h :: appendGenerated t
                     appendGenerated projectInfo.files
 
                 let projectInfo = { projectInfo with files = inFiles }
 
                 let projHash = ProjectInfo.computeHash projectInfo
-                let cacheFile = Path.Combine(Path.GetDirectoryName projectFile, ".adaptifycache")
+                let cacheFile = Path.Combine(outputDirectory, ".adaptifycache")
                 let cache = if useCache then CacheFile.tryRead log cacheFile else None
 
-            
+                
                 let projectChanged = 
                     match cache with
                     | Some cache -> projHash <> cache.projectHash || createLenses <> cache.lenses
@@ -104,15 +123,6 @@ module Adaptify =
 
                 let mutable newHashes = Map.empty
             
-                let projDir = Path.GetDirectoryName projectFile
-
-                let relativePath (dir : string) (name : string) =
-                    let dirFull = Path.GetFullPath dir
-                    let nameFull = Path.GetFullPath name
-                    if nameFull.StartsWith dirFull then
-                        nameFull.Substring(dirFull.Length).TrimStart [| System.IO.Path.DirectorySeparatorChar; System.IO.Path.AltDirectorySeparatorChar |]
-                    else
-                        name
 
 
                 log.info range0 "[Adaptify] %s" (Path.GetFileName projectFile)
@@ -148,7 +158,7 @@ module Adaptify =
                             else
                                 f
                         else 
-                            relativePath projDir f
+                            relativePath f
                     ) |> Set.ofList
                 
                 log.debug range0 "[Adaptify]   References:"
@@ -157,7 +167,7 @@ module Adaptify =
 
                 log.debug range0 "[Adaptify]   Files:"
                 for f in realFiles do
-                    log.debug range0 "[Adaptify]     %s" (relativePath projDir f)
+                    log.debug range0 "[Adaptify]     %s" (relativePath f)
 
 
 
@@ -170,18 +180,22 @@ module Adaptify =
                 let mutable changed = false
 
                 let noGeneration =
-                    let missing = waitUntilExisting log 200 projectInfo.references
-                    designTime || missing.Length > 0
+                    if designTime then  
+                        true
+                    else
+                        let missing = waitUntilExisting log 200 projectInfo.references
+                        missing.Length > 0
 
                 for file in projectInfo.files do
                     if not (file.EndsWith ".g.fs") then
+                        let content = File.ReadAllText file
+                        let mayDefineModelTypes = modelTypeRx.IsMatch content
                         if noGeneration then
                             newFiles.Add file
-                            let generated = Path.ChangeExtension(file, ".g.fs")
-                            if File.Exists generated then
+                            let generated = getOutputFile file
+                            if mayDefineModelTypes then
                                 newFiles.Add generated
                         else
-                            let content = File.ReadAllText file
                             let fileHash = hash content
 
                             let mayDefineModelTypes = modelTypeRx.IsMatch content
@@ -194,14 +208,14 @@ module Adaptify =
                                 elif projectChanged then 
                                     let old = match cache with | Some p -> p.projectHash | None -> ""
                                     if old <> "" then
-                                        log.debug range0 "[Adaptify]   project for %s changed (%A vs %A)" (relativePath projDir file) projHash old
+                                        log.debug range0 "[Adaptify]   project for %s changed (%A vs %A)" (relativePath file) projHash old
                                     true, true
                                 elif not changed then
                                     match Map.tryFind file oldHashes with
                                     | Some oldEntry ->
                                         if oldEntry.fileHash = fileHash then
                                             if oldEntry.hasModels then
-                                                let generated = Path.ChangeExtension(file, ".g.fs")
+                                                let generated = getOutputFile file
 
                                                 let readGeneratedHash (file : string) = 
                                                     use s = File.OpenRead file
@@ -244,7 +258,7 @@ module Adaptify =
                                                     hadErrors, true
                                                 else
                                                     changed <- true
-                                                    log.debug range0 "[Adaptify]   %s: generated file invalid" (relativePath projDir file)
+                                                    log.debug range0 "[Adaptify]   %s: generated file invalid" (relativePath file)
                                                     true, true
                                             else
                                                 newFiles.Add file
@@ -253,12 +267,12 @@ module Adaptify =
                                                 false, true
                                         else
                                             changed <- true
-                                            log.debug range0 "[Adaptify]   %s: file hash changed" (relativePath projDir file)
+                                            log.debug range0 "[Adaptify]   %s: file hash changed" (relativePath file)
                                             true, true
 
                                     | None ->   
                                         changed <- true
-                                        log.debug range0 "[Adaptify]   %s: no old hash" (relativePath projDir file)
+                                        log.debug range0 "[Adaptify]   %s: no old hash" (relativePath file)
                                         true, true
                                 else
                                     true, true
@@ -299,13 +313,13 @@ module Adaptify =
                                             |> String.concat "\r\n"
                                             |> sprintf "compiler errors:\r\n%s"
 
-                                        let range = mkRange (relativePath projDir file) pos0 pos0
+                                        let range = mkRange (relativePath file) pos0 pos0
                                         addWarning true range "internal" errorStrings
 
                                     for err in wrns do
                                         let p0 = mkPos err.StartLineAlternate err.StartColumn
                                         let p1 = mkPos err.EndLineAlternate err.EndColumn
-                                        let range = mkRange (relativePath projDir err.FileName) p0 p1
+                                        let range = mkRange (relativePath err.FileName) p0 p1
                                         localLogger.warn range (sprintf "%04d" err.ErrorNumber) "%s" err.Message
 
                                     let rec allEntities (d : FSharpImplementationFileDeclaration) =
@@ -332,31 +346,32 @@ module Adaptify =
                                     newFiles.Add file
                                     match definitions with
                                     | [] ->
-                                        log.info range0 "[Adaptify]   no models in %s" (relativePath projDir file)
+                                        log.info range0 "[Adaptify]   no models in %s" (relativePath file)
                                     | defs ->
-                                        let file = Path.ChangeExtension(file, ".g.fs")
+                                        let outputFile = getOutputFile file
 
                                         let content = TypeDefinition.toFile defs
                                         let result = sprintf "//%s\r\n//%s\r\n" fileHash (hash content) + content
 
-                                        File.WriteAllText(file, result)
-                                        newFiles.Add file
-                                        log.info range0 "[Adaptify]   gen  %s" (relativePath projDir file)
+                                        File.WriteAllText(outputFile, result)
+                                        newFiles.Add outputFile
+                                        log.info range0 "[Adaptify]   gen  %s" (relativePath outputFile)
 
                                 | FSharpCheckFileAnswer.Aborted ->
-                                    log.error range0 "587" "[Adaptify]   could not parse %s" (relativePath projDir file)
+                                    log.error range0 "587" "[Adaptify]   could not parse %s" (relativePath file)
+                                    newFiles.Add file
                                     ()
                             else
                                 if containsModels then
-                                    log.info range0 "[Adaptify]   skip %s (up to date)" (relativePath projDir file)
+                                    log.info range0 "[Adaptify]   skip %s (up to date)" (relativePath file)
                                 else
-                                    log.info range0 "[Adaptify]   skip %s (no model types)" (relativePath projDir file)
+                                    log.info range0 "[Adaptify]   skip %s (no model types)" (relativePath file)
 
                 if not designTime then
                     CacheFile.save { lenses = createLenses; projectHash = projHash; fileHashes = newHashes } cacheFile
 
 
-                let files = newFiles |> Seq.map (relativePath projDir) |> String.concat "; " |> sprintf "[%s]"
+                let files = newFiles |> Seq.map relativePath |> String.concat "; " |> sprintf "[%s]"
                 log.debug range0 "[Adaptify]   files: %s" files
 
                 return Seq.toList newFiles
@@ -365,5 +380,5 @@ module Adaptify =
                 return Seq.toList projectInfo.files
         }
 
-    let run (checker : FSharpChecker) (designTime : bool) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
-        runAsync checker designTime useCache createLenses log projectInfo |> Async.RunSynchronously
+    let run (checker : FSharpChecker) (outputPath : string) (designTime : bool) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
+        runAsync checker outputPath designTime useCache createLenses log projectInfo |> Async.RunSynchronously

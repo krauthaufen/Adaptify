@@ -1,3 +1,7 @@
+### 0.0.29
+* output written to intermediate folder
+* caching improvements
+
 ### 0.0.28
 * preprocessor defines handled correctly
 * special logic for DesignTime builds

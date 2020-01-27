@@ -22,6 +22,7 @@
         ProjectFile="$(MSBuildProjectFullPath)"
         DesignTime="$(DesignTimeBuild)"
         Defines="$(DefineConstants)"
+        OutputPath="$(IntermediateOutputPath)"
         OutputType="$(OutputType)" >
       <Output TaskParameter="Results" ItemName="Results" />
     </AdaptifyTask>
@@ -33,8 +34,8 @@
     </ItemGroup>
   </Target>
   <ItemGroup>
-    <FilesToClean Include="$(MSBuildProjectDirectory)\.adaptifycache" />
-    <FilesToClean Include="$(MSBuildProjectDirectory)\**\*.g.fs" />
+    <FilesToClean Include="$(IntermediateOutputPath)\.adaptifycache" />
+    <FilesToClean Include="$(IntermediateOutputPath)\**\*.g.fs" />
   </ItemGroup>
   <Target Name="DeleteAdaptifyCache" BeforeTargets="Clean;Rebuild">
     <Delete Files="@(FilesToClean)" />

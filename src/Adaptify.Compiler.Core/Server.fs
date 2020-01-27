@@ -28,7 +28,7 @@ module private IPC =
         }
 
     type Command =
-        | Adaptify of project : ProjectInfo * designTime : bool * useCache : bool * lenses : bool
+        | Adaptify of project : ProjectInfo * outputPath : string * designTime : bool * useCache : bool * lenses : bool
         | Exit
 
     module Command =
@@ -36,9 +36,10 @@ module private IPC =
             use ms = new MemoryStream()
             use w = new BinaryWriter(ms)
             match cmd with
-            | Adaptify(p, d, c, l) ->  
+            | Adaptify(p, path, d, c, l) ->  
                 w.Write 1
                 ProjectInfo.pickleTo ms p
+                w.Write path
                 w.Write(d)
                 w.Write(c)
                 w.Write(l)
@@ -53,10 +54,11 @@ module private IPC =
             | 1 ->
                 match ProjectInfo.tryUnpickleOf ms with
                 | Some p ->
+                    let path = r.ReadString()
                     let d = r.ReadBoolean()
                     let c = r.ReadBoolean()
                     let l = r.ReadBoolean()
-                    Some (Adaptify(p, d, c, l))
+                    Some (Adaptify(p, path, d, c, l))
                 | None ->
                     None
             | 2 ->
@@ -144,7 +146,7 @@ module private IPC =
 
 
 module Server =
-    let private processMessage (cid : int) (log : ILog) (checker : FSharpChecker) project designTime cache lenses = 
+    let private processMessage (cid : int) (log : ILog) (checker : FSharpChecker) project outputPath designTime cache lenses = 
         async {
             try
                 log.debug range0 "  %04d: %s %A %A %A" cid (Path.GetFileName project.project) designTime cache lenses
@@ -190,7 +192,7 @@ module Server =
                             )
                     }
 
-                let! newFiles = Adaptify.runAsync checker designTime cache lenses innerLog project
+                let! newFiles = Adaptify.runAsync checker outputPath designTime cache lenses innerLog project
                 let reply = IPC.Reply.Success(newFiles, messages)
                 return reply
 
@@ -219,8 +221,8 @@ module Server =
                             | IPC.Command.Exit ->
                                 self.Stop()
                                 async { return IPC.Reply.Shutdown }
-                            | IPC.Command.Adaptify(project, designTime, cache, lenses) -> 
-                                processMessage cid log checker project designTime cache lenses
+                            | IPC.Command.Adaptify(project, path, designTime, cache, lenses) -> 
+                                processMessage cid log checker project path designTime cache lenses
                         | None ->
                             async { return IPC.Reply.Fatal "could not parse command" }
                     sw.Stop()
@@ -253,11 +255,11 @@ module Server =
 module Client =
     open System.Net
 
-    let tryAdaptivfyAsync (log : ILog) (project : ProjectInfo) (designTime : bool) (useCache : bool) (generateLenses : bool) =
+    let tryAdaptivfyAsync (log : ILog) (project : ProjectInfo) (outputPath : string) (designTime : bool) (useCache : bool) (generateLenses : bool) =
         async {
             match ProcessManagement.readProcessAndPort() with
             | Some (_proc, port) ->
-                let cmd = IPC.Command.Adaptify(project, designTime, useCache, generateLenses)
+                let cmd = IPC.Command.Adaptify(project, outputPath, designTime, useCache, generateLenses)
                 let data = IPC.Command.pickle cmd
                 match! TCP.Client.tryGetAsync IPAddress.Loopback port 60000 data with
                 | Some reply ->
@@ -289,17 +291,17 @@ module Client =
                 return None
         }
       
-    let tryAdaptify (log : ILog)  (project : ProjectInfo) (designTime : bool) (useCache : bool) (generateLenses : bool) =
-        tryAdaptivfyAsync log project designTime useCache generateLenses |> Async.RunSynchronously
+    let tryAdaptify (log : ILog)  (project : ProjectInfo) (outputPath : string) (designTime : bool) (useCache : bool) (generateLenses : bool) =
+        tryAdaptivfyAsync log project outputPath designTime useCache generateLenses |> Async.RunSynchronously
 
-    let adaptify (log : ILog) (project : ProjectInfo) (designTime : bool) (useCache : bool) (generateLenses : bool) =
+    let adaptify (log : ILog) (project : ProjectInfo) (outputPath : string) (designTime : bool) (useCache : bool) (generateLenses : bool) =
         let rec run (retries : int) =
             if retries = 0 then
                 log.warn range0 "" "falling back to local adaptify"
                 let checker = newChecker()
-                Adaptify.run checker designTime useCache generateLenses log project
+                Adaptify.run checker outputPath designTime useCache generateLenses log project
             else
-                match tryAdaptify log project designTime useCache generateLenses with
+                match tryAdaptify log project outputPath designTime useCache generateLenses with
                 | Some files -> 
                     files
                 | None -> 
