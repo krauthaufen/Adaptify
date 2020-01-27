@@ -203,11 +203,14 @@ let main argv =
             let hasConsole = try ignore Console.WindowHeight; true with _ -> false
             if hasConsole then
                 startThread (fun () ->
-                    let rec run() =
-                        let line = Console.ReadLine().Trim().ToLower()
-                        if line <> "exit" then run()
-                    run()
-                    server.Stop()
+                    try
+                        let rec run() =
+                            let line = Console.ReadLine().Trim().ToLower()
+                            if line <> "exit" then run()
+                        run()
+                        server.Stop()
+                    with _ ->
+                        ()
                 ) |> ignore
 
             server.WaitForExit()

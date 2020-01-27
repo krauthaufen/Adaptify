@@ -248,6 +248,35 @@ type ProcessConfig =
 
 module Process =
     open System.Diagnostics
+    open System.Runtime.InteropServices
+
+    let startDaemon (file : string) (args : list<string>) =
+        if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then
+            let info = 
+                ProcessStartInfo(
+                    file, String.concat " " args,
+                    UseShellExecute = false,
+                    WorkingDirectory = Path.GetTempPath()
+                )
+            let proc = new Process()
+            proc.StartInfo <- info
+            if proc.Start() then
+                ()
+        else
+            let args = String.concat " " args
+            let arg = sprintf "-c \"%s %s 2>/dev/null > /dev/null < /dev/null &\"" file args
+            printfn "/bin/sh %s" arg
+            let info = 
+                ProcessStartInfo(
+                    "/bin/sh", sprintf "-c \"%s %s 2>/dev/null > /dev/null < /dev/null &\"" file args,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = "/"
+                )
+            let proc = new Process()
+            proc.StartInfo <- info
+            if proc.Start() then
+                proc.WaitForExit()
 
     let tryStart (cfg : ProcessConfig) =
         try

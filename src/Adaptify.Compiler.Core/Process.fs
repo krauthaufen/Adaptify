@@ -463,19 +463,11 @@ module ProcessManagement =
 
         if Path.GetFileName(executablePath) = executableName then
             log.info range0 "starting self-executable"
-            match Process.tryStart { file = executablePath; args = ["--server"]; workDir = ""; output = OutputMode.None } with
-            | Some proc ->
-                proc
-            | None ->
-                failwithf "could not start %s" executablePath
+            Process.startDaemon executablePath ["--server"]
 
         elif Path.GetFileName(entryPath) = "adaptify.dll" then  
             log.info range0 "starting self-dll" 
-            match Process.tryStart { file = "dotnet"; args = [sprintf "\"%s\"" entryPath; "--server"]; workDir = ""; output = OutputMode.None } with
-            | Some proc ->
-                proc
-            | None ->
-                failwithf "could not start %s" entryPath
+            Process.startDaemon "dotnet" [sprintf "\"%s\"" entryPath; "--server"]
 
         else    
             let toolPath = Path.Combine(directory(), executableName)
@@ -499,12 +491,8 @@ module ProcessManagement =
             match readProcessAndPort() with
             | None ->
                 log.info range0 "starting %s" toolPath 
-                match Process.tryStart { file = toolPath; args = ["--server"]; workDir = ""; output = OutputMode.None } with
-                | Some proc ->
-                    proc
-                | None ->
-                    failwithf "could not start %s" executablePath
-            | Some(otherProc, _) ->
-                otherProc
+                Process.startDaemon toolPath ["--server"]
+            | Some(_otherProc, _) ->
+                ()
                 
 
