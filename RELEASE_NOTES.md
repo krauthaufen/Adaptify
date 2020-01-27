@@ -1,3 +1,6 @@
+### 0.0.31
+* linux daemon fixes
+
 ### 0.0.30
 * fixed HashMap<_,ModelType> handling for union types
 * cancellable MSBuild task
