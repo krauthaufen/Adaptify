@@ -1,3 +1,6 @@
+### 0.0.32
+* multitargeting adaptify tool
+
 ### 0.0.31
 * linux daemon fixes
 
