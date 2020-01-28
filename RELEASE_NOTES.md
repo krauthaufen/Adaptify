@@ -1,3 +1,6 @@
+### 0.0.33
+* different kind of daemon start again
+
 ### 0.0.32
 * multitargeting adaptify tool
 
