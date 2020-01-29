@@ -1,3 +1,6 @@
+### 0.0.34
+* fixed option bug when containing IndexList/etc.
+
 ### 0.0.33
 * different kind of daemon start again
 

@@ -429,13 +429,27 @@ module Adaptor =
                     adaptors |> List.collect (fun (pa, a) ->
                         let v = new Var("v", pa.vType)
                         let p = new Var("o", Object.typ)
+
+
+                        let updatePa = 
+                            let u = pa.update (Unbox(pa.mType, Var p)) (Var v)
+                            match u.Type with
+                            | TUnit -> Seq(u, Var p)
+                            | _ -> Upcast(u, Object.typ)
+                            
+                        let updateA = 
+                            let u = a.update (Unbox(a.mType, Var p)) (Var v)
+                            match u.Type with
+                            | TUnit -> Seq(u, Var p)
+                            | _ -> Upcast(u, Object.typ)
+
                         [
                             Lambda([v], Expr.Upcast(pa.init (Var v), Object.typ))
-                            Lambda([p], Lambda([v], Expr.Upcast(pa.update (Unbox(pa.mType, Var p)) (Var v), Object.typ)))
+                            Lambda([p], Lambda([v], updatePa))
                             Lambda([p], pa.view (Expr.Unbox(pa.mType, Var p)))
 
                             Lambda([v], Expr.Upcast(a.init (Var v), Object.typ))
-                            Lambda([p], Lambda([v], Expr.Seq(a.update (Unbox(a.mType, Var p)) (Var v), Var p)))
+                            Lambda([p], Lambda([v], updateA))
                             Lambda([p], a.view (Expr.Unbox(a.mType, Var p)))
                         ]
                     )
@@ -528,12 +542,27 @@ module Adaptor =
                     adaptors |> List.collect (fun (pa, a) ->
                         let v = new Var("v", pa.vType)
                         let p = new Var("o", Object.typ)
+
+
+                        let updatePa = 
+                            let u = pa.update (Unbox(pa.mType, Var p)) (Var v)
+                            match u.Type with
+                            | TUnit -> Seq(u, Var p)
+                            | _ -> Upcast(u, Object.typ)
+                            
+                        let updateA = 
+                            let u = a.update (Unbox(a.mType, Var p)) (Var v)
+                            match u.Type with
+                            | TUnit -> Seq(u, Var p)
+                            | _ -> Upcast(u, Object.typ)
+
                         [
                             Lambda([v], Expr.Upcast(pa.init (Var v), Object.typ))
-                            Lambda([p], Lambda([v], Expr.Upcast(pa.update (Unbox(pa.mType, Var p)) (Var v), Object.typ)))
+                            Lambda([p], Lambda([v], updatePa))
                             Lambda([p], pa.view (Expr.Unbox(pa.mType, Var p)))
+
                             Lambda([v], Expr.Upcast(a.init (Var v), Object.typ))
-                            Lambda([p], Lambda([v], Expr.Seq(a.update (Unbox(a.mType, Var p)) (Var v), Var p)))
+                            Lambda([p], Lambda([v], updateA))
                             Lambda([p], a.view (Expr.Unbox(a.mType, Var p)))
                         ]
                     )
@@ -1247,12 +1276,27 @@ module TypeDefinition =
                     adaptors |> List.collect (fun (pa, a) ->
                         let v = new Var("v", pa.vType)
                         let p = new Var("o", Object.typ)
+
+
+                        let updatePa = 
+                            let u = pa.update (Unbox(pa.mType, Var p)) (Var v)
+                            match u.Type with
+                            | TUnit -> Seq(u, Var p)
+                            | _ -> Upcast(u, Object.typ)
+                            
+                        let updateA = 
+                            let u = a.update (Unbox(a.mType, Var p)) (Var v)
+                            match u.Type with
+                            | TUnit -> Seq(u, Var p)
+                            | _ -> Upcast(u, Object.typ)
+
                         [
                             Lambda([v], Expr.Upcast(pa.init (Var v), Object.typ))
-                            Lambda([p], Lambda([v], Expr.Upcast(pa.update (Unbox(pa.mType, Var p)) (Var v), Object.typ)))
+                            Lambda([p], Lambda([v], updatePa))
                             Lambda([p], pa.view (Expr.Unbox(pa.mType, Var p)))
+
                             Lambda([v], Expr.Upcast(a.init (Var v), Object.typ))
-                            Lambda([p], Lambda([v], Expr.Seq(a.update (Unbox(a.mType, Var p)) (Var v), Var p)))
+                            Lambda([p], Lambda([v], updateA))
                             Lambda([p], a.view (Expr.Unbox(a.mType, Var p)))
                         ]
                     )
