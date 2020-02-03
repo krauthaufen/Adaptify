@@ -90,6 +90,7 @@ type Prop =
         name            : string
         typ             : TypeRef
         mode            : AdaptifyMode
+        isRecordField   : bool
     }
 
 [<AutoOpen>]
@@ -110,6 +111,7 @@ module Prop =
             name = name
             typ = typ
             mode = mode
+            isRecordField = match f.DeclaringEntity with | Some e -> e.IsFSharpRecord | _ -> false
         }
 
     let ofMemberOrFunctionOrValue (log : ILog) (targs : Map<_,_>) (mfv : FSharpMemberOrFunctionOrValue) =
@@ -126,6 +128,7 @@ module Prop =
                 name = name
                 typ = typ
                 mode = mode
+                isRecordField = false
             }
         else
             None

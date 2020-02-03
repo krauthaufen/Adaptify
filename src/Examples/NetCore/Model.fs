@@ -18,7 +18,9 @@ type MyModel =
         b : float
         //list : HashSet<MyModel>
         map : HashMap<int, MyModel>
-    }
+    } with 
+        member x.c = x.a
+
 
 
 

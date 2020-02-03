@@ -1155,17 +1155,21 @@ module TypeDefinition =
                         interfaces = []
                         nested = []
                         statics =
-                            properties |> List.map (fun prop ->
-                                let self = new Var("self", inputType)
-                                let value = new Var("value", prop.typ)
-                                false, "get_" + prop.name + "_", [],
-                                    Expr.NewTuple(
-                                        false, 
-                                        [
-                                            Expr.Lambda([self], Expr.PropertyGet(Var self, prop))   
-                                            Expr.Lambda([value], Expr.Lambda([self], Expr.RecordUpdate(Var self, prop, Var value)))   
-                                        ]
-                                    )
+                            properties |> List.choose (fun prop ->
+                                if prop.isRecordField then
+                                    let self = new Var("self", inputType)
+                                    let value = new Var("value", prop.typ)
+                                    let meth = 
+                                        false, "get_" + prop.name + "_", [],
+                                        Expr.NewTuple(
+                                            false, 
+                                            [
+                                                Expr.Lambda([self], Expr.PropertyGet(Var self, prop))   
+                                                Expr.Lambda([value], Expr.Lambda([self], Expr.RecordUpdate(Var self, prop, Var value)))   
+                                            ]
+                                        )
+                                    Some meth
+                                else None
                             )
                     }
                 ]
