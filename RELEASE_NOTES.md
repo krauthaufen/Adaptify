@@ -1,3 +1,6 @@
+### 0.0.35
+* fixed lens generation for types with members - only uses record fields now.
+
 ### 0.0.34
 * fixed option bug when containing IndexList/etc.
 
