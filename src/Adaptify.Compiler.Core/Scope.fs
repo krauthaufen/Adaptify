@@ -32,6 +32,14 @@ module Scope =
                 match e.Namespace with
                 | Some ns -> Module(Namespace ns, name, autoOpen, moduleSuffix)
                 | None -> Module(Global, name, autoOpen, moduleSuffix)
+        elif e.IsClass then
+            let ns = e.Namespace
+            let name = e.DisplayName
+            match e.Namespace with
+                | Some ns -> 
+                    Module(Namespace ns, name, false, false)
+                | None -> 
+                    Module(Global, name, false, false)
         else
             failwithf "%s is neither a module nor a namespace" e.DisplayName
          

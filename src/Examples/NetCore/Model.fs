@@ -1,5 +1,6 @@
 ﻿namespace Model
 
+open LibraryCSharp
 open Adaptify
 open FSharp.Data.Adaptive
 
@@ -14,6 +15,8 @@ type MyUnion =
 [<ModelType>]
 type MyModel =  
     {
+        e : StaticClass.CSharpClass
+        g : HashMap<string, StaticClass.CSharpStruct>
         a : Result<MyModel, string>
         b : float
         //list : HashSet<MyModel>

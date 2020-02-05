@@ -26,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\LibraryCSharp\LibraryCSharp.csproj" />
     <ProjectReference Include="..\Library\Library.fsproj" />
   </ItemGroup>
 
