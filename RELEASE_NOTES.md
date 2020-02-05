@@ -1,3 +1,5 @@
+### 0.0.36
+* fixes crash for types including types defined in nested classes
 ### 0.0.35
 * fixed lens generation for types with members - only uses record fields now.
 
