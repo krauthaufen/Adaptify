@@ -13,21 +13,16 @@ type IPCLock(fileName : string) =
     let lockObj = obj()
     let mutable isEntered = 0
 
-    static let lockLength = 4096L
-
     member x.Enter() =
         Monitor.Enter lockObj
 
-        if isNull stream then   
-            File.ensureDirectory fileName
-            stream <- new FileStream(fileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Inheritable ||| FileShare.ReadWrite, 4096, FileOptions.WriteThrough)
-
         isEntered <- isEntered + 1
         if isEntered = 1 then
+            File.ensureDirectory fileName
             let mutable entered = false
             while not entered do
-                try 
-                    stream.Lock(0L, lockLength)
+                try
+                    stream <- new FileStream(fileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.WriteThrough)
                     entered <- true
                 with _ ->
                     Threading.Thread.Sleep 5
@@ -36,7 +31,6 @@ type IPCLock(fileName : string) =
         if not (Monitor.IsEntered lockObj) then failwith "lock not entered"
         isEntered <- isEntered - 1
         if isEntered = 0 then
-            stream.Unlock(0L, lockLength)
             stream.Dispose()
             stream <- null
 
@@ -77,7 +71,6 @@ type IPCLock(fileName : string) =
             if isEntered > 0 then 
                 isEntered <- 0
                 stream.Flush()
-                stream.Unlock(0L, lockLength)
             if not (isNull stream) then
                 stream.Dispose()
                 stream <- null
