@@ -1,3 +1,5 @@
+### 0.0.37
+* OSX attempt
 ### 0.0.36
 * fixes crash for types including types defined in nested classes
 ### 0.0.35
