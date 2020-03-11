@@ -169,19 +169,19 @@ module Log =
     let file (verbose : bool) (file : string) =
 
         File.ensureDirectory file
-        let stream = new FileStream(file, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.WriteThrough)
+        let mutable stream : FileStream = null //new FileStream(file, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.WriteThrough)
 
         let enter() =
             let mutable entered = false
             while not entered do
                 try
-                    stream.Lock(0L, 0L)
+                    stream <- new FileStream(file, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.WriteThrough)
                     entered <- true
                 with _ ->
                     Threading.Thread.Sleep 0
 
         let exit() =
-            stream.Unlock(0L, 0L)
+            stream.Dispose()
 
         let pid = System.Diagnostics.Process.GetCurrentProcess().Id
         let appendLine (prefix : string) (str : string) =
