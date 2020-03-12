@@ -259,7 +259,7 @@ let ilrepack (outFolder : string) (args : list<string>) =
 Target.create "MergeDotNet" (fun _ ->
     
     let outFolder =
-        Path.GetFullPath(Path.Combine("bin", "Release", "netcoreapp2.2"))
+        Path.GetFullPath(Path.Combine("bin", "Release", "netstandard2.0"))
         
     Trace.logfn "out folder: %s" outFolder
 

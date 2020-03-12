@@ -12,10 +12,10 @@ nuget Dotnet.ProjInfo                       ~> 0.36.0
 nuget Dotnet.ProjInfo.Workspace             ~> 0.36.0
 nuget FSharp.Compiler.Service               ~> 34.0.0
 
-nuget Microsoft.Build.Tasks.Core            ~> 16.3.0
-nuget Microsoft.Build.Framework             ~> 16.3.0
-nuget Microsoft.Build.Utilities.Core        ~> 16.3.0
-nuget Microsoft.Build                       ~> 16.3.0
+nuget Microsoft.Build.Tasks.Core            ~> 16.4.0
+nuget Microsoft.Build.Framework             ~> 16.4.0
+nuget Microsoft.Build.Utilities.Core        ~> 16.4.0
+nuget Microsoft.Build                       ~> 16.4.0
 
 
 group Build
