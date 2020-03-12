@@ -1,3 +1,5 @@
+### 0.0.39
+* netstandard compatibility
 ### 0.0.38
 * OSX v2
 ### 0.0.37
