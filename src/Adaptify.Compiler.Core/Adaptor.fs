@@ -186,6 +186,7 @@ module Adaptor =
             view = fun c -> Upcast(c, AVal.typ t)
         } 
         
+    [<Obsolete("wrong implementation! cannot hide side-effect")>]
     let lazyAdaptor (a : Adaptor) =
         {
             trivial = a.trivial
@@ -928,7 +929,7 @@ module TypeDefinition =
                     local, prop, get, Some (Adaptor.get log prop.range false prop.typ)
                 | AdaptifyMode.Lazy ->
                     let a = Adaptor.get log prop.range false prop.typ
-                    local, prop, get, Some (Adaptor.lazyAdaptor a)
+                    local, prop, get, Some a
             )
         let props = ()
 

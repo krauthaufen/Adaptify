@@ -1,3 +1,5 @@
+### 0.0.40
+* quick workaround for broken lazy adaptor
 ### 0.0.39
 * netstandard compatibility
 ### 0.0.38
