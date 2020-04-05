@@ -2,6 +2,7 @@ type file
 id Adaptify.MSBuild
 authors Aardvark Platform Team
 description Adaptify MSBuild plugin
+developmentDependency true
 dependencies
   Adaptify.Core = CURRENTVERSION
 files

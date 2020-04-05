@@ -52,6 +52,7 @@ Target.create "Compile" (fun _ ->
             
             MSBuildParams = 
                 { o.MSBuildParams with 
+                    DisableInternalBinLog = true
                     Properties = 
                         [
                             "GenerateAssemblyInfo", "true"
@@ -85,7 +86,7 @@ Target.create "Pack" (fun _ ->
         { o with        
             NoRestore = true
             NoBuild = true
-            MSBuildParams = { o.MSBuildParams with Properties = ["Version", notes.NugetVersion] }
+            MSBuildParams = { o.MSBuildParams with DisableInternalBinLog = true; Properties = ["Version", notes.NugetVersion] }
         }
     )
 

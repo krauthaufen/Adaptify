@@ -1,13 +1,21 @@
+### 0.0.41
+* Adaptify.MSBuild is now a developmentDependency
+
 ### 0.0.40
 * quick workaround for broken lazy adaptor
+
 ### 0.0.39
 * netstandard compatibility
+
 ### 0.0.38
 * OSX v2
+
 ### 0.0.37
 * OSX attempt
+
 ### 0.0.36
 * fixes crash for types including types defined in nested classes
+
 ### 0.0.35
 * fixed lens generation for types with members - only uses record fields now.
 
