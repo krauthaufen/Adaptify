@@ -1,3 +1,6 @@
+### 0.0.42
+* fixed visible command line window with NetFramework projects
+
 ### 0.0.41
 * Adaptify.MSBuild is now a developmentDependency
 
