@@ -255,7 +255,7 @@ module Process =
             ProcessStartInfo(
                 file, String.concat " " (Seq.map (sprintf "\"%s\"") args),
                 UseShellExecute = false,
-                CreateNoWindow = true,
+                CreateNoWindow = RuntimeInformation.IsOSPlatform(OSPlatform.Windows),
                 WorkingDirectory = Path.GetTempPath()
             )
         info.RedirectStandardInput <- true

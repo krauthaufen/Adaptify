@@ -1,3 +1,6 @@
+### 0.0.43
+* CreateNoWindow troubles
+
 ### 0.0.42
 * fixed visible command line window with NetFramework projects
 
