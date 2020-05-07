@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>netcoreapp3.0;netcoreapp2.2;netcoreapp2.1</TargetFrameworks>
+    <TargetFrameworks>netcoreapp3.1;netcoreapp3.0;netcoreapp2.2;netcoreapp2.1</TargetFrameworks>
     <DisableImplicitFSharpCoreReference>True</DisableImplicitFSharpCoreReference>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>adaptify</ToolCommandName>

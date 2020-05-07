@@ -1,5 +1,6 @@
 ### 0.0.44
 * fixed StackOverflow in waitUntilExisting
+* adaptify now also built for netcoreapp3.1
 
 ### 0.0.43
 * CreateNoWindow troubles

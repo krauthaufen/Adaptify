@@ -1,6 +1,6 @@
 source https://api.nuget.org/v3/index.json
 redirects: off
-framework: netstandard2.1, netstandard2.0, netcoreapp2.2, net472, netcoreapp3.0, netcoreapp2.1
+framework: netstandard2.0, net472, netcoreapp2.0, netcoreapp2.1, netcoreapp2.2, netcoreapp3.0, netcoreapp3.1
 
 nuget FSharp.Core                           >= 4.6.2 lowest_matching: true
 nuget FSharp.Data.Adaptive                  ~> 0.0.16
@@ -21,12 +21,12 @@ nuget Microsoft.Build                       ~> 16.4.0
 group Build
   source https://api.nuget.org/v3/index.json
   framework: netstandard2.0
-  nuget fake-cli ~> 5.16.1
-  nuget Fake.DotNet.Cli ~> 5.16.1
-  nuget Fake.Core.Target ~> 5.16.1
-  nuget Fake.DotNet.Paket ~> 5.16.1
-  nuget Fake.Core.ReleaseNotes ~> 5.16.1
-  nuget Fake.Tools.Git ~> 5.16.1
+  nuget fake-cli ~> 5.20.0
+  nuget Fake.DotNet.Cli ~> 5.20.0
+  nuget Fake.Core.Target ~> 5.20.0
+  nuget Fake.DotNet.Paket ~> 5.20.0
+  nuget Fake.Core.ReleaseNotes ~> 5.20.0
+  nuget Fake.Tools.Git ~> 5.20.0
   nuget ILRepack ~> 2.0.18
 
 group Docs
