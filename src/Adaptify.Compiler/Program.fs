@@ -12,7 +12,7 @@ module ProjectInfo =
     open Dotnet.ProjInfo.Inspect
     open Dotnet.ProjInfo.Workspace
 
-    let rec private projInfo additionalMSBuildProps (file : string) =
+    let private projInfo additionalMSBuildProps (file : string) =
 
         let projDir = Path.GetDirectoryName file
         let runCmd exePath args = Utils.runProcess ignore projDir exePath (args |> String.concat " ")
@@ -204,10 +204,11 @@ let main argv =
             if hasConsole then
                 startThread (fun () ->
                     try
-                        let rec run() =
-                            let line = Console.ReadLine().Trim().ToLower()
-                            if line <> "exit" then run()
-                        run()
+                        
+                        let mutable line = ""
+                        while line <> "exit" do
+                            line <- Console.ReadLine().Trim().ToLower()
+                            if line = "" then Thread.Sleep 100
                         server.Stop()
                     with _ ->
                         ()

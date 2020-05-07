@@ -1,3 +1,6 @@
+### 0.0.45
+* guarded more stack overflows
+
 ### 0.0.44
 * fixed StackOverflow in waitUntilExisting
 * adaptify now also built for netcoreapp3.1

@@ -15,7 +15,7 @@ module Adaptify =
         let rec run (iter : int) (files : string[]) = 
             if files.Length = 0 then
                 [||]
-            elif iter = 0 || sw.Elapsed.TotalMilliseconds <= float timeout then
+            elif iter = 0 || (iter < 50 && sw.Elapsed.TotalMilliseconds <= float timeout) then
                 if iter > 0 then log.debug range0 "%d references missing -> retry" files.Length
                 let remaining = 
                     files |> Array.filter (fun f ->

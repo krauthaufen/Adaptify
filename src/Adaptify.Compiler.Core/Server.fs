@@ -314,15 +314,15 @@ module Client =
                         ProcessManagement.startAdaptifyServer log |> ignore
 
                         let sw = System.Diagnostics.Stopwatch.StartNew()
-                        let rec wait (timeout : int) =
-                            if sw.Elapsed.TotalMilliseconds > float timeout then    
+                        let rec wait (timeout : int) (level : int) =
+                            if sw.Elapsed.TotalMilliseconds > float timeout || level > 50 then    
                                 false
                             else
                                 match ProcessManagement.readProcessAndPort() with
                                 | Some _ -> true
                                 | None ->
                                     Threading.Thread.Sleep 100
-                                    wait timeout
+                                    wait timeout (level + 1)
 
                         wait 2000 |> ignore
                         run (retries - 1)

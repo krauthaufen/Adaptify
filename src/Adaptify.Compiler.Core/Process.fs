@@ -91,9 +91,9 @@ module TCP =
         let timeout = Task.Delay(timeout)
         let cancel = new CancellationTokenSource()
 
-        let rec retry() =
+        let rec retry(level : int) =
             async {
-                if timeout.IsCompleted then
+                if timeout.IsCompleted || level > 20 then
                     cancel.Cancel()
                     return false
                 else
@@ -108,16 +108,16 @@ module TCP =
                                 finished.Wait()
                                 return true
                             with _ ->
-                                return! retry()
+                                return! retry(level + 1)
                         else
                             cancel.Cancel()
                             return false
                     | None ->
                         do! Async.Sleep 0
-                        return! retry()
+                        return! retry(level + 1)
             }
 
-        retry()
+        retry 0
 
     let private withTimeout (timeout : int) (start : Async<'a>) =
         let cancel = new CancellationTokenSource()
