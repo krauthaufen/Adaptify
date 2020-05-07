@@ -1,3 +1,6 @@
+### 0.0.44
+* fixed StackOverflow in waitUntilExisting
+
 ### 0.0.43
 * CreateNoWindow troubles
 

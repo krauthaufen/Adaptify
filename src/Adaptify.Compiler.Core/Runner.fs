@@ -24,11 +24,15 @@ module Adaptify =
                     )
 
                 if remaining.Length > 0 then
+                    Threading.Thread.Sleep 32
                     run (iter + 1) remaining
                 else
                     [||]
             else
-                if iter > 0 then log.debug range0 "%d references missing" files.Length
+                if iter > 0 then 
+                    log.debug range0 "%d references missing" files.Length
+                    for i,f in Seq.indexed files do
+                        log.debug range0 "    %d: %s" i f
                 files
 
         run 0 (Seq.toArray files)
