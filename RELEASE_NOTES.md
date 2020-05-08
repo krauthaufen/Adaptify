@@ -1,3 +1,6 @@
+### 0.0.46
+* updated dependencies
+
 ### 0.0.45
 * guarded more stack overflows
 
