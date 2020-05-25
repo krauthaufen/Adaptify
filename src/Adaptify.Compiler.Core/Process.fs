@@ -348,8 +348,8 @@ module ProcessManagement =
     let private executableName =
         "adaptify" + executableExtension
 
-    let private directory() =
-        let path = Path.Combine(Path.GetTempPath(), "adaptify", string selfVersion)
+    let directory() =
+        let path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "adaptify", string selfVersion)
         Directory.ensure path
 
     let private ipc = 
