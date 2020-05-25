@@ -95,14 +95,24 @@ module Adaptify =
                         | [] -> []
                         | [s] when projectInfo.target = Target.Exe -> [s]
                         | [s] -> 
-                            if s.EndsWith ".g.fs" then [s]
-                            else [s; getOutputFile s]
+                            if s.EndsWith ".g.fs" then 
+                                [s]
+                            else
+                                let content = File.ReadAllText s
+                                let mayDefineModelTypes = modelTypeRx.IsMatch content
+                                if mayDefineModelTypes then [s; getOutputFile s]
+                                else [s]
                         | h :: t ->
                             match t with
                             | hh :: t when hh = getOutputFile h ->
                                 h :: hh :: appendGenerated t
                             | _ ->
-                                h :: getOutputFile h :: appendGenerated t
+                                
+                                let content = File.ReadAllText h
+                                let mayDefineModelTypes = modelTypeRx.IsMatch content
+                                if mayDefineModelTypes then h :: getOutputFile h :: appendGenerated t
+                                else h :: appendGenerated t
+
                     appendGenerated projectInfo.files
 
                 let projectInfo = { projectInfo with files = inFiles }
