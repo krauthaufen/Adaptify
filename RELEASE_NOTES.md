@@ -1,3 +1,6 @@
+### 0.0.48
+* COMPlus_DefaultStackSize 8MB
+
 ### 0.0.47
 * fixed server starup
 
