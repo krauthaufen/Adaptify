@@ -256,7 +256,7 @@ module Process =
                 file, String.concat " " (Seq.map (sprintf "\"%s\"") args),
                 UseShellExecute = false,
                 CreateNoWindow = RuntimeInformation.IsOSPlatform(OSPlatform.Windows),
-                WorkingDirectory = Path.GetTempPath()
+                WorkingDirectory = Path.GetDirectoryName file
             )
         info.RedirectStandardInput <- true
         info.RedirectStandardOutput <- true

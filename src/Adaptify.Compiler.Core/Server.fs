@@ -324,7 +324,7 @@ module Client =
                                     Threading.Thread.Sleep 100
                                     wait timeout (level + 1)
 
-                        wait 2000 |> ignore
+                        wait 2000 0 |> ignore
                         run (retries - 1)
                     else
                         project.files

@@ -2,6 +2,7 @@
 
 open System
 open System.IO
+open System.IO.MemoryMappedFiles
 open FSharp.Compiler.Range
 open System.Reflection
 open System.Runtime.InteropServices
@@ -22,7 +23,7 @@ type IPCLock(fileName : string) =
             let mutable entered = false
             while not entered do
                 try
-                    stream <- new FileStream(fileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.WriteThrough)
+                    stream <- new FileStream(fileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.None)
                     entered <- true
                 with _ ->
                     Threading.Thread.Sleep 5
@@ -41,7 +42,7 @@ type IPCLock(fileName : string) =
         stream.SetLength(int64 count)
         stream.Seek(0L, SeekOrigin.Begin) |> ignore
         stream.Write(data, offset, count)
-        stream.Flush()
+        stream.Flush(true)
 
     member x.Write(str : string) =
         let bytes = System.Text.Encoding.UTF8.GetBytes str
@@ -382,10 +383,13 @@ module ProcessManagement =
                         if not proc.HasExited then
                             Some(proc, port)
                         else
+                            ipc.Write("0;0")
                             None
                     with _ ->
+                        ipc.Write("0;0")
                         None
             | _ ->
+                ipc.Write("0;0")
                 None
         )
 

@@ -1,3 +1,6 @@
+### 0.0.27
+* fixed server starup
+
 ### 0.0.46
 * updated dependencies
 
