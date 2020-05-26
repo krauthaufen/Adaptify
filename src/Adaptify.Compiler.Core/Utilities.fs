@@ -261,7 +261,7 @@ module Process =
         info.RedirectStandardInput <- true
         info.RedirectStandardOutput <- true
         info.RedirectStandardError <- true
-        
+        info.EnvironmentVariables.["COMPlus_DefaultStackSize"] <- "800000" // avoiding stack overflows on MacOS
         let proc = new Process()
         
         proc.StartInfo <- info
