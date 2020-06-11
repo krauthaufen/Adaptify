@@ -218,9 +218,9 @@ module ProjectInfo =
         )
         w.WriteLine "references"
         for r in List.sort info.references do 
-            let fileInfo = FileInfo r
-            if fileInfo.Exists then
-                w.WriteLine(fileInfo.LastWriteTimeUtc.ToString("o"))
+            //let fileInfo = FileInfo r
+            //if fileInfo.Exists then
+            //    w.WriteLine(fileInfo.LastWriteTimeUtc.ToString("o"))
             w.WriteLine(relativePath r)
 
         w.WriteLine "files"

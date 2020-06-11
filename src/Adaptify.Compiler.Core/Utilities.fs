@@ -167,43 +167,43 @@ module Log =
         }
 
     let file (verbose : bool) (file : string) =
+        empty // TODO: super slow!!!
+        //File.ensureDirectory file
+        //let mutable stream : FileStream = null //new FileStream(file, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.WriteThrough)
 
-        File.ensureDirectory file
-        let mutable stream : FileStream = null //new FileStream(file, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.WriteThrough)
+        //let enter() =
+        //    let mutable entered = false
+        //    while not entered do
+        //        try
+        //            stream <- new FileStream(file, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.WriteThrough)
+        //            entered <- true
+        //        with _ ->
+        //            Threading.Thread.Sleep 0
 
-        let enter() =
-            let mutable entered = false
-            while not entered do
-                try
-                    stream <- new FileStream(file, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.WriteThrough)
-                    entered <- true
-                with _ ->
-                    Threading.Thread.Sleep 0
+        //let exit() =
+        //    stream.Dispose()
 
-        let exit() =
-            stream.Dispose()
+        //let pid = System.Diagnostics.Process.GetCurrentProcess().Id
+        //let appendLine (prefix : string) (str : string) =
+        //    let now = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss")
+        //    let str = sprintf "%06d %s %s %s\r\n" pid now prefix str 
+        //    let bytes = System.Text.Encoding.UTF8.GetBytes str
+        //    enter()
+        //    stream.Seek(0L, SeekOrigin.End) |> ignore
+        //    stream.Write(bytes, 0, bytes.Length)
+        //    stream.Flush()
+        //    exit()
 
-        let pid = System.Diagnostics.Process.GetCurrentProcess().Id
-        let appendLine (prefix : string) (str : string) =
-            let now = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss")
-            let str = sprintf "%06d %s %s %s\r\n" pid now prefix str 
-            let bytes = System.Text.Encoding.UTF8.GetBytes str
-            enter()
-            stream.Seek(0L, SeekOrigin.End) |> ignore
-            stream.Write(bytes, 0, bytes.Length)
-            stream.Flush()
-            exit()
-
-        { new ILog with
-            member x.debug _range fmt =
-                fmt |> Printf.kprintf (fun str -> if verbose then appendLine "DEBUG " str)
-            member x.info _range fmt =
-                fmt |> Printf.kprintf (fun str -> appendLine "INFO  " str)
-            member x.warn _code _range fmt =
-                fmt |> Printf.kprintf (fun str -> appendLine "WARN  " str)
-            member x.error _code _range fmt =
-                fmt |> Printf.kprintf (fun str -> appendLine "ERR   " str)
-        }
+        //{ new ILog with
+        //    member x.debug _range fmt =
+        //        fmt |> Printf.kprintf (fun str -> if verbose then appendLine "DEBUG " str)
+        //    member x.info _range fmt =
+        //        fmt |> Printf.kprintf (fun str -> appendLine "INFO  " str)
+        //    member x.warn _code _range fmt =
+        //        fmt |> Printf.kprintf (fun str -> appendLine "WARN  " str)
+        //    member x.error _code _range fmt =
+        //        fmt |> Printf.kprintf (fun str -> appendLine "ERR   " str)
+        //}
 
     let ofList (logs : list<ILog>) =
         match logs with

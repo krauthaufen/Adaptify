@@ -61,13 +61,18 @@ module Adaptify =
         }
 
     let runAsync (checker : FSharpChecker) (outputPath : string) (designTime : bool) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
+        let designTime = false
         async {
             do! Async.SwitchToThreadPool()
             let projectInfo = ProjectInfo.normalize projectInfo
 
+            let hash = ProjectInfo.computeHash projectInfo
             let projectFile = projectInfo.project
             let projDir = Path.GetDirectoryName projectFile
-            let outputDirectory = Path.Combine(projDir, outputPath)
+            let outputDirectory = 
+                let dir = Path.Combine(Path.GetTempPath(), hash)
+                File.ensureDirectory dir
+                dir
 
             let relativePath (name : string) =
                 let dirFull = Path.GetFullPath projDir

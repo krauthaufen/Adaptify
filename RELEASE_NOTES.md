@@ -1,3 +1,7 @@
+### 0.0.49
+* generated files in temp-folder (fable compatibility)
+* removed Reference-WriteTime from Project hash (may cause problems)
+
 ### 0.0.48
 * COMPlus_DefaultStackSize 8MB
 
