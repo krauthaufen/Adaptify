@@ -58,6 +58,7 @@ module TypePatterns =
         | TRef(_, e, [t]) ->
             match e.TryFullName with
             | Some "FSharp.Data.Adaptive.HashSet`1" -> Some t
+            | Some "FSharp.Data.Adaptive.FSharpHashSet`1" -> Some t
             | _ -> None
         | _ ->
             None
@@ -66,6 +67,7 @@ module TypePatterns =
         match t with
         | TRef(_, e, [k;v]) ->
             match e.TryFullName with
+            | Some "FSharp.Data.Adaptive.HashMap`2" -> Some(k,v)
             | Some "FSharp.Data.Adaptive.HashMap`2" -> Some(k,v)
             | _ -> None
         | _ ->
