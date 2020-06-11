@@ -1,3 +1,6 @@
+### 0.0.50
+* fixed version problems
+
 ### 0.0.49
 * generated files in temp-folder (fable compatibility)
 * removed Reference-WriteTime from Project hash (may cause problems)
