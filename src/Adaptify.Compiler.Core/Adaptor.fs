@@ -68,7 +68,7 @@ module TypePatterns =
         | TRef(_, e, [k;v]) ->
             match e.TryFullName with
             | Some "FSharp.Data.Adaptive.HashMap`2" -> Some(k,v)
-            | Some "FSharp.Data.Adaptive.HashMap`2" -> Some(k,v)
+            | Some "FSharp.Data.Adaptive.FSharpHashMap`2" -> Some(k,v)
             | _ -> None
         | _ ->
             None
