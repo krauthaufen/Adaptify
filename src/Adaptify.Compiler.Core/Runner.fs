@@ -61,7 +61,6 @@ module Adaptify =
         }
 
     let runAsync (checker : FSharpChecker) (outputPath : string) (designTime : bool) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
-        let designTime = false
         async {
             do! Async.SwitchToThreadPool()
             let projectInfo = ProjectInfo.normalize projectInfo

@@ -3,7 +3,7 @@ redirects: off
 framework: netstandard2.0, net472, netcoreapp2.0, netcoreapp2.1, netcoreapp2.2, netcoreapp3.0, netcoreapp3.1
 
 nuget FSharp.Core                           >= 4.6.2 lowest_matching: true
-nuget FSharp.Data.Adaptive                  ~> 0.0.16
+nuget FSharp.Data.Adaptive                  ~> 1.0.0
 nuget System.Reflection.Emit.Lightweight    >= 4.6.0
 
 # PreCompiler

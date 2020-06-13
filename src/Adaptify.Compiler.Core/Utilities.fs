@@ -341,13 +341,91 @@ module Versions =
         thread.Start()
         thread
 
+    module private Git =
+        open System.Diagnostics
+
+        let tryExec (log : ILog) (work : string) (program : string) (args : list<string>) =
+            try
+                let argstr = args |> Seq.map (sprintf "\"%s\"") |> String.concat " "
+                let info = ProcessStartInfo(program, argstr)
+
+                info.UseShellExecute <- false
+                info.RedirectStandardOutput <- true
+                info.RedirectStandardError <- true
+                info.RedirectStandardInput <- true
+                info.WorkingDirectory <- work
+                info.WindowStyle <- ProcessWindowStyle.Hidden
+            
+                log.debug range0 "running %s %s in %s" program argstr work
+                //let output = System.Text.StringBuilder()
+                let proc = Process.Start info
+
+                //proc.OutputDataReceived.Add (fun e ->
+                //    log.debug range0 "%s" e.Data
+                //    output.AppendLine e.Data |> ignore
+                //)
+                //proc.ErrorDataReceived.Add (fun e ->
+                //    log.warn range0 "" "%s" e.Data
+                //)
+                //proc.EnableRaisingEvents <- true
+
+                //proc.StandardInput.Close()
+                //proc.BeginOutputReadLine()
+                //proc.BeginErrorReadLine()
+
+                proc.WaitForExit()
+                if proc.ExitCode <> 0 then
+                    let err = proc.StandardError.ReadToEnd()
+                    //failwithf "%s %s failed with code %d:\r\n%s" program argstr proc.ExitCode err
+                    log.debug range0 "%s exited with %d: %s" program proc.ExitCode err
+                    None
+                else
+                    let str = proc.StandardOutput.ReadToEnd().Trim [| ' '; '\r'; '\n' |]
+                    log.debug range0 "%s: %s" program str
+                    Some str
+            with e ->
+                log.debug range0 "%s failed: %A" program e
+                None
+
+        let tag(log : ILog) =
+            let wd = Path.GetFullPath(Path.Combine(__SOURCE_DIRECTORY__, "..", ".."))
+            tryExec log wd "git" ["describe"; "--tags"; "--abbrev=0"]
+
+        let version (log : ILog) =
+            match tag log with
+            | Some t ->
+                match Version.TryParse t with
+                | (true, v) ->
+                    sprintf "%d.%d.%d.0" (max 0 v.Major) (max 0 v.Minor) (max 0 v.Build) |> Some
+                | _ ->
+                    None
+            | None ->
+                None
+
 
     let selfVersion = 
-        let version = 
-            typeof<ILog>.Assembly.GetCustomAttributes(typeof<AssemblyVersionAttribute>, true)
-            |> Array.choose (function :? AssemblyVersionAttribute as a -> Some a.Version | _ -> None)
-            |> Array.tryHead
-        match version with
-        | Some v -> v
-        | None -> "0.0.0.0"
+        let log = Log.console false
+        #if DEBUG
+        let tag = Git.version log
+        #else
+        let tag = None
+        #endif
+
+        match tag with
+        | Some tag ->
+            log.info range0 "version: %s (local)" tag
+            tag
+        | None ->
+            let version = 
+                typeof<ILog>.Assembly.GetCustomAttributes(typeof<AssemblyVersionAttribute>, true)
+                |> Array.choose (function :? AssemblyVersionAttribute as a -> Some a.Version | _ -> None)
+                |> Array.tryHead
+            
+            match version with
+            | Some v -> 
+                log.info range0 "version: %s" v
+                v
+            | None -> 
+                log.info range0 "no version: 0.0.0.0"
+                "0.0.0.0"
 

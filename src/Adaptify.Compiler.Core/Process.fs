@@ -295,7 +295,7 @@ module TCP =
                 while not listening do
                     Monitor.Wait listenLock |> ignore
             )
-            printfn "server running"
+            //printfn "server running"
 
         member x.WaitForListenerClosed() =
             lock listenLock (fun () ->

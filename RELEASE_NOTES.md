@@ -1,3 +1,8 @@
+### 1.0.0
+* stable release
+* some debug improvements (using git-tag as version when debugging locally)
+* added type-recognizers for `FSharpHashSet` and `FSharpHashMap`
+
 ### 0.0.50
 * fixed version problems
 
