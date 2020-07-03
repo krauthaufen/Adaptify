@@ -78,9 +78,9 @@ type AdaptifyMode =
     | NonAdaptive
 
 module AdaptifyMode =
-    let ofAttributes (atts : seq<FSharpAttribute>) =
-        if atts |> Seq.exists FSharpAttribute.isNonAdaptive then AdaptifyMode.NonAdaptive
-        elif atts |> Seq.exists FSharpAttribute.isTreatAsValue then AdaptifyMode.Value
+    let ofAttributes (log : ILog) (atts : seq<FSharpAttribute>) =
+        if atts |> Seq.exists (FSharpAttribute.isNonAdaptive log) then AdaptifyMode.NonAdaptive
+        elif atts |> Seq.exists (FSharpAttribute.isTreatAsValue log) then AdaptifyMode.Value
         else AdaptifyMode.Default
 
 
@@ -103,7 +103,7 @@ module TypeRefPatterns =
 
 module Prop =
     let ofFSharpField (log : ILog)(targs : Map<_,_>) (f : FSharpField) =
-        let mode = AdaptifyMode.ofAttributes f.PropertyAttributes
+        let mode = AdaptifyMode.ofAttributes log f.PropertyAttributes
         let typ = TypeRef.ofType log targs f.FieldType
         let name = f.Name
         {
@@ -117,8 +117,8 @@ module Prop =
     let ofMemberOrFunctionOrValue (log : ILog) (targs : Map<_,_>) (mfv : FSharpMemberOrFunctionOrValue) =
         if mfv.IsProperty && mfv.HasGetterMethod && mfv.IsInstanceMember then
             let mode = 
-                if mfv.Attributes |> Seq.exists FSharpAttribute.isNonAdaptive then NonAdaptive
-                elif mfv.Attributes |> Seq.exists FSharpAttribute.isTreatAsValue then Value
+                if mfv.Attributes |> Seq.exists (FSharpAttribute.isNonAdaptive log) then NonAdaptive
+                elif mfv.Attributes |> Seq.exists (FSharpAttribute.isTreatAsValue log) then Value
                 else Lazy
 
             let typ = TypeRef.ofType log targs mfv.GetterMethod.ReturnParameter.Type
@@ -315,7 +315,7 @@ module TypeDef =
                     let name = c.DisplayName
 
                     let mode = 
-                        AdaptifyMode.ofAttributes c.Attributes
+                        AdaptifyMode.ofAttributes log c.Attributes
 
                     let fields = 
                         c.UnionCaseFields
@@ -350,7 +350,7 @@ module TypeDef =
             e.TryFullName = Some "Microsoft.FSharp.Core.FSharpChoice`3" ||
             e.TryFullName = Some "Microsoft.FSharp.Core.FSharpChoice`4" ||
             e.TryFullName = Some "Microsoft.FSharp.Core.FSharpResult`2" ||
-            e.Attributes |> Seq.exists FSharpAttribute.isModelType
+            e.Attributes |> Seq.exists (FSharpAttribute.isModelType log)
 
         if isModel then 
             let loc = try e.DeclarationLocation with _ -> range0
