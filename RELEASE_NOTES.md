@@ -1,3 +1,6 @@
+### 1.0.1
+* added error handling to attribute processing 
+
 ### 1.0.0
 * stable release
 * some debug improvements (using git-tag as version when debugging locally)
