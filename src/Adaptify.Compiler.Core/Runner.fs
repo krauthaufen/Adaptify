@@ -86,7 +86,8 @@ module Adaptify =
             | _ ->
                 []
 
-        let entities = 
+        let entities =
+           
             res.ImplementationFile.Value.Declarations
             |> Seq.toList
             |> List.collect allEntities
@@ -121,7 +122,7 @@ module Adaptify =
                     m.Groups.[4].Value
                     (nowarns + "\r\n#line 2")
                     (code.Substring(m.Index + m.Length))
-                    (String.concat "\r\n" defs)
+                    (String.concat "\r\n" (indent defs))
             else
                 String.concat "\r\n" [
                     nowarns

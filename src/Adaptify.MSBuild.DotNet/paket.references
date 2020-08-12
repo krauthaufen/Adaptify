@@ -1,4 +1,4 @@
-FSharp.Compiler.Service
+FSharp.Compiler.Private.Scripting
 Microsoft.Build.Tasks.Core
 Microsoft.Build.Framework
 Microsoft.Build.Utilities.Core

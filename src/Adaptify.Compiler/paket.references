@@ -2,4 +2,4 @@ FSharp.Core
 BlackFox.VsWhere
 Dotnet.ProjInfo
 Dotnet.ProjInfo.Workspace
-FSharp.Compiler.Service
+FSharp.Compiler.Private.Scripting

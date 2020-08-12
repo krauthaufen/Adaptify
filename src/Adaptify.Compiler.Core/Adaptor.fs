@@ -339,14 +339,14 @@ module Adaptor =
         match o with
         | Namespace m when m.StartsWith "Microsoft.FSharp" ->
             Namespace ("Adaptify.FSharp" + m.Substring 16)
-        | Module _ ->
-            let rec insert (moduleName : string) (o : Scope) =
-                match o with
-                | Module(parent, name, isAutoOpen, hasModuleSuffix) ->
-                    Module(insert moduleName parent, name, isAutoOpen, hasModuleSuffix)
-                | _ ->
-                    Module(o, moduleName, true, false)
-            insert "Adaptify" o
+        //| Module _ ->
+        //    let rec insert (moduleName : string) (o : Scope) =
+        //        match o with
+        //        | Module(parent, name, isAutoOpen, hasModuleSuffix) ->
+        //            Module(insert moduleName parent, name, isAutoOpen, hasModuleSuffix)
+        //        | _ ->
+        //            Module(o, moduleName, true, false)
+        //    insert "Adaptify" o
         | o ->
             o
 
@@ -824,14 +824,14 @@ module TypeDefinition =
 
     let private adaptorScope (o : Scope) =
         match o with
-        | Module _ ->
-            let rec insert (moduleName : string) (o : Scope) =
-                match o with
-                | Module(parent, name, isAutoOpen, hasModuleSuffix) ->
-                    Module(insert moduleName parent, name, isAutoOpen, hasModuleSuffix)
-                | _ ->
-                    Module(o, moduleName, true, false)
-            insert "Adaptify" o
+        //| Module _ ->
+        //    let rec insert (moduleName : string) (o : Scope) =
+        //        match o with
+        //        | Module(parent, name, isAutoOpen, hasModuleSuffix) ->
+        //            Module(insert moduleName parent, name, isAutoOpen, hasModuleSuffix)
+        //        | _ ->
+        //            Module(o, moduleName, true, false)
+        //    insert "Adaptify" o
         | o ->
             o
 
