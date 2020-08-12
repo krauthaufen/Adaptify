@@ -60,6 +60,79 @@ module Adaptify =
             Stamp = None
         }
 
+    let getReplacementCode (log : ILog) (createLenses : bool) (res : FSharpCheckFileResults) (code : string) =
+
+        let errs, wrns = res.Errors |> Array.partition (fun err -> err.Severity = FSharpErrorSeverity.Error)
+        if errs.Length > 0 then
+            let errorStrings =
+                errs |> Seq.map (fun err ->
+                    sprintf "  (%d,%d): %s" err.StartLineAlternate err.StartColumn err.Message
+                )
+                |> String.concat "\r\n"
+
+            let range = mkRange "internal" pos0 pos0
+            log.warn range "internal" "compiler errors:\r\n%s" errorStrings
+
+        for err in wrns do
+            let p0 = mkPos err.StartLineAlternate err.StartColumn
+            let p1 = mkPos err.EndLineAlternate err.EndColumn
+            let range = mkRange err.FileName p0 p1
+            log.warn range (sprintf "%04d" err.ErrorNumber) "%s" err.Message
+
+        let rec allEntities (d : FSharpImplementationFileDeclaration) =
+            match d with
+            | FSharpImplementationFileDeclaration.Entity(e, ds) ->
+                e :: List.collect allEntities ds
+            | _ ->
+                []
+
+        let entities = 
+            res.ImplementationFile.Value.Declarations
+            |> Seq.toList
+            |> List.collect allEntities
+            
+        let definitions =   
+            entities 
+            |> List.choose (TypeDef.ofEntity log)
+            |> List.map (fun l -> l.Value)
+            |> List.collect (TypeDefinition.ofTypeDef log createLenses [])
+
+        match definitions with
+        | [] ->
+            code
+        | _ -> 
+            let defs = definitions |> List.toArray |> Array.collect TypeDefinition.toString
+
+
+            let rx = System.Text.RegularExpressions.Regex @"^([ \t\r\n]*)(namespace|module)[ \t\r\n]+(rec[ \t\r\n]+)?([^\r\n]+)"
+
+            let nowarns =
+                String.concat "\r\n" [
+                    yield "#nowarn \"49\" // upper case patterns"
+                    yield "#nowarn \"66\" // upcast is unncecessary"
+                    yield "#nowarn \"1337\" // internal types"
+                ]
+            let m = rx.Match code
+            if m.Success then
+                let _isRec = m.Groups.[3].Success
+                sprintf "%s%s rec %s\r\n%s%s\r\n%s" 
+                    m.Groups.[1].Value 
+                    m.Groups.[2].Value 
+                    m.Groups.[4].Value
+                    (nowarns + "\r\n#line 2")
+                    (code.Substring(m.Index + m.Length))
+                    (String.concat "\r\n" defs)
+            else
+                String.concat "\r\n" [
+                    nowarns
+                    "[<AutoOpen>]"
+                    "module rec Hans ="
+                    "#line 1"
+                    indentStr code
+                    yield! indent defs
+                ]
+               
+
     let runAsync (checker : FSharpChecker) (outputPath : string) (designTime : bool) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
         async {
             do! Async.SwitchToThreadPool()
