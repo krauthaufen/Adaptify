@@ -1,4 +1,4 @@
 type project
-id Adaptify.Compiler.Core
+id Adaptify.Scripting.Compiler.Core
 authors Aardvark Platform Team
 description Adaptify compiler library

@@ -1,5 +1,5 @@
 type file
-id Adaptify.Core
+id Adaptify.Scripting.Core
 authors Aardvark Platform Team
 description Adaptify runtime components
 dependencies
