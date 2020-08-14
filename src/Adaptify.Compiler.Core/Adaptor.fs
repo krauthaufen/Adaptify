@@ -674,9 +674,9 @@ module TypeDefinition =
                 yield "[<AutoOpen; System.Diagnostics.CodeAnalysis.SuppressMessage(\"NameConventions\", \"*\")>]"
                 yield sprintf "module %s%s = " priv d.name
                 for (_priv, name, args, b) in d.statics do
-                    let typ = b.Type
+                    let retType = b.Type |> TypeRef.toString d.scope
                     let args = args |> List.map (fun a -> sprintf "(%s : %s)" a.Name (TypeRef.toString d.scope a.Type))
-                    yield sprintf "    let %s %s =" name (String.concat " " args) 
+                    yield sprintf "    let %s %s : %s =" name (String.concat " " args) retType
                     yield! Expr.toString d.scope b |> lines |> indent |> indent
 
                 for n in d.nested do
@@ -691,15 +691,16 @@ module TypeDefinition =
                 yield sprintf "type %s%s%s with" priv d.name tpars
 
                 for (priv, name, args, body) in d.statics do
+                    let retType = body.Type |> TypeRef.toString d.scope
                     let body = Expr.toString d.scope body |> lines
                     let priv = if priv then "internal " else ""
                             
                     if args = [] && name.StartsWith "get_" then
                         let name = name.Substring 4
                         if body.Length = 1 then
-                            yield sprintf "    static member %s%s = %s" priv name body.[0]
+                            yield sprintf "    static member %s%s : %s = %s" priv name retType body.[0] 
                         else
-                            yield sprintf "    static member %s%s =" priv name
+                            yield sprintf "    static member %s%s : %s =" priv name retType
                             yield! body |> indent |> indent
 
                         //yield sprintf "    static member %s =" (name.Substring 4)
@@ -708,30 +709,31 @@ module TypeDefinition =
                         let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
 
                         if body.Length = 1 then
-                            yield sprintf "    static member %s%s(%s) = %s" priv name args body.[0]
+                            yield sprintf "    static member %s%s(%s) : %s = %s" priv name args retType body.[0]
                         else
-                            yield sprintf "    static member %s%s(%s) =" priv name args
+                            yield sprintf "    static member %s%s(%s) : %s =" priv name args retType
                             yield! body |> indent |> indent
 
                             
                 for (ov, name, args, body) in d.members do
+                    let retType = body.Type |> TypeRef.toString d.scope
                     let body = Expr.toString d.scope body |> lines
                     let mem = if ov then "override" else "member"
 
                     if args = [] && name.StartsWith "get_" then
                             
                         if body.Length = 1 then
-                            yield sprintf "    %s __.%s = %s" mem (name.Substring 4) body.[0]
+                            yield sprintf "    %s __.%s : %s = %s" mem (name.Substring 4) retType body.[0]
                         else
-                            yield sprintf "    %s __.%s =" mem (name.Substring 4)
+                            yield sprintf "    %s __.%s : %s =" mem (name.Substring 4) retType
                             yield! body |> indent |> indent
                     else
                         let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
                             
                         if body.Length = 1 then
-                            yield sprintf "    %s __.%s(%s) = %s" mem name args body.[0]
+                            yield sprintf "    %s __.%s(%s) : %s = %s" mem name args retType body.[0]
                         else
-                            yield sprintf "    %s __.%s(%s) =" mem name args
+                            yield sprintf "    %s __.%s(%s) : %s =" mem name args retType
                             yield! body |> indent |> indent
 
             |]

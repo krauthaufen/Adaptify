@@ -1,3 +1,6 @@
+### 1.0.0-scripting0003
+* more type-annotations
+
 ### 1.0.0-scripting0002
 * type-annotations
 
