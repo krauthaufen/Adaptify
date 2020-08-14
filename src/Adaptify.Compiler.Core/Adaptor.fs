@@ -762,15 +762,17 @@ module TypeDefinition =
                 yield! ctorLines
 
                 for (priv, name, args, body) in d.statics do
+                    let retType = body.Type |> TypeRef.toString d.scope
                     let body = Expr.toString d.scope body |> lines
                     let priv = if priv then "internal " else ""
                             
+
                     if args = [] && name.StartsWith "get_" then
                         let name = name.Substring 4
                         if body.Length = 1 then
-                            yield sprintf "    static member %s%s = %s" priv name body.[0]
+                            yield sprintf "    static member %s%s : %s = %s" priv name retType body.[0]
                         else
-                            yield sprintf "    static member %s%s =" priv name
+                            yield sprintf "    static member %s%s : %s =" priv name retType
                             yield! body |> indent |> indent
 
                         //yield sprintf "    static member %s =" (name.Substring 4)
@@ -779,30 +781,31 @@ module TypeDefinition =
                         let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
 
                         if body.Length = 1 then
-                            yield sprintf "    static member %s%s(%s) = %s" priv name args body.[0]
+                            yield sprintf "    static member %s%s(%s) : %s = %s" priv name args retType body.[0]
                         else
-                            yield sprintf "    static member %s%s(%s) =" priv name args
+                            yield sprintf "    static member %s%s(%s) : %s =" priv name args retType
                             yield! body |> indent |> indent
 
                             
                 for (ov, name, args, body) in d.members do
+                    let retType = body.Type |> TypeRef.toString d.scope
                     let body = Expr.toString d.scope body |> lines
                     let mem = if ov then "override" else "member"
 
                     if args = [] && name.StartsWith "get_" then
                             
                         if body.Length = 1 then
-                            yield sprintf "    %s __.%s = %s" mem (name.Substring 4) body.[0]
+                            yield sprintf "    %s __.%s : %s = %s" mem (name.Substring 4) retType body.[0]
                         else
-                            yield sprintf "    %s __.%s =" mem (name.Substring 4)
+                            yield sprintf "    %s __.%s : %s =" mem (name.Substring 4) retType
                             yield! body |> indent |> indent
                     else
                         let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
                             
                         if body.Length = 1 then
-                            yield sprintf "    %s __.%s(%s) = %s" mem name args body.[0]
+                            yield sprintf "    %s __.%s(%s) : %s = %s" mem name args retType body.[0]
                         else
-                            yield sprintf "    %s __.%s(%s) =" mem name args
+                            yield sprintf "    %s __.%s(%s) : %s =" mem name args retType
                             yield! body |> indent |> indent
 
                 for (iface, mems) in d.interfaces do
