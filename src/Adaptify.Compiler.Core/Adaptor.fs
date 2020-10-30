@@ -1536,6 +1536,18 @@ module TypeDefinition =
 
                 let value = new Var("value", ctorTypeRef)
 
+                let retType =
+                    let choices = 
+                        cases |> List.map (fun (name, props) -> 
+                            let a = props |> List.map (fun p -> Adaptor.get Log.empty range0 false p.typ)
+                            match a |> List.map (fun p -> p.aType) with
+                            | [] -> TTuple(false, [])
+                            | [a] -> a
+                            | many -> TTuple(false, many)
+                        )
+
+                    TExtRef(Scope.Namespace "Microsoft.FSharp.Core", "Choice", choices)
+
                 {
                     kind            = TypeKind.Module
                     priv            = false
@@ -1561,7 +1573,7 @@ module TypeDefinition =
                                                 declaringType = Choice1Of2 newScope
                                                 name = Config.generatedTypeName  c
                                                 parameters = props |> List.map (fun p -> p.typ)
-                                                returnType = TTuple(false, [])
+                                                returnType = retType
                                             }
                                         let self = new Var(c, n)
                                         let pat = TypeTest(n, self)
@@ -1573,7 +1585,7 @@ module TypeDefinition =
                                             let body = Call(None, ctor, props |> List.map (fun p -> Expr.PropertyGet(Var self, p)))
                                             yield pat, body
 
-                                    yield Any, Fail(TTuple(false, []), "unreachable")
+                                    yield Any, Fail(retType, "unreachable")
                                 ])
                         ]
 

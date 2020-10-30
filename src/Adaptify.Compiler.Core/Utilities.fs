@@ -414,7 +414,7 @@ module Versions =
 
 
     let selfVersion = 
-        let log = Log.console false
+        let log = Log.empty
         #if DEBUG
         let tag = Git.version log
         #else

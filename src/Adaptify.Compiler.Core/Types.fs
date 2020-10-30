@@ -205,6 +205,8 @@ module TypeRef =
         match t with
         | TBool ->
             "bool"
+        | TTuple(_, []) ->
+            "unit"
         | TTuple(false, ts) ->
             ts |> Seq.map (toString currentScope) |> String.concat " * " |> sprintf "(%s)"
 
