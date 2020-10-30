@@ -439,6 +439,7 @@ module ProcessManagement =
                 file = "dotnet"
                 args = args
                 output = OutputMode.Custom (fun s l ->
+                    log.debug range0 "dotnet: %s" l
                     lock output (fun () -> output.Add l)
                 )
                 workDir = ""

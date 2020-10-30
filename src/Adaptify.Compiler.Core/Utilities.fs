@@ -197,12 +197,17 @@ module Log =
 
 
 module FSharpAttribute =
-    let isAutoOpen (a : FSharpAttribute) =
-        match a.AttributeType.TryFullName with
-        | Some name ->
-            name = typeof<AutoOpenAttribute>.FullName
-        | None ->
+    let isAutoOpen (log : ILog) (a : FSharpAttribute) =
+        try
+            match a.AttributeType.TryFullName with
+            | Some name ->
+                name = typeof<AutoOpenAttribute>.FullName
+            | None ->
+                false
+        with ex ->
+            log.error range0 "1337" "checking isAutoOpen: %A" ex
             false
+            
 
     let isModelType (log : ILog) (a : FSharpAttribute) =
         try

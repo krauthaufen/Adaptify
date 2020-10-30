@@ -87,10 +87,14 @@ module Adaptify =
                 []
 
         let entities = 
-            res.ImplementationFile.Value.Declarations
-            |> Seq.toList
-            |> List.collect allEntities
-            
+            match res.ImplementationFile with
+            | Some impl ->
+                impl.Declarations
+                |> Seq.toList
+                |> List.collect allEntities
+            | None ->
+                []
+
         let definitions =   
             entities 
             |> List.choose (TypeDef.ofEntity log)
@@ -101,7 +105,7 @@ module Adaptify =
         | [] ->
             code
         | _ -> 
-            let defs = definitions |> List.toArray |> Array.collect TypeDefinition.toString
+            let defs = definitions |> List.toArray |> Array.collect (TypeDefinition.toString log)
 
 
             let rx = System.Text.RegularExpressions.Regex @"^([ \t\r\n]*)(namespace|module)[ \t\r\n]+(rec[ \t\r\n]+)?([^\r\n]+)"
@@ -236,6 +240,12 @@ module Adaptify =
 
                 let nuget = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".nuget", "packages") |> Path.GetFullPath
 
+                let dotnetPack =
+                    Path.Combine(
+                        Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.ProgramFiles)),
+                        "dotnet", "packs"
+                    )
+
                 let cleanReferences =
                     projectInfo.references |> List.map (fun f ->
                         let f = Path.GetFullPath f
@@ -246,6 +256,18 @@ module Adaptify =
                                 let name = parts.[0]
                                 let version = parts.[1]
                                 sprintf "nuget %s (%s)" name version
+                            else
+                                f
+                        elif f.StartsWith dotnetPack then
+                            let packPath = f.Substring(dotnetPack.Length).TrimStart [| System.IO.Path.DirectorySeparatorChar; System.IO.Path.AltDirectorySeparatorChar |]
+                            let parts = packPath.Split([| System.IO.Path.DirectorySeparatorChar; System.IO.Path.AltDirectorySeparatorChar |])
+                            if parts.Length >= 2 then
+                                let name = 
+                                    let name = parts.[0]
+                                    if name.EndsWith ".Ref" then name.Substring(0, name.Length - 4)
+                                    else name
+                                let version = parts.[1]
+                                sprintf "pack %s (%s)" name version
                             else
                                 f
                         else 
@@ -441,7 +463,7 @@ module Adaptify =
                                     | defs ->
                                         let outputFile = getOutputFile file
 
-                                        let content = TypeDefinition.toFile defs
+                                        let content = TypeDefinition.toFile log defs
                                         let result = sprintf "//%s\r\n//%s\r\n" fileHash (hash content) + content
 
                                         File.WriteAllText(outputFile, result)

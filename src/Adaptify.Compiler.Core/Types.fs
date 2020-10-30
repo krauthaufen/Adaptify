@@ -22,7 +22,7 @@ type TypeRef =
     | TVar of var : TypeVar
     
     member private x.AsString = x.ToString()
-    override x.ToString() = TypeRef.toString Global x
+    override x.ToString() = TypeRef.toString Log.empty Global x
     
 [<StructuredFormatDisplay("{AsString}")>]
 type TypeDef =
@@ -37,7 +37,7 @@ type TypeDef =
             | Generic(t, d) -> print (targs @ t) d
             | _ ->  
                 TModel(range0, lazy x, List.map TVar targs)
-                |> TypeRef.toString Global
+                |> TypeRef.toString Log.empty Global
         print [] x
 
     member x.Name =
@@ -201,40 +201,40 @@ module TypeRef =
         else
             failwithf "could not find definition for %s" (t.Format(FSharpDisplayContext.Empty))
 
-    let rec toString (currentScope : Scope) (t : TypeRef) =
+    let rec toString (log : ILog) (currentScope : Scope) (t : TypeRef) =
         match t with
         | TBool ->
             "bool"
         | TTuple(false, ts) ->
-            ts |> Seq.map (toString currentScope) |> String.concat " * " |> sprintf "(%s)"
+            ts |> Seq.map (toString log currentScope) |> String.concat " * " |> sprintf "(%s)"
 
         | TTuple(true, ts) ->
-            ts |> Seq.map (toString currentScope) |> String.concat " * " |> sprintf "struct (%s)"
+            ts |> Seq.map (toString log currentScope) |> String.concat " * " |> sprintf "struct (%s)"
 
         | TArray(t, rank) ->
             let str = System.String(',', rank - 1)
-            sprintf "(%s)[%s]" (toString currentScope t) str
+            sprintf "(%s)[%s]" (toString log currentScope t) str
 
         | TFunc(a, b) ->
-            sprintf "%s -> %s" (toString currentScope a) (toString currentScope b)
+            sprintf "%s -> %s" (toString log currentScope a) (toString log currentScope b)
 
         | TModel(_, def, []) ->
             sprintf "%s" (def.Value.RelativeName currentScope)
 
         | TModel(_, def, targs) ->
-            let targs = targs |> Seq.map (toString currentScope) |> String.concat ", "
+            let targs = targs |> Seq.map (toString log currentScope) |> String.concat ", "
             sprintf "%s<%s>" (def.Value.RelativeName currentScope) targs
 
         | TRef(_, r, []) ->
-            let s = Scope.ofFSharpEntityOpt r.DeclaringEntity r.Namespace
+            let s = Scope.ofFSharpEntityOpt log r.DeclaringEntity r.Namespace
             match Scope.relativeName currentScope s with
             | Some n -> n + "." + r.DisplayName
             | None -> r.DisplayName
 
         | TRef(_, r, targs) ->
-            let targs = targs |> Seq.map (toString currentScope) |> String.concat ", "
+            let targs = targs |> Seq.map (toString log currentScope) |> String.concat ", "
             
-            let s = Scope.ofFSharpEntityOpt r.DeclaringEntity r.Namespace
+            let s = Scope.ofFSharpEntityOpt log r.DeclaringEntity r.Namespace
             match Scope.relativeName currentScope s with
             | Some n -> sprintf "%s.%s<%s>" n r.DisplayName targs
             | None -> sprintf "%s<%s>" r.DisplayName targs
@@ -244,7 +244,7 @@ module TypeRef =
             | None -> r
 
         | TExtRef(s, r, targs) ->
-            let targs = targs |> Seq.map (toString currentScope) |> String.concat ", "
+            let targs = targs |> Seq.map (toString log currentScope) |> String.concat ", "
             match Scope.relativeName currentScope s with
             | Some n -> sprintf "%s.%s<%s>" n r targs
             | None -> sprintf "%s<%s>" r targs
@@ -303,7 +303,7 @@ module TypeDef =
                 |> List.map (Prop.ofFSharpField log parMap)
 
             let parent = 
-                Scope.ofFSharpEntityOpt e.DeclaringEntity e.Namespace
+                Scope.ofFSharpEntityOpt log e.DeclaringEntity e.Namespace
 
             ProductType(true, range, e.IsValueType, parent, e.DisplayName, props @ fields) |> ret
 
@@ -326,12 +326,12 @@ module TypeDef =
                     name, fields
                 )
                 
-            let parent = Scope.ofFSharpEntityOpt e.DeclaringEntity e.Namespace
+            let parent = Scope.ofFSharpEntityOpt log e.DeclaringEntity e.Namespace
 
             Union(range, parent, e.DisplayName, props, cases) |> ret
 
         elif e.IsFSharpAbbreviation then
-            let parent = Scope.ofFSharpEntityOpt e.DeclaringEntity e.Namespace
+            let parent = Scope.ofFSharpEntityOpt log e.DeclaringEntity e.Namespace
 
             let real = e.AbbreviatedType
             if real.HasTypeDefinition then
@@ -340,7 +340,7 @@ module TypeDef =
             else
                 ProductType(false, range, e.IsValueType, parent, e.DisplayName, props) |> ret
         else
-            let parent = Scope.ofFSharpEntityOpt e.DeclaringEntity e.Namespace
+            let parent = Scope.ofFSharpEntityOpt log e.DeclaringEntity e.Namespace
             ProductType(false, range, e.IsValueType, parent, e.DisplayName, props) |> ret
 
     and ofEntity (log : ILog) (e : FSharpEntity) : option<Lazy<TypeDef>> =

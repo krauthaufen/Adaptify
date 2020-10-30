@@ -125,10 +125,10 @@ module Expr =
         | _ -> 
             None
 
-    let private argDef (scope : Scope) (args : list<list<Var>>) =
+    let private argDef (log : ILog) (scope : Scope) (args : list<list<Var>>) =
         args 
         |> List.map (
-            List.map (fun v -> sprintf "%s : %s" v.Name (TypeRef.toString scope v.Type)) 
+            List.map (fun v -> sprintf "%s : %s" v.Name (TypeRef.toString log scope v.Type)) 
             >> String.concat ", "
             >> sprintf "(%s)"
         )
@@ -139,24 +139,24 @@ module Expr =
         else str
 
 
-    let private toOneLineArgs (scope : Scope) (args : list<Expr>) =
+    let private toOneLineArgs (log : ILog) (scope : Scope) (args : list<Expr>) =
         let temporary = System.Collections.Generic.List()
         let args = 
             args |> List.mapi (fun i a ->
                 match a with
                 | Lambdas(vs, b) ->
-                    let b = toString scope b |> lines
+                    let b = toString log scope b |> lines
                     if b.Length = 1 then
-                        sprintf "(fun %s -> %s)" (argDef scope vs) b.[0]
+                        sprintf "(fun %s -> %s)" (argDef log scope vs) b.[0]
                     else
                         let name = sprintf "__arg%d" i
 
-                        let code = sprintf "let inline %s %s =\r\n%s" name (argDef scope vs) (indent b |> String.concat "\r\n")
+                        let code = sprintf "let inline %s %s =\r\n%s" name (argDef log scope vs) (indent b |> String.concat "\r\n")
 
                         temporary.Add(code)
                         name
                 | _ ->
-                    let a = toString scope a |> lines
+                    let a = toString log scope a |> lines
                     if a.Length = 1 then    
                         bracketed a.[0]
                     else
@@ -174,62 +174,62 @@ module Expr =
         else
             "", args
 
-    let private patternString (scope : Scope) (p : Pattern) =
+    let private patternString (log : ILog) (scope : Scope) (p : Pattern) =
         match p with
         | Any -> "_"
-        | TypeTest(t, v) -> sprintf "(:? %s as %s)" (TypeRef.toString scope t) v.Name
+        | TypeTest(t, v) -> sprintf "(:? %s as %s)" (TypeRef.toString log scope t) v.Name
         | UnionCaseTest(t, n, vs) ->
             let t = 
                 match t with
-                | TExtRef(s, n, _) -> TExtRef(s, n, []) |> TypeRef.toString scope
-                | TRef(r, e, _) -> TRef(r, e, []) |> TypeRef.toString scope
-                | TModel(r, d, _) -> TModel(r, d, []) |> TypeRef.toString scope
-                | _ -> t |> TypeRef.toString scope
+                | TExtRef(s, n, _) -> TExtRef(s, n, []) |> TypeRef.toString log scope
+                | TRef(r, e, _) -> TRef(r, e, []) |> TypeRef.toString log scope
+                | TModel(r, d, _) -> TModel(r, d, []) |> TypeRef.toString log scope
+                | _ -> t |> TypeRef.toString log scope
             match vs with
             | [] ->
                 sprintf "%s.%s" t n 
             | _ -> 
                 sprintf "%s.%s(%s)" t n (vs |> List.map (fun v -> v.Name) |> String.concat ", ")
 
-    let rec toString (scope : Scope) (e : Expr) =
+    let rec toString (log : ILog) (scope : Scope) (e : Expr) =
         match e with
         | Match(e, cases) ->
-            let prefix, e = toOneLineArgs scope [e]
+            let prefix, e = toOneLineArgs log scope [e]
             let e = List.head e
 
 
             let cases =
                 cases |> List.map (fun (p, b) ->
-                    let b = toString scope b |> lines 
+                    let b = toString log scope b |> lines 
                     if b.Length = 1 then
-                        sprintf "| %s -> %s" (patternString scope p) b.[0]
+                        sprintf "| %s -> %s" (patternString log scope p) b.[0]
                     else
                         let b = b |> indent
-                        sprintf "| %s ->\r\n%s" (patternString scope p) (String.concat "\r\n" b)
+                        sprintf "| %s ->\r\n%s" (patternString log scope p) (String.concat "\r\n" b)
                 )
 
             sprintf "%smatch %s with\r\n%s" prefix e (String.concat "\r\n" cases)
 
 
         | And vs ->
-            vs |> List.map (toString scope) |> String.concat " && "
+            vs |> List.map (toString log scope) |> String.concat " && "
 
         | Lambda([v], Application(b, Var v1)) when v.Name = v1.Name ->
-            toString scope b
+            toString log scope b
 
         | Unbox(t, e) ->
-            let prefix, e = toOneLineArgs scope [e]
+            let prefix, e = toOneLineArgs log scope [e]
             let e = List.head e
-            sprintf "%sunbox<%s> %s" prefix (TypeRef.toString scope t) e
+            sprintf "%sunbox<%s> %s" prefix (TypeRef.toString log scope t) e
 
         | Ignore(e) ->
-            let prefix, e = toOneLineArgs scope [e]
+            let prefix, e = toOneLineArgs log scope [e]
             let e = List.head e
             sprintf "%signore %s"prefix e
 
         | Upcast(e, t) ->
-            let e = toString scope e
-            let t = TypeRef.toString scope t
+            let e = toString log scope e
+            let t = TypeRef.toString log scope t
             sprintf "%s :> %s" e t
         | Unit -> 
             "()"
@@ -238,17 +238,17 @@ module Expr =
             v.Name
 
         | Seq(l, r) ->
-            sprintf "%s\r\n%s" (toString scope l) (toString scope r)
+            sprintf "%s\r\n%s" (toString log scope l) (toString log scope r)
 
         | Fail(_, reason) ->
             sprintf "failwith \"%s\"" reason
 
         | Call(Some t, m, args) ->
-            let prefix, t = toOneLineArgs scope [t]
+            let prefix, t = toOneLineArgs log scope [t]
             let t = List.head t
 
             if m.name.StartsWith "set_" then
-                let v = List.head args |> toString scope |> lines
+                let v = List.head args |> toString log scope |> lines
                 if v.Length = 1 then
                     sprintf "%s%s.%s <- %s" prefix t (m.name.Substring 4) v.[0]
                 else
@@ -258,7 +258,7 @@ module Expr =
                 sprintf "%s%s.%s" prefix t (m.name.Substring 4)
 
             else
-                let prefix2, args = args |> toOneLineArgs scope
+                let prefix2, args = args |> toOneLineArgs log scope
                 sprintf "%s%s%s.%s(%s)" prefix prefix2 t m.name (String.concat ", " args)
             
         | Call(None, m, args) ->
@@ -269,10 +269,10 @@ module Expr =
                     | Some n -> n + "."
                     | None -> ""
                 | Choice2Of2 b ->
-                    TypeRef.toString scope b + "."
+                    TypeRef.toString log scope b + "."
 
             if m.name.StartsWith "set_" then
-                let v = List.head args |> toString scope |> lines
+                let v = List.head args |> toString log scope |> lines
                 if v.Length = 1 then
                     sprintf "%s%s <- %s" qual (m.name.Substring 4) v.[0]
                 else
@@ -282,15 +282,15 @@ module Expr =
                 sprintf "%s%s" qual (m.name.Substring 4)
 
             else
-                let prefix, args = toOneLineArgs scope args
+                let prefix, args = toOneLineArgs log scope args
                 sprintf "%s%s%s(%s)" prefix qual m.name (String.concat ", " args)
                 
 
         | Lambdas(args, body) ->
-            let args = argDef scope args
+            let args = argDef log scope args
 
             let body =
-                toString scope body
+                toString log scope body
                 |> lines
 
             if body.Length = 1 then
@@ -301,8 +301,8 @@ module Expr =
         | Lambda _ -> failwith "unreachable"
 
         | Applications(lambda, args) ->
-            let lambda = toString scope lambda |> lines
-            let prefix, args = toOneLineArgs scope args
+            let lambda = toString log scope lambda |> lines
+            let prefix, args = toOneLineArgs log scope args
 
             if lambda.Length = 1 then
                 sprintf "%s%s %s" prefix (bracketed lambda.[0]) (String.concat " " args)
@@ -312,8 +312,8 @@ module Expr =
         | Application _ -> failwith "unreachable"
 
         | Let(_, [v], e, b) ->
-            let e = toString scope e |> lines
-            let b = toString scope b
+            let e = toString log scope e |> lines
+            let b = toString log scope b
 
             let vp = 
                 if v.IsMutable then "mutable "
@@ -325,15 +325,15 @@ module Expr =
                 sprintf "let %s%s =\r\n%s\r\n%s" vp v.Name (String.concat "\r\n" (indent e)) b
                 
         | Let(isStruct, vs, e, b) ->
-            let e = toString scope e |> lines
-            let b = toString scope b
+            let e = toString log scope e |> lines
+            let b = toString log scope b
 
             let vp = 
                 if vs |> List.exists (fun v -> v.IsMutable) then "mutable "
                 else ""
 
             let pattern =
-                let els = vs |> Seq.map (fun v -> sprintf "%s : %s" v.Name (TypeRef.toString scope v.Type)) |> String.concat ", "
+                let els = vs |> Seq.map (fun v -> sprintf "%s : %s" v.Name (TypeRef.toString log scope v.Type)) |> String.concat ", "
                 if isStruct then 
                     sprintf "struct(%s)" els
                 else
@@ -345,14 +345,14 @@ module Expr =
                 sprintf "let %s%s =\r\n%s\r\n%s" vp pattern (String.concat "\r\n" (indent e)) b
 
         | PropertyGet(t, p) ->
-            let t = toString scope t |> lines
+            let t = toString log scope t |> lines
             if t.Length = 1 then sprintf "%s.%s" (bracketed t.[0]) p.name
             else
                 let v = new Var(sprintf "___%s" p.name, p.typ)
                 sprintf "let %s =\r\n%s\r\n%s.%s" v.Name (String.concat "\r\n" (indent t)) v.Name p.name
 
         | VarSet (v, e) ->
-            let e = toString scope e |> lines
+            let e = toString log scope e |> lines
 
             if e.Length = 1 then
                 sprintf "%s <- %s" v.Name e.[0]
@@ -360,8 +360,8 @@ module Expr =
                 sprintf "%s <-\r\n%s" v.Name (indent e |> String.concat "\r\n")
             
         | IfThenElse(c, i, Unit) ->
-            let c = toString scope c |> lines
-            let i = toString scope i |> lines
+            let c = toString log scope c |> lines
+            let i = toString log scope i |> lines
 
             if c.Length = 1 then    
                 if i.Length = 1 then
@@ -374,9 +374,9 @@ module Expr =
 
 
         | IfThenElse(c, i, e) ->
-            let c = toString scope c |> lines
-            let i = toString scope i |> lines
-            let e = toString scope e |> lines
+            let c = toString log scope c |> lines
+            let i = toString log scope i |> lines
+            let e = toString log scope e |> lines
 
             if c.Length = 1 then    
                 if i.Length = 1 && e.Length = 1 then
@@ -388,7 +388,7 @@ module Expr =
                 sprintf "if (\r\n%s) then\r\n%s\r\nelse\r\n%s" (indent c |> String.concat "\r\n") (indent i |> String.concat "\r\n") (indent e |> String.concat "\r\n")
 
         | NewTuple(isStruct, args) ->
-            let prefix, args = toOneLineArgs scope args
+            let prefix, args = toOneLineArgs log scope args
 
             if isStruct then
                 sprintf "%sstruct(%s)" prefix (String.concat ", " args)
@@ -396,8 +396,8 @@ module Expr =
                 sprintf "%s(%s)" prefix (String.concat ", " args)
 
         | RecordUpdate(record, prop, value) ->
-            let prefix1, record = toOneLineArgs scope [record]
-            let prefix2, value = toOneLineArgs scope [value]
+            let prefix1, record = toOneLineArgs log scope [record]
+            let prefix2, value = toOneLineArgs log scope [value]
 
             sprintf "%s%s{ %s with %s = %s }" prefix1 prefix2 (List.exactlyOne record) prop.name (List.exactlyOne value)
 

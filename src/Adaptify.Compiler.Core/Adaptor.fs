@@ -364,7 +364,7 @@ module Adaptor =
             asetPrimitive t
 
         | HashSet t ->
-            let fullType = TypeRef.toString Global t
+            let fullType = TypeRef.toString log Global t
             log.warn range "7865" "HashSet<%s> cannot be adaptified since HashSets of model-type are not yet implemented" fullType
             aval typ
 
@@ -496,7 +496,7 @@ module Adaptor =
                         {
                             declaringType   = Choice1Of2 newScope
                             isStatic        = true
-                            name            = TypeRef.toString newScope at
+                            name            = TypeRef.toString log newScope at
                             parameters      = [typ]
                             returnType      = at
                         }
@@ -574,7 +574,7 @@ module Adaptor =
                     {
                         declaringType   = Choice1Of2 newScope
                         isStatic        = true
-                        name            = TypeRef.toString newScope at
+                        name            = TypeRef.toString log newScope at
                         parameters      = [typ]
                         returnType      = at
                     }
@@ -608,11 +608,11 @@ module Adaptor =
             match inner with 
             | [] -> ()
             | inner -> 
-                let inner = inner |> List.map (TypeRef.toString Global) |> String.concat ", "
+                let inner = inner |> List.map (TypeRef.toString log Global) |> String.concat ", "
                 log.warn 
                     range 
                     "4565"
-                    "found model types in opaque scope %s: %s" (TypeRef.toString Global typ) inner
+                    "found model types in opaque scope %s: %s" (TypeRef.toString log Global typ) inner
             if mutableScope then identity typ
             else aval typ
 
@@ -641,7 +641,7 @@ type TypeDefinition =
     }
 
 module TypeDefinition =
-    let rec toString (d : TypeDefinition) =
+    let rec toString (log : ILog) (d : TypeDefinition) =
    
         let tpars =
             match d.tpars with
@@ -658,12 +658,12 @@ module TypeDefinition =
                 for (_, name, args, b) in d.members do
                     let typ = b.Type
                     if args = [] && name.StartsWith "get_" then
-                        yield sprintf "    abstract member %s : %s" (name.Substring 4) (TypeRef.toString d.scope typ)
+                        yield sprintf "    abstract member %s : %s" (name.Substring 4) (TypeRef.toString log d.scope typ)
                     else
                         let args = 
                             List.concat [
-                                args |> List.map (fun a -> TypeRef.toString d.scope a.Type)
-                                [TypeRef.toString d.scope typ]
+                                args |> List.map (fun a -> TypeRef.toString log d.scope a.Type)
+                                [TypeRef.toString log d.scope typ]
                             ]
                         yield sprintf "    abstract member %s : %s" name (String.concat " -> " args)
                                 
@@ -675,12 +675,12 @@ module TypeDefinition =
                 yield sprintf "module %s%s = " priv d.name
                 for (_priv, name, args, b) in d.statics do
                     let typ = b.Type
-                    let args = args |> List.map (fun a -> sprintf "(%s : %s)" a.Name (TypeRef.toString d.scope a.Type))
+                    let args = args |> List.map (fun a -> sprintf "(%s : %s)" a.Name (TypeRef.toString log d.scope a.Type))
                     yield sprintf "    let %s %s =" name (String.concat " " args) 
-                    yield! Expr.toString d.scope b |> lines |> indent |> indent
+                    yield! Expr.toString log d.scope b |> lines |> indent |> indent
 
                 for n in d.nested do
-                    let lines = toString n
+                    let lines = toString log n
                     yield! lines |> indent
 
             |]
@@ -691,7 +691,7 @@ module TypeDefinition =
                 yield sprintf "type %s%s%s with" priv d.name tpars
 
                 for (priv, name, args, body) in d.statics do
-                    let body = Expr.toString d.scope body |> lines
+                    let body = Expr.toString log d.scope body |> lines
                     let priv = if priv then "internal " else ""
                             
                     if args = [] && name.StartsWith "get_" then
@@ -705,7 +705,7 @@ module TypeDefinition =
                         //yield sprintf "    static member %s =" (name.Substring 4)
                         //yield! Expr.toString d.scope b |> lines |> indent |> indent
                     else 
-                        let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
+                        let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString log d.scope a.Type)) |> String.concat ", "
 
                         if body.Length = 1 then
                             yield sprintf "    static member %s%s(%s) = %s" priv name args body.[0]
@@ -715,7 +715,7 @@ module TypeDefinition =
 
                             
                 for (ov, name, args, body) in d.members do
-                    let body = Expr.toString d.scope body |> lines
+                    let body = Expr.toString log d.scope body |> lines
                     let mem = if ov then "override" else "member"
 
                     if args = [] && name.StartsWith "get_" then
@@ -726,7 +726,7 @@ module TypeDefinition =
                             yield sprintf "    %s __.%s =" mem (name.Substring 4)
                             yield! body |> indent |> indent
                     else
-                        let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
+                        let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString log d.scope a.Type)) |> String.concat ", "
                             
                         if body.Length = 1 then
                             yield sprintf "    %s __.%s(%s) = %s" mem name args body.[0]
@@ -740,9 +740,9 @@ module TypeDefinition =
 
             let ctorArgs =
                 d.ctorArgs 
-                |> Seq.map (fun v -> sprintf "%s : %s" v.Name (TypeRef.toString d.scope v.Type)) |> String.concat ", "
+                |> Seq.map (fun v -> sprintf "%s : %s" v.Name (TypeRef.toString log d.scope v.Type)) |> String.concat ", "
 
-            let ctorLines = Expr.toString d.scope d.ctor |> lines |> indent
+            let ctorLines = Expr.toString log d.scope d.ctor |> lines |> indent
 
             let ctorLines =
                 if ctorLines.Length > 0 && ctorLines.[ctorLines.Length - 1].Trim() = "()" then Array.take (ctorLines.Length - 1) ctorLines
@@ -755,14 +755,14 @@ module TypeDefinition =
                 yield "[<System.Diagnostics.CodeAnalysis.SuppressMessage(\"NameConventions\", \"*\")>]"
                 yield sprintf "type %s%s%s(%s) =" priv d.name tpars ctorArgs
                 match d.baseType with
-                | Some b -> yield sprintf "    inherit %s()" (TypeRef.toString d.scope b)
+                | Some b -> yield sprintf "    inherit %s()" (TypeRef.toString log d.scope b)
                 | None -> ()
 
 
                 yield! ctorLines
 
                 for (priv, name, args, body) in d.statics do
-                    let body = Expr.toString d.scope body |> lines
+                    let body = Expr.toString log d.scope body |> lines
                     let priv = if priv then "internal " else ""
                             
                     if args = [] && name.StartsWith "get_" then
@@ -776,7 +776,7 @@ module TypeDefinition =
                         //yield sprintf "    static member %s =" (name.Substring 4)
                         //yield! Expr.toString d.scope b |> lines |> indent |> indent
                     else 
-                        let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
+                        let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString log d.scope a.Type)) |> String.concat ", "
 
                         if body.Length = 1 then
                             yield sprintf "    static member %s%s(%s) = %s" priv name args body.[0]
@@ -786,7 +786,7 @@ module TypeDefinition =
 
                             
                 for (ov, name, args, body) in d.members do
-                    let body = Expr.toString d.scope body |> lines
+                    let body = Expr.toString log d.scope body |> lines
                     let mem = if ov then "override" else "member"
 
                     if args = [] && name.StartsWith "get_" then
@@ -797,7 +797,7 @@ module TypeDefinition =
                             yield sprintf "    %s __.%s =" mem (name.Substring 4)
                             yield! body |> indent |> indent
                     else
-                        let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
+                        let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString log d.scope a.Type)) |> String.concat ", "
                             
                         if body.Length = 1 then
                             yield sprintf "    %s __.%s(%s) = %s" mem name args body.[0]
@@ -806,12 +806,12 @@ module TypeDefinition =
                             yield! body |> indent |> indent
 
                 for (iface, mems) in d.interfaces do
-                    let name = TypeRef.toString d.scope iface
+                    let name = TypeRef.toString log d.scope iface
                     yield sprintf "    interface %s with" name
                     let this = new Var("x", selfType)
                     for (name, args, body) in mems do
-                        let body = Expr.toString d.scope (body this) |> lines
-                        let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString d.scope a.Type)) |> String.concat ", "
+                        let body = Expr.toString log d.scope (body this) |> lines
+                        let args = args |> Seq.map (fun a -> sprintf "%s : %s" a.Name (TypeRef.toString log d.scope a.Type)) |> String.concat ", "
                             
                         if body.Length = 1 then
                             yield sprintf "        member x.%s(%s) = %s" name args body.[0]
@@ -1077,7 +1077,7 @@ module TypeDefinition =
         let statics =
             let selfCtor =  
                 let selfFullName =
-                    TypeRef.toString newScope selfType
+                    TypeRef.toString log newScope selfType
                 {
                     declaringType = Choice1Of2 newScope
                     isStatic      = true
@@ -1419,7 +1419,7 @@ module TypeDefinition =
 
                 let selfCtor =  
                     let selfFullName =
-                        TypeRef.toString newScope selfType
+                        TypeRef.toString log newScope selfType
                     {
                         declaringType = Choice1Of2 newScope
                         isStatic      = true
@@ -1619,7 +1619,7 @@ module TypeDefinition =
                     |]
                 wrap parent code
                     
-    let toFile (all : list<TypeDefinition>) =
+    let toFile (log : ILog) (all : list<TypeDefinition>) =
         String.concat "\r\n" [
             yield "#nowarn \"49\" // upper case patterns"
             yield "#nowarn \"66\" // upcast is unncecessary"
@@ -1629,7 +1629,7 @@ module TypeDefinition =
             let groups = all |> List.groupBy (fun d -> d.scope)
 
             for (scope, ts) in groups do 
-                let code = ts |> Seq.map toString |> Array.concat
+                let code = ts |> Seq.map (toString log) |> Array.concat
                 let str = wrap scope code
                 yield str
                 yield ""

@@ -16,12 +16,23 @@ type Warning =
         code : string
     }
 
+[<AutoOpen>]
+module private StringHelpers =
+
+    let toBase64 (str : string) =
+        System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes str)
+
+    let fromBase64 (str : string) =
+        System.Convert.FromBase64String str |> System.Text.Encoding.UTF8.GetString
+
+
 module Warning =
+
     let parse (str : string) : list<Warning> =
         if str.Length = 0 then 
             []
         else
-            let str = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(str))
+            let str = fromBase64 str
             str.Split([|"\r\n" |], System.StringSplitOptions.None)
             |> Array.toList
             |> List.map (fun (l : string) ->
@@ -32,20 +43,19 @@ module Warning =
                     startCol = int c.[1]
                     endLine = int c.[2]
                     endCol = int c.[3]
-                    code = c.[4]
-                    message = c.[5]
+                    code = fromBase64 c.[4]
+                    message = fromBase64 c.[5]
                 }
             )
 
     let pickle (l : list<Warning>) =
         let string =
             l |> List.map (fun w ->
-                sprintf "%d;%d;%d;%d;%s;%s" w.startLine w.startCol w.endLine w.endCol w.code w.message
+                sprintf "%d;%d;%d;%d;%s;%s" w.startLine w.startCol w.endLine w.endCol (toBase64 w.code) (toBase64 w.message)
             ) |> String.concat "\r\n"
             
         string
-        |> System.Text.Encoding.UTF8.GetBytes
-        |> System.Convert.ToBase64String
+        |> toBase64
 
 
 type FileCacheEntry =
@@ -78,7 +88,7 @@ module CacheFile =
 
                         let hasModels = comp.[2].ToLower().Trim() = "true"
 
-                        comp.[0], { fileHash = comp.[1]; hasModels = hasModels; warnings = warnings }
+                        fromBase64 comp.[0], { fileHash = comp.[1]; hasModels = hasModels; warnings = warnings }
                     )
                     |> Map.ofSeq
                 Some {
@@ -100,7 +110,7 @@ module CacheFile =
                 yield cache.projectHash
                 for (file, entry) in Map.toSeq cache.fileHashes do
                     let wrn = Warning.pickle entry.warnings
-                    yield sprintf "%s;%s;%s;%s" file entry.fileHash (if entry.hasModels then "true" else "false") wrn
+                    yield sprintf "%s;%s;%s;%s" (toBase64 file) entry.fileHash (if entry.hasModels then "true" else "false") wrn
             |])
         with _ ->
             ()

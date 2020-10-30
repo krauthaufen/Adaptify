@@ -1,3 +1,8 @@
+### 1.0.2
+* fixed cache parsing/writing
+* guarded `isAutoOpen` access for unknown attribute-types
+* respected optional ImplementationFile
+
 ### 1.0.1
 * added error handling to attribute processing 
 

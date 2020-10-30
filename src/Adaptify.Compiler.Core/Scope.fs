@@ -9,11 +9,11 @@ type Scope =
     | Module of parent : Scope * name : string * isAutoOpen : bool * hasModuleSuffix : bool
 
 module Scope =
-    let rec ofFSharpEntity (e : FSharpEntity) =
+    let rec ofFSharpEntity (log : ILog) (e : FSharpEntity) =
         if e.IsNamespace then
             match e.DeclaringEntity with
             | Some d ->
-                match ofFSharpEntity d with
+                match ofFSharpEntity log d with
                 | Namespace p -> p + "." + e.DisplayName |> Namespace
                 | _ -> failwith "invalid F#"
 
@@ -21,12 +21,12 @@ module Scope =
                 Namespace(e.DisplayName)
 
         elif e.IsFSharpModule then
-            let autoOpen = e.Attributes |> Seq.exists FSharpAttribute.isAutoOpen
+            let autoOpen = e.Attributes |> Seq.exists (FSharpAttribute.isAutoOpen log)
             let moduleSuffix = e.HasFSharpModuleSuffix
             let name = e.DisplayName
             match e.DeclaringEntity with
             | Some d ->
-                let parent = ofFSharpEntity d
+                let parent = ofFSharpEntity log d
                 Module(parent, name, autoOpen, moduleSuffix)
             | None ->
                 match e.Namespace with
@@ -43,13 +43,13 @@ module Scope =
         else
             failwithf "%s is neither a module nor a namespace" e.DisplayName
          
-    let rec ofFSharpEntityOpt (e : option<FSharpEntity>) (ns : option<string>) =  
+    let rec ofFSharpEntityOpt (log : ILog) (e : option<FSharpEntity>) (ns : option<string>) =  
         match e with
         | None ->
             match ns with
             | Some ns -> Namespace ns
             | None -> Global
-        | Some e -> ofFSharpEntity e
+        | Some e -> ofFSharpEntity log e
 
     let rec fullName (scope : Scope) =
         match scope with
