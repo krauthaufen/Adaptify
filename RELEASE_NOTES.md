@@ -1,3 +1,6 @@
+### 1.0.3
+* more debug logging info during adaptify tool install and limited number of retries
+
 ### 1.0.2
 * fixed cache parsing/writing
 * guarded `isAutoOpen` access for unknown attribute-types

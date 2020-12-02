@@ -470,9 +470,12 @@ module ProcessManagement =
         else    
             let toolPath = Path.Combine(directory(), executableName)
             if not (File.Exists toolPath) then
-                log.info range0 "adaptify tool %s not found (installing)" selfVersion
+                log.info range0 "adaptify tool %s not found in toolpath \"%s\" (installing)" selfVersion toolPath
 
-                while not (File.Exists toolPath) do
+                let mutable numTry = 0
+                while not (File.Exists toolPath) && numTry < 10 do
+                    numTry <- numTry + 1
+                    if numTry > 1 then log.info range0 "retrying..."
                     locked (fun () ->
                         try
                             dotnet log [ 
@@ -481,8 +484,10 @@ module ProcessManagement =
                                 "--tool-path"; sprintf "\"%s\"" (directory())
                                 "--version"; sprintf "[%s]" selfVersion
                             ]
-                            log.info range0 "installed tool at %s" toolPath
+                            log.info range0 "installed tool at \"%s\"" toolPath
                         with _ ->
+                            log.warn range0 "" "error installing tool to path \"%s\"" toolPath
+                            Thread.Sleep(1000)
                             ()
                     )
             
