@@ -21,7 +21,7 @@ nuget Microsoft.Build                       ~> 16.4.0
 group Build
   source https://api.nuget.org/v3/index.json
   framework: netstandard2.0
-  nuget fake-cli ~> 5.20.0
+  nuget fake-cli ~> 5.20.4-alpha.1642
   nuget Fake.DotNet.Cli ~> 5.20.0
   nuget Fake.Core.Target ~> 5.20.0
   nuget Fake.DotNet.Paket ~> 5.20.0
