@@ -20,6 +20,7 @@ type AdaptiveValue<'T>() =
 
     interface IAdaptiveValue with
         member x.GetValueUntyped t = x.GetValue t :> obj
+        member x.Accept(v) = v.Visit(x)
         member x.ContentType =
             #if FABLE_COMPILER
             typeof<obj>
