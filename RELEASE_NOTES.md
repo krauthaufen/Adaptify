@@ -1,3 +1,6 @@
+### 1.0.5
+* updated FSharp.Data.Adaptive to 1.2.0
+
 ### 1.0.4
 * updated FSharp.Data.Adaptive to 1.1.0
 * more debug logging info during adaptify tool install and limited number of retries
