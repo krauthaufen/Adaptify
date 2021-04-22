@@ -1,21 +1,22 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
+  <Import Project="$(MSBuildThisFileDirectory)..\..\..\bin\Release\net472\Adaptify.MSBuild.targets" />
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net471</TargetFramework>
+    <TargetFramework>net472</TargetFramework>
     <DisableImplicitFSharpCoreReference>True</DisableImplicitFSharpCoreReference>
-  </PropertyGroup>
-
+    <!--<DebugHate>True</DebugHate>-->
+  </PropertyGroup>   
+ 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <OutputPath>..\..\..\bin\Debug\</OutputPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <OutputPath>..\..\..\bin\Release\</OutputPath>
   </PropertyGroup>
-
+ 
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="4.6.2" />
-    <PackageReference Include="FSharp.Data.Adaptive" Version="0.0.16" />
+    <PackageReference Include="FSharp.Core" Version="4.6.2" />  
+    <PackageReference Include="FSharp.Data.Adaptive" Version="1.2.0" /> 
     <PackageReference Include="System.Reflection.Emit.Lightweight" Version="4.6.0" />
   </ItemGroup>
 
@@ -29,5 +30,4 @@
       <HintPath>..\..\..\bin\Release\netstandard2.0\Adaptify.Core.dll</HintPath>
     </Reference>
   </ItemGroup>
-  <Import Project="$(MSBuildThisFileDirectory)..\..\..\bin\Release\Adaptify.MSBuild.targets" />
 </Project>
