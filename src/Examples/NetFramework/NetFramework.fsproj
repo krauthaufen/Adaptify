@@ -1,5 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="$(MSBuildThisFileDirectory)..\..\..\bin\Release\net472\Adaptify.MSBuild.targets" />
+  <Import Project="$(MSBuildThisFileDirectory)..\..\..\bin\Release\Adaptify.MSBuild.targets" />
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net472</TargetFramework>
