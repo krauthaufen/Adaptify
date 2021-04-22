@@ -303,7 +303,7 @@ module Adaptify =
                     if not (file.EndsWith ".g.fs") then
                         let content = File.ReadAllText file
                         let mayDefineModelTypes = modelTypeRx.IsMatch content
-                        if noGeneration then
+                        if noGeneration && File.Exists (getOutputFile file) then // no matter what, if output file does not exist, create it - non-existing files should not be returned
                             newFiles.Add file
                             let generated = getOutputFile file
                             if mayDefineModelTypes then
