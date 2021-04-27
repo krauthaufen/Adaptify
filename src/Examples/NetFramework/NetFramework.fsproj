@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="ModuleMixUp.fs" />
     <Compile Include="Model.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
