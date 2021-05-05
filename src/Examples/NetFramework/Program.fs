@@ -11,11 +11,10 @@ let main _argv =
     let _ = Unpersist.instance<MyUnion, AdaptiveMyUnion>   
     let test = Unpersist.instance<MyModel, AdaptiveMyModel> 
        
-    let v = test.init { a = Error "bad"; b = 3.0; map = HashMap.empty; i = 0 }
-    test.update v { a = Error "bad"; b = 4.0; map = HashMap.empty; i = 0 } 
+    let v = test.init { a = Error "bad";map = HashMap.empty; urdar4 = 1; test2 = 5; test5 = 5 }
+    test.update v { a = Error "bad";map = HashMap.empty;  urdar4 = 2; test2 = 65; test5 = 100 }  
      
-
-
+    
     let _ : aval<MyModel> = v.Current
      
     match AVal.force v.a with
@@ -23,7 +22,7 @@ let main _argv =
     | AdaptiveError error -> () 
 
     //test.MyCurrent
-
+     
     //let face1 = { new Blubber with member x.Sepp = 100 }
     //let face2 = { new Blubber with member x.Sepp = 56 }
 

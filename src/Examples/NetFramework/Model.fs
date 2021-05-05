@@ -11,12 +11,12 @@ type MyUnion =
 [<ModelType>]
 type MyModel =  
     {    
-        i : int     
         a : Result<MyModel, string> 
-
-        b : float 
+        urdar4 : int
+        test2 : int
+        test5 : int
         //list : HashSet<MyModel>
-        map : HashMap<int, MyModel> 
+        map : HashMap<int, MyModel>   
     }
 
 

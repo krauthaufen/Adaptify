@@ -15,7 +15,7 @@ type MyUnion =
 [<ModelType>]
 type MyModel =  
     {
-        e : StaticClass.CSharpClass
+        e : StaticClass.CSharpClass 
         g : HashMap<string, StaticClass.CSharpStruct>
         a : Result<MyModel, string>
         b : float

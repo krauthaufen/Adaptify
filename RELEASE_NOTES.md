@@ -1,3 +1,6 @@
+### 1.0.7
+* fixed net472 missing .g files design time 
+
 ### 1.0.6
 * fixed net472 missing .g files design time 
 
