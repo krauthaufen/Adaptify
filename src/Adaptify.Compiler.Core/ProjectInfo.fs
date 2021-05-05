@@ -221,7 +221,12 @@ module ProjectInfo =
             //let fileInfo = FileInfo r
             //if fileInfo.Exists then
             //    w.WriteLine(fileInfo.LastWriteTimeUtc.ToString("o"))
-            w.WriteLine(relativePath r)
+            
+            // workaround for https://github.com/krauthaufen/Adaptify/issues/20
+            if r.Contains @".NETFramework\v4.7.2\Facades" then 
+                () // ignoring sattelite references for caching since starting in .net 4.7.2 design time and builds have different behaviour when it comes to sattelite references
+            else
+                w.WriteLine(relativePath r)
 
         w.WriteLine "files"
         for f in info.files do 
