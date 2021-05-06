@@ -11,7 +11,8 @@ type MyUnion =
 [<ModelType>]
 type MyModel =  
     {    
-        i : int             a : Result<MyModel, string> 
+        i : int             
+        a : Result<MyModel, string> 
         urdar4 : int
         test2 : int
         test5 : int
@@ -20,7 +21,7 @@ type MyModel =
     }
 
 // THIS MODULES CAUSES CRASH! (type with same name is created witihn ModuleMixUp.fs)
-module BadBoy = 
+module BadBoy2 = 
     
     let this () = "asdf"
 

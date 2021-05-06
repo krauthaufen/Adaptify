@@ -454,7 +454,7 @@ module Adaptify =
                                             try 
                                                 l.Value |> Some
                                             with e -> 
-                                                log.error range0 "jas" "[Adaptify] could not get type entity:%s" e.Message
+                                                log.error range0 "1337" "[Adaptify] could not get type entity:%s" e.Message
                                                 None)
                                         |> List.collect (TypeDefinition.ofTypeDef localLogger createLenses [])
 
