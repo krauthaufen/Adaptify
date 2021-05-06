@@ -11,6 +11,7 @@ type MyUnion =
 [<ModelType>]
 type MyModel =  
     {    
+        i : int             
         a : Result<MyModel, string> 
         urdar4 : int
         test2 : int
@@ -19,7 +20,10 @@ type MyModel =
         map : HashMap<int, MyModel>   
     }
 
-
+// THIS MODULES CAUSES CRASH! (type with same name is created witihn ModuleMixUp.fs)
+module BadBoy2 = 
+    
+    let this () = "asdf"
 
 //open FSharp.Data.Adaptive
 //open Adaptify
