@@ -450,7 +450,12 @@ module Adaptify =
                                     let definitions =   
                                         entities 
                                         |> List.choose (TypeDef.ofEntity localLogger)
-                                        |> List.map (fun l -> l.Value)
+                                        |> List.choose (fun l -> 
+                                            try 
+                                                l.Value |> Some
+                                            with e -> 
+                                                log.error range0 "jas" "[Adaptify] could not get type entity:%s" e.Message
+                                                None)
                                         |> List.collect (TypeDefinition.ofTypeDef localLogger createLenses [])
 
                                     let warnings = Seq.toList warnings
@@ -494,4 +499,7 @@ module Adaptify =
         }
 
     let run (checker : FSharpChecker) (outputPath : string) (designTime : bool) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
-        runAsync checker outputPath designTime useCache createLenses log projectInfo |> Async.RunSynchronously
+        try runAsync checker outputPath designTime useCache createLenses log projectInfo  |> Async.RunSynchronously
+        with e -> 
+            log.warn range0 "Internal error?" "[Adaptify]   internal error: %s" (e.Message)
+            []
