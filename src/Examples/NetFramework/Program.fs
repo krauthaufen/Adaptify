@@ -11,9 +11,12 @@ let main _argv =
     let _ = Unpersist.instance<MyUnion, AdaptiveMyUnion>   
     let test = Unpersist.instance<MyModel, AdaptiveMyModel> 
        
-    let v = test.init { a = Error "bad";map = HashMap.empty; urdar4 = 1; test2 = 5; test5 = 5; i = 10 }
-    test.update v { a = Error "bad";map = HashMap.empty;  urdar4 = 2; test2 = 65; test5 = 100; i = 10 }  
-     
+    let v = test.init MyModel.initial
+
+
+    test.update v { MyModel.initial with a = Error "bad"; }  
+    
+    v.i |> AVal.map (fun s -> printf "%d" s) |> ignore
     
     let _ : aval<MyModel> = v.Current
      

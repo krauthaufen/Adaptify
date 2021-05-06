@@ -5,6 +5,7 @@
     <TargetFramework>net472</TargetFramework>
     <DisableImplicitFSharpCoreReference>True</DisableImplicitFSharpCoreReference>
     <!--<DebugHate>True</DebugHate>-->
+    <TouchFiles>True</TouchFiles>
   </PropertyGroup>   
  
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

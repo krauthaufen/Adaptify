@@ -1,4 +1,7 @@
 ### 1.0.7
+* optional flag to overwrite last-write-time for possibly affected files
+
+### 1.0.7
 * fixed net472 missing .g files design time 
 
 ### 1.0.6

@@ -20,6 +20,10 @@ type MyModel =
         map : HashMap<int, MyModel>   
     }
 
+module MyModel =
+
+    let initial = { a = Error "bad";map = HashMap.empty; urdar4 = 1; test2 = 5; test5 = 5; i = 1}
+
 // THIS MODULES CAUSES CRASH! (type with same name is created witihn ModuleMixUp.fs)
 module BadBoy2 = 
     
