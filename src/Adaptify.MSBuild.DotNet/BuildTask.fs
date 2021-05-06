@@ -14,6 +14,7 @@ type AdaptifyTask() =
 
     let mutable designTime = false
     let mutable debug = false
+    let mutable touchFiles = false
     let mutable files : string[] = [||]
     let mutable references : string[] = [||]
     let mutable projectFile = ""
@@ -120,6 +121,15 @@ type AdaptifyTask() =
                         }
 
                     let newFiles = Client.adaptify cancel.Token x.Logger projInfo outputPath designTime true createLenses
+
+                    if touchFiles then
+                        x.Logger.info range0 "[Adaptify] touching project files to trigger code completion updates..."
+                        try
+                            let time = System.DateTime.Now
+                            for f in newFiles do    
+                                File.SetLastWriteTime(f,time)
+                        with e -> 
+                            x.Logger.info range0 "[Adaptify] could not touch files"
     
                     results <- List.toArray newFiles
                     not cancel.IsCancellationRequested
@@ -145,6 +155,10 @@ type AdaptifyTask() =
     member x.Debug
         with get() = debug
         and set i = debug <- i
+
+    member x.TouchFiles 
+        with get() = touchFiles
+        and set t = touchFiles <- t
         
     member x.TargetFramework
         with get() = framework
