@@ -17,6 +17,7 @@
         GenerateLenses="$(GenerateLenses)" 
         TargetFramework="$(TargetFramework)" 
         Debug="$(DebugHate)" 
+        TouchFiles="$(TouchFiles)"
         Files="@(OldItems)" 
         References="@(_ResolveAssemblyReferenceResolvedFiles)" 
         ProjectFile="$(MSBuildProjectFullPath)"
