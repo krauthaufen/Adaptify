@@ -291,7 +291,9 @@ let main argv =
                 Client.adaptify CancellationToken.None log info outputPath false (not force) lenses |> ignore<list<string>>
             else
                 let checker = newChecker()
-                Adaptify.run checker outputPath false (not force) lenses log info |> ignore<list<string>>
+                Adaptify.generateDeltaTypes checker outputPath false (not force) lenses log info
+                |> Async.RunSynchronously
+                //Adaptify.run checker outputPath false (not force) lenses log info |> ignore<list<string>>
         )
 
         0 

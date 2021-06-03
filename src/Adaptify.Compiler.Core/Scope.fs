@@ -97,7 +97,9 @@ module Scope =
                     | Some str -> str + "." + name |> Some
                     | None -> name |> Some
                 | Namespace ns ->
-                    Some ns
+                    if ns = "Microsoft.FSharp.Core" then None
+                    elif ns = "FSharp.Data.Adaptive" then None
+                    else Some ns
                 | Global ->
                     None
         match find scope with

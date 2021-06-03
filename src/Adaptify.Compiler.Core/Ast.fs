@@ -26,6 +26,7 @@ type Pattern =
     | Any
 
 type Expr =
+    | Boolean of bool
     | Unit
     | Var of Var
     | Lambda of list<Var> * Expr
@@ -44,6 +45,8 @@ type Expr =
     | And of list<Expr>
     | Match of Expr * list<Pattern * Expr>
     | RecordUpdate of Expr * Prop * Expr
+    | NewList of list<Expr>
+    | EmptyList of t : TypeRef
 
     static member Many (s : list<Expr>) =
         match s with
@@ -53,6 +56,15 @@ type Expr =
 
     member x.Type =
         match x with
+        | EmptyList t ->
+            TExtRef(Namespace "Microsoft.FSharp.Collections", "list", [t])
+        | Boolean _ ->
+            TBool
+        | NewList (t :: _) ->
+            TExtRef(Namespace "Microsoft.FSharp.Collections", "list", [t.Type])
+        | NewList [] ->
+            failwith "bad list"
+            
         | Match(_,[]) ->
             failwith "bad match"
         | Match(_, (_,c) :: _) ->
@@ -193,6 +205,10 @@ module Expr =
 
     let rec toString (log : ILog) (scope : Scope) (e : Expr) =
         match e with
+        | EmptyList t -> 
+            sprintf "List.empty<%s>" (TypeRef.toString log scope t)
+        | Boolean v ->
+            string v
         | Match(e, cases) ->
             let prefix, e = toOneLineArgs log scope [e]
             let e = List.head e
@@ -213,6 +229,14 @@ module Expr =
 
         | And vs ->
             vs |> List.map (toString log scope) |> String.concat " && "
+
+        | NewList elements ->
+            let content = 
+                elements 
+                |> List.map (toString log scope) 
+                |> String.concat "\r\n" 
+                |> lines |> indent |> String.concat "\r\n"
+            sprintf "[\r\n%s\r\n]" content
 
         | Lambda([v], Application(b, Var v1)) when v.Name = v1.Name ->
             toString log scope b
@@ -405,6 +429,10 @@ module Expr =
 
     let rec substitute (mapping : Var -> Option<Expr>) (e : Expr) =
         match e with
+        | EmptyList _ -> e
+        | Boolean _ -> e
+        | NewList e ->
+            e |> List.map (substitute mapping) |> NewList
         | Unit -> e
         | Var v ->
             match mapping v with

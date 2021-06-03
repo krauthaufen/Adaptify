@@ -2,8 +2,8 @@ source https://api.nuget.org/v3/index.json
 redirects: off
 framework: netstandard2.0, net472, netcoreapp2.0, netcoreapp2.1, netcoreapp2.2, netcoreapp3.0, netcoreapp3.1
 
-nuget FSharp.Core                           >= 4.6.2 lowest_matching: true
-nuget FSharp.Data.Adaptive                  ~> 1.2.0
+nuget FSharp.Core                           >= 4.7.0 lowest_matching: true
+nuget FSharp.Data.Adaptive                  ~> 1.2.6
 nuget System.Reflection.Emit.Lightweight    >= 4.6.0
 
 # PreCompiler
@@ -16,7 +16,7 @@ nuget Microsoft.Build.Tasks.Core            ~> 16.4.0
 nuget Microsoft.Build.Framework             ~> 16.4.0
 nuget Microsoft.Build.Utilities.Core        ~> 16.4.0
 nuget Microsoft.Build                       ~> 16.4.0
-
+nuget Humanizer.Core                        ~> 2.10.1
 
 group Build
   source https://api.nuget.org/v3/index.json

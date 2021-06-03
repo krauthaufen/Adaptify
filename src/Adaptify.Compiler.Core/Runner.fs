@@ -135,7 +135,677 @@ module Adaptify =
                     indentStr code
                     yield! indent defs
                 ]
-               
+    open Humanizer
+    
+    
+    let rec getScope (d : TypeDef) =
+        match d with
+        | TypeDef.ProductType(_,_,_,s,_,_) -> s
+        | TypeDef.Generic(_, t) -> getScope t
+        | TypeDef.Union(_,s,_,_,_) -> s
+
+
+    let rec deltaType (t : TypeRef) =
+        match t with
+        | TModel(_, def, targs) ->
+            let def = def.Value
+            TExtRef(getScope def, sprintf "%sDelta" def.Name, targs) 
+            |> List.typ 
+            |> Some
+
+        | HashSet t ->
+            HashSetDelta.typ t |> Some
+
+        | IndexList t ->
+            match t with
+            | TModel _ ->
+                match deltaType t with
+                | Some deltaType ->
+                    IndexList.typ (ElementDelta.typ t deltaType) |> Some
+                | None ->
+                    IndexListDelta.typ t |> Some
+            | _ ->
+                IndexListDelta.typ t |> Some
+
+        | HashMap(k, v) ->
+            match v with
+            | TModel _ ->
+                match deltaType v with
+                | Some deltaType ->
+                    HashMap.typ k (ElementDelta.typ v deltaType) |> Some
+                | None ->
+                    HashMapDelta.typ k v |> Some
+            | _ ->
+                HashMapDelta.typ k v |> Some
+
+
+        | _ ->
+            None
+
+    let newValues = false
+
+    let rec propUpdateCase (scope : Scope) (p : Prop) =
+        let inline tstr t = TypeRef.toString Log.empty scope t
+        let name = p.name.Pascalize()
+        let valueName = name.Camelize()
+        
+        match p.typ with
+        | TTuple(_, elems) ->
+            elems |> List.indexed |> List.collect (fun (i, t) ->
+                propUpdateCase scope { p with name = sprintf "%s%d" p.name i; typ = t}
+            )
+        | _ -> 
+            match deltaType p.typ with
+            | Some deltaType ->
+                [
+                    sprintf "Update%s" name, [
+                        if newValues then
+                            {
+                                Prop.name = "newValue"
+                                Prop.typ = p.typ
+                                Prop.isRecordField = false
+                                Prop.mode = AdaptifyMode.Default
+                                Prop.range = range0
+                            }
+                        {
+                            Prop.name = "delta"
+                            Prop.typ = deltaType
+                            Prop.isRecordField = false
+                            Prop.mode = AdaptifyMode.Default
+                            Prop.range = range0
+                        }
+                    ]
+                ]
+            | None ->
+                [
+                    sprintf "Set%s" name, [
+                        {
+                            Prop.name = valueName
+                            Prop.typ = p.typ
+                            Prop.isRecordField = false
+                            Prop.mode = AdaptifyMode.Default
+                            Prop.range = range0
+                        }
+                    ]
+                ]
+
+    let rec operationType (tpars : list<TypeVar>) (t : TypeDef) =
+        let rec cases (t : TypeDef) =
+            match t with
+            | ProductType _ -> []
+            | Union(_,_,_,_,cases) -> cases
+            | Generic(_, t) -> cases t
+
+        match t with
+        | ProductType(_, range, isValueType, scope, name, properties) ->
+            [
+                TypeDef.Union(range0, scope, sprintf "%sDelta" name, [], 
+                    properties |> List.collect (fun p -> propUpdateCase scope p)
+                )
+            ]
+        | TypeDef.Union(range, scope, typeName, _props, cases) ->
+            [
+                let singleCase = System.Collections.Generic.List<_>()
+                let others = System.Collections.Generic.List()
+                for name, props in cases do 
+                    match props with
+                    | [_] ->
+                        singleCase.Add(name, props)
+                    | _ -> 
+                        others.Add(name, props)
+                        let def = TypeDef.ProductType(false, range0, false, scope, sprintf "%s%s" typeName name, props)
+                        let ops = operationType tpars def
+                        yield! ops
+
+                TypeDef.Union(
+                    range0, scope, sprintf "%sDelta" typeName, [], [
+
+                        for name, props in singleCase do    
+                            let s = List.head props
+                            match s.typ with
+                            | TModel _ ->
+                                let d = deltaType s.typ |> Option.get
+                                yield sprintf "Update%s" name, [
+                                    if newValues then
+                                        {
+                                            Prop.name = "newValue"
+                                            Prop.typ = s.typ
+                                            range = range0
+                                            mode = AdaptifyMode.Default
+                                            isRecordField = false
+                                        }
+                                    {
+                                        Prop.name = "delta"
+                                        Prop.typ = d
+                                        range = range0
+                                        mode = AdaptifyMode.Default
+                                        isRecordField = false
+                                    }
+                                ]
+                            | _ ->      
+                                yield sprintf "Set%s" name, [
+                                    {
+                                        Prop.name = "value"
+                                        Prop.typ = s.typ
+                                        range = range0
+                                        mode = AdaptifyMode.Default
+                                        isRecordField = false
+                                    }
+                                ]
+
+                        for name, props in others do
+                           
+                            yield sprintf "Update%s" name, [
+                                if newValues then
+                                    yield {
+                                        Prop.name = "newValue"
+                                        Prop.typ = TTuple(false, props |> List.map (fun p -> p.typ))
+                                        range = range0
+                                        mode = AdaptifyMode.Default
+                                        isRecordField = false
+                                    }
+                                yield {
+                                    Prop.name = "delta"
+                                    Prop.typ = List.typ (TExtRef(scope, sprintf "%s%sDelta" typeName name, tpars |> List.map TVar))
+                                    range = range0
+                                    mode = AdaptifyMode.Default
+                                    isRecordField = false
+                                }
+                            ]
+                            
+                            yield sprintf "Set%s" name, props
+                    ])
+            ]
+        | TypeDef.Generic(tpars, t) ->  
+            operationType tpars t |> List.map (fun t -> TypeDef.Generic(tpars, t))
+
+    let isEmptyExpr (e : Expr) =
+        let typ = e.Type
+        match typ with
+        | Option et ->
+            let v = new Var("value", et)
+            Expr.Match(e, 
+                [
+                    Pattern.UnionCaseTest(typ, "Some", [v]), Expr.Boolean true
+                    Pattern.Any, Expr.Boolean false
+                ]
+            )
+        | List et ->
+            Expr.Call(None, List.isEmptyMeth et, [e])
+        | HashSetDelta et ->
+            Expr.Call(None, HashSetDelta.isEmptyMeth et, [e])
+        | HashMap(k, v) ->
+            Expr.Call(None, HashMap.isEmptyMeth k v, [e])
+        //| HashMapDelta
+        | _ ->
+            // TODO
+            Expr.Boolean false
+
+    let rec diff (a : Var) (b : Var) (t : TypeDef) =
+        
+        let tDelta = deltaType (TypeRef.TModel(range0, lazy t, [])) |> Option.get
+        let selfDelta = TExtRef(Global, sprintf "%sDelta" t.Name, [])
+
+        match t with
+        | ProductType(_, range, isValueType, scope, name, properties) ->
+            
+            let deltas =
+                properties |> List.map (fun p ->
+                    let pa = Expr.PropertyGet(Expr.Var a, p)
+                    let pb = Expr.PropertyGet(Expr.Var b, p)
+
+                    match p.typ with
+                    | TModel(_,def,targs) ->
+                        let n = def.Value.Name
+                        let s = getScope def.Value
+                        let tPropDelta = deltaType p.typ |> Option.get
+
+                        let newCase =
+                            {
+                                Method.declaringType = Choice2Of2 selfDelta
+                                Method.isStatic = true
+                                Method.name = sprintf "Update%s" (p.name.Pascalize())
+                                Method.parameters = 
+                                    if newValues then [ p.typ; tPropDelta ]
+                                    else [ tPropDelta ]
+                                Method.returnType = deltaType p.typ |> Option.get
+                            }
+
+                        let retType = deltaType p.typ |> Option.get
+                        let meth =
+                            {
+                                Method.declaringType = Choice1Of2 (Module(scope, n, false, false))
+                                Method.isStatic = true
+                                Method.name = "get_computeDelta"
+                                Method.parameters = [ ]
+                                Method.returnType = TFunc(p.typ, TFunc(p.typ, retType))
+                            }
+                        let delta = new Var("delta", retType)
+                        Expr.IfThenElse(
+                            Expr.Call(None, notMeth, [Expr.Call(None, shallowEquals p.typ, [pa; pb])]),
+                            Expr.Let(false, [delta], Expr.Application(Expr.Application(Expr.Call(None, meth, []), pa), pb), 
+                                Expr.IfThenElse(
+                                    Expr.Call(None, notMeth, [isEmptyExpr (Expr.Var delta)]),
+                                    Expr.Call(None, newCase, 
+                                        if newValues then [pb; Expr.Var delta]
+                                        else [ Expr.Var delta ]
+                                    ),
+                                    Expr.Unit
+                                )
+                            ),
+                            Expr.Unit
+                        )
+
+                    | HashSet t ->
+                        let tPropDelta = deltaType p.typ |> Option.get
+
+                        let newCase =
+                            {
+                                Method.declaringType = Choice2Of2 selfDelta
+                                Method.isStatic = true
+                                Method.name = sprintf "Update%s" (p.name.Pascalize())
+                                Method.parameters = 
+                                    if newValues then [ p.typ; tPropDelta ]
+                                    else [tPropDelta]
+                                Method.returnType = deltaType p.typ |> Option.get
+                            }
+
+                        let retType = HashSetDelta.typ t
+                        let delta = new Var("delta", retType)
+                        Expr.IfThenElse(
+                            Expr.Call(None, notMeth, [Expr.Call(None, shallowEquals p.typ, [pa; pb])]),
+                            Expr.Let(false, [delta], HashSet.computeDeltaExpr pa pb, 
+                                Expr.IfThenElse(
+                                    Expr.Call(None, notMeth, [isEmptyExpr (Expr.Var delta)]),
+                                    Expr.Call(None, newCase, 
+                                        if newValues then [pb; Expr.Var delta]
+                                        else [ Expr.Var delta ]
+                                    ),
+                                    Expr.Unit
+                                )
+                            ),
+                            Expr.Unit
+                        )
+                        
+                    | HashMap(k, (TModel(_, def, _) as v)) ->
+                        let allDelta = deltaType p.typ |> Option.get
+                        let delta = deltaType v |> Option.get
+                        let vd = new Var("delta", HashMap.typ k (ElementOperation.typ v))
+
+                        let computeValueDelta =
+                            {
+                                Method.declaringType = Choice1Of2 (Module(scope, def.Value.Name, false, false))
+                                Method.isStatic = true
+                                Method.name = "get_computeDelta"
+                                Method.parameters = [ ]
+                                Method.returnType = TFunc(v, TFunc(v, delta))
+                            }
+                            
+                        let newCase =
+                            {
+                                Method.declaringType = Choice2Of2 selfDelta
+                                Method.isStatic = true
+                                Method.name = sprintf "Update%s" (p.name.Pascalize())
+                                Method.parameters = 
+                                    if newValues then [ p.typ; HashMap.typ k (ElementDelta.typ v delta) ]
+                                    else [ HashMap.typ k (ElementDelta.typ v delta) ]
+                                Method.returnType = allDelta
+                            }
+
+                        let vv = new Var("vv", newCase.returnType)
+
+                        let getInnerDelta =
+                            let someMeth =
+                                {
+                                    declaringType = Choice1Of2(Module(Scope.Namespace("Microsoft.FSharp.Core"), "Option", false, false))
+                                    name = "Some"
+                                    parameters = []
+                                    isStatic = true
+                                    returnType = Option.typ allDelta
+                                }
+                                
+                            let noneMeth =
+                                {
+                                    declaringType = Choice1Of2(Module(Scope.Namespace("Microsoft.FSharp.Core"), "Option", false, false))
+                                    name = "get_None"
+                                    parameters = []
+                                    isStatic = true
+                                    returnType = Option.typ allDelta
+                                }
+                            let a = new Var("a", v)
+                            let b = new Var("b", v)
+                            let res = new Var("result", delta)
+                            Expr.Lambda([a],
+                                Expr.Lambda([b],
+                                    Expr.Let(
+                                        false, [res],
+                                        Expr.Application(
+                                            Expr.Application(
+                                                Expr.Call(None, computeValueDelta, []),
+                                                Expr.Var a
+                                            ),
+                                            Expr.Var b
+                                        ),
+                                        Expr.IfThenElse(
+                                            Expr.Call(None, notMeth, [isEmptyExpr (Expr.Var res)]),
+                                            Expr.Call(None, someMeth, [Expr.Var res]),
+                                            Expr.Call(None, noneMeth, [])
+                                        )
+                                    )
+                                )
+                            )
+
+                        Expr.IfThenElse(
+                            Expr.Call(None, notMeth, [Expr.Call(None, shallowEquals p.typ, [pa; pb])]),
+                            Expr.Let(
+                                false, [vd], Expr.Call(None, HashMapDelta.toHashMapMeth k v, [HashMap.computeDeltaExpr pa pb]),
+                                
+                                Expr.Let(
+                                    false, [vv], HashMap.getElementDeltasExpr pa (Expr.Var vd) getInnerDelta,
+                                    
+                                    Expr.IfThenElse(
+                                        Expr.Call(None, notMeth, [isEmptyExpr (Expr.Var vv)]),
+                                        Expr.Call(None, newCase, 
+                                            if newValues then [pb; Expr.Var vv]
+                                            else [ Expr.Var vv ]
+                                        ),
+                                        Expr.Unit
+                                    )
+                                )
+                                //Expr.Call(
+                                //    None, HashMap.applyOperationsMeth k v delta,
+                                //    [
+                                //        pa; Expr.Var vd
+                                //        Expr.Call(None, computeValueDelta, [])
+                                //    ]
+                                //)
+                            ),
+                            Expr.Unit
+                        )
+                    
+                    | HashMap(k, v) ->
+                        let retType = HashMapDelta.typ k v
+
+                        let newCase =
+                            {
+                                Method.declaringType = Choice2Of2 selfDelta
+                                Method.isStatic = true
+                                Method.name = sprintf "Update%s" (p.name.Pascalize())
+                                Method.parameters = 
+                                    if newValues then [ p.typ; retType ]
+                                    else [retType]
+                                Method.returnType = deltaType p.typ |> Option.get
+                            }
+
+                        let delta = new Var("delta", retType)
+                        Expr.IfThenElse(
+                            Expr.Call(None, notMeth, [Expr.Call(None, shallowEquals p.typ, [pa; pb])]),
+                            Expr.Let(false, [delta], HashMap.computeDeltaExpr pa pb, 
+                                Expr.IfThenElse(
+                                    Expr.Call(None, notMeth, [isEmptyExpr (Expr.Var delta)]),
+                                    Expr.Call(None, newCase, 
+                                        if newValues then [pb; Expr.Var delta]
+                                        else [ Expr.Var delta ]
+                                    ),
+                                    Expr.Unit
+                                )
+                            ),
+                            Expr.Unit
+                        )
+
+                    | _ ->
+                        
+                        let newCase =
+                            {
+                                Method.declaringType = Choice2Of2 selfDelta
+                                Method.isStatic = true
+                                Method.name = sprintf "Set%s" (p.name.Pascalize())
+                                Method.parameters = [ p.typ ]
+                                Method.returnType = selfDelta
+                            }
+                        Expr.IfThenElse(
+                            Expr.Call(None, notMeth, [Expr.Call(None, defaultEquals pa.Type, [pa; pb])]),
+                            Expr.Call(None, newCase, [pb]),
+                            Expr.Unit
+                        )
+                )
+
+            Expr.NewList deltas
+
+        | Union(range, scope, name, _, cases) ->
+
+            let setCtors =
+                cases |> List.map (fun (name, props) ->
+                    let meth =
+                        {
+                            Method.declaringType = Choice2Of2 selfDelta
+                            Method.isStatic = true
+                            Method.name = sprintf "Set%s" (name.Pascalize())
+                            Method.parameters = props |> List.map (fun p -> p.typ)
+                            Method.returnType = selfDelta
+                        }
+
+                    let create (values : list<Expr>) =
+                        Expr.Call(None, meth, values)
+
+                    name, create
+                )
+                |> Map.ofList
+
+            Expr.Match(
+                Expr.Var b,
+                [
+                    for caseName, props in cases do
+                        let ba = props |> List.map (fun p -> new Var("b" + p.name, p.typ))
+                        let aa = props |> List.map (fun p -> new Var("a" + p.name, p.typ))
+                        
+                       
+                        let changed =
+                            match props with
+                            | [_] ->
+                                Expr.NewList [
+                                    setCtors.[caseName] (ba |> List.map Expr.Var)
+                                ]
+                            | _ ->
+
+                                let tCaseDelta =
+                                    TExtRef(scope, sprintf "%s%sDelta" name caseName, [])
+
+                                let newCase =
+                                    {
+                                        Method.declaringType = Choice2Of2 selfDelta
+                                        Method.isStatic = true
+                                        Method.name = sprintf "Update%s" (caseName.Pascalize())
+                                        Method.parameters = 
+                                            if newValues then [ TTuple(false, props |> List.map (fun p -> p.typ)); List.typ tCaseDelta]
+                                            else [ List.typ tCaseDelta ]
+                                        Method.returnType = selfDelta
+                                    }
+                                    
+                                let res = new Var("result", List.typ tCaseDelta)
+
+                                let inner =
+                                    Expr.NewList (
+                                        (props, aa, ba) |||> List.map3 (fun p a b ->
+
+                                            let updateCaseCtor =
+                                                {
+                                                    Method.declaringType = Choice2Of2 tCaseDelta
+                                                    Method.isStatic = true
+                                                    Method.name = sprintf "Set%s" (p.name.Pascalize())
+                                                    Method.parameters = [ a.Type ]
+                                                    Method.returnType = tCaseDelta
+                                                }
+                                                
+
+                                            Expr.IfThenElse(
+                                                Expr.Call(None, notMeth, [Expr.Call(None, shallowEquals a.Type, [Expr.Var a; Expr.Var b])]),
+                                                Expr.Call(None, updateCaseCtor, [Expr.Var b]),
+                                                Expr.Unit
+                                            )
+                                        )
+                                    )
+
+                                Expr.Let(
+                                    false, [res], inner,
+                                    Expr.IfThenElse(
+                                        isEmptyExpr (Expr.Var res), Expr.EmptyList selfDelta, 
+                                        Expr.NewList [
+                                            Expr.Call(
+                                                None, newCase,
+                                                [
+                                                    if newValues then Expr.NewTuple(false, ba |> List.map Expr.Var)
+                                                    Expr.Var res
+                                                ]
+                                            )
+                                        ]
+                                    )
+                                )
+
+                        let code =
+                            let allEqual = 
+                                (aa, ba) ||> List.map2 (fun a b -> 
+                                    Expr.Call(None, shallowEquals a.Type, [Expr.Var a; Expr.Var b])
+                                ) |> Expr.And
+
+                            Expr.IfThenElse(
+                                Expr.Call(None, notMeth, [allEqual]),
+                                changed,
+                                Expr.EmptyList selfDelta
+                            )
+
+                        let body =
+                            Expr.Match(
+                                Expr.Var a,
+                                [
+                                    Pattern.UnionCaseTest(a.Type, caseName, aa), code
+                                    Pattern.Any, Expr.NewList [setCtors.[caseName] (List.map Expr.Var ba)]
+                                    //for ca, props in cases do
+                                    //    if ca <> caseName then
+                                    //        let ctor = setCtors.[caseNam]
+                                    //        let va = props |> List.map (fun p -> new Var(p.name, p.typ))
+                                    //        Pattern.UnionCaseTest(a.Type, ca, va), Expr.NewList [ctor (va |> List.map Expr.Var)]
+                                ]
+                            )
+                        
+                        Pattern.UnionCaseTest(b.Type, caseName, ba), body
+                ]
+            )
+
+        | _ ->
+            Expr.Fail(List.typ tDelta, "not implemented")
+
+    let generateDeltaTypes (checker : FSharpChecker) (outputPath : string) (designTime : bool) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
+        async {
+            do! Async.SwitchToThreadPool()
+            let projectInfo = ProjectInfo.normalize projectInfo
+            let options = toProjectOptions projectInfo
+            
+            for file in projectInfo.files do
+                let content = File.ReadAllText file
+                let mayDefineModelTypes = modelTypeRx.IsMatch content
+                if mayDefineModelTypes then
+                    let text = FSharp.Compiler.Text.SourceText.ofString content
+                    let! (_parseResult, answer) = checker.ParseAndCheckFileInProject(file, 0, text, options)
+        
+                    match answer with
+                    | FSharpCheckFileAnswer.Succeeded res -> 
+                        let rec allEntities (d : FSharpImplementationFileDeclaration) =
+                            match d with
+                            | FSharpImplementationFileDeclaration.Entity(e, ds) ->
+                                e :: List.collect allEntities ds
+                            | _ ->
+                                []
+
+                        let entities = 
+                            res.ImplementationFile.Value.Declarations
+                            |> Seq.toList
+                            |> List.collect allEntities
+                                        
+                        let definitions =   
+                            entities 
+                            |> List.choose (TypeDef.ofEntity log)
+                            |> List.choose (fun l -> 
+                                try 
+                                    l.Value |> Some
+                                with e -> 
+                                    log.error range0 "1337" "[Adaptify] could not get type entity:%s" e.Message
+                                    None
+                                )
+
+                        let defs =
+                            definitions |> List.groupBy getScope
+
+
+                        for scope, definitions in defs do
+                            let rec toList (scope : Scope) =
+                                match scope with
+                                | Scope.Global -> 
+                                    true,[]
+                                | Scope.Namespace ns -> 
+                                    true, [ns]
+                                | Scope.Module(parent, name,_, _) ->
+                                    let _, p = toList parent 
+                                    false, p @ [name]
+
+                            let isNamespace, parts =
+                                toList scope
+
+                            match parts with
+                            | [] -> printfn "namespace rec global"
+                            | ps -> 
+                                if isNamespace then printfn "namespace rec %s" (String.concat "." ps)
+                                else printfn "module rec %s" (String.concat "." ps)
+                            printfn ""
+
+                            let defs = definitions |> List.collect (operationType [])
+                            
+                            let inline tstr t = TypeRef.toString Log.empty scope t
+
+                            let rec printDef (tpars : list<TypeVar>) (def : TypeDef) =
+                                match def with
+                                | ProductType _ ->
+                                    failwith "unexpected"
+                                | Union(_, _, name, _, cases) ->
+                                    match tpars with
+                                    | [] -> 
+                                        printfn "type %s =" name
+                                    | pars ->
+                                        let pars = pars |> List.map (fun v -> sprintf "'%s" v.Name) |> String.concat ", "
+                                        printfn "type %s<%s> =" name pars
+
+                                    for name, args in cases do
+                                        let args = args |> List.map (fun p -> sprintf "%s : %s" p.name (tstr p.typ)) |> String.concat " * "
+                                        printfn "    | %s of %s" name (args)
+                                | Generic(tpars, t) ->
+                                    printDef tpars t
+
+                            for def in defs do   
+                                printDef [] def
+
+
+                            for def in definitions do
+                                printfn "module %s =" def.Name
+
+                                let t = TModel(range0, lazy def, [])
+                                let a = new Var("a", t)
+                                let b = new Var("b", t)
+
+                                let code = diff a b def
+                                let string =
+                                    Expr.toString Log.empty Global code
+                                    |> lines
+
+                                printfn "    let computeDelta (a : %s) (b : %s) =" (tstr t) (tstr t)
+                                for l in string do
+                                    printfn "        %s" l
+
+                            
+
+                        ()
+                    | _ ->
+                        failwith "bad"
+        }
 
     let runAsync (checker : FSharpChecker) (outputPath : string) (designTime : bool) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
         async {

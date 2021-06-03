@@ -3,11 +3,6 @@
 open Adaptify
 open FSharp.Data.Adaptive
 
-[<ModelType>]
-type Thing =    
-    {
-        name : string
-    }
     
 
 [<ModelType>]

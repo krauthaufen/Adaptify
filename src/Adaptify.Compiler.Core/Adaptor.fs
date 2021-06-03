@@ -37,6 +37,26 @@ type Adaptor =
 
 [<AutoOpen>]
 module TypePatterns =
+
+    let (|List|_|) (t : TypeRef) =
+        match t with
+        | TModel(_, d, [t]) ->
+            if d.Value.FullName = "Microsoft.FSharp.Collections.list" then Some t
+            elif d.Value.FullName = "Microsoft.FSharp.Collections.FSharpList" then Some t
+            else None
+
+        | TRef(_, e, [t]) ->
+            match e.TryFullName with
+            | Some "Microsoft.FSharp.Collections.list`1"
+            | Some "Microsoft.FSharp.Collections.list`1" -> Some t
+            | _ -> None
+
+        | TExtRef(Namespace "Microsoft.FSharp.Collections", "list", [t]) ->
+            Some t
+        | _ ->
+            None
+
+
     let (|Option|_|) (t : TypeRef) =
         match t with
         | TModel(_, d, [t]) ->
@@ -60,6 +80,20 @@ module TypePatterns =
             | Some "FSharp.Data.Adaptive.HashSet`1" -> Some t
             | Some "FSharp.Data.Adaptive.FSharpHashSet`1" -> Some t
             | _ -> None
+        | TExtRef(Namespace "FSharp.Data.Adaptive", "HashSet", [t]) ->
+            Some t
+        | _ ->
+            None
+
+    let (|HashSetDelta|_|) (t : TypeRef) =
+        match t with
+        | TRef(_, e, [t]) ->
+            match e.TryFullName with
+            | Some "FSharp.Data.Adaptive.HashSetDelta`1" -> Some t
+            | Some "FSharp.Data.Adaptive.FSharpHashSetDelta`1" -> Some t
+            | _ -> None
+        | TExtRef(Namespace "FSharp.Data.Adaptive", "HashSetDelta", [t]) ->
+            Some t
         | _ ->
             None
                 
@@ -70,6 +104,9 @@ module TypePatterns =
             | Some "FSharp.Data.Adaptive.HashMap`2" -> Some(k,v)
             | Some "FSharp.Data.Adaptive.FSharpHashMap`2" -> Some(k,v)
             | _ -> None
+            
+        | TExtRef(Namespace "FSharp.Data.Adaptive", "HashMap", [k; v]) ->
+            Some (k,v)
         | _ ->
             None
 

@@ -2,6 +2,7 @@
 
 [<AutoOpen>]
 module AdaptiveTypes =
+    let private fsCollections = Namespace "Microsoft.FSharp.Collections"
     let private fda = Namespace "FSharp.Data.Adaptive"
     let private fdt = Namespace "FSharp.Data.Traceable"
     let private adaptify = Namespace "Adaptify"
@@ -28,17 +29,221 @@ module AdaptiveTypes =
                 returnType = typ t
             }
  
+
+    module HashSetDelta =
+        let typ (t : TypeRef) =    
+            TExtRef(fda, "HashSetDelta", [t])
+        
+        let isEmptyMeth (t : TypeRef) =
+            {
+                declaringType = Choice1Of2 (Module(fda, "HashSetDelta", false, false))
+                isStatic = true
+                name = "isEmpty"
+                parameters = [ t ]
+                returnType = TBool
+            }
+            
     module HashSet =
         let typ (t : TypeRef) =    
             TExtRef(fda, "HashSet", [t])
         
+        let computeDeltaExpr (a : Expr) (b : Expr) =
+            let t =
+                match a.Type with
+                | TExtRef(_, _, [t])
+                | TRef(_, _, [t])
+                | TModel(_, _, [t]) ->
+                    t
+                | _ ->
+                    failwith "not a HashSet"
+            let meth = 
+                {
+                    declaringType = Choice1Of2 (Module(fda, "HashSet", false, false))
+                    isStatic = true
+                    name = "get_computeDelta"
+                    parameters = [ ]
+                    returnType = TFunc(a.Type, TFunc(b.Type, HashSetDelta.typ t))
+                }
+            Expr.Application(
+                Expr.Application(
+                    Expr.Call(None, meth, []),
+                    a
+                ),
+                b
+            )
+            
+    module ElementDelta =
+        let typ (value : TypeRef) (delta : TypeRef) =
+            TExtRef(Namespace "Adaptify", "ElementDelta", [value; delta])
+            
+        let newInsert (value : TypeRef) (delta : TypeRef) (e : Expr) =
+            let meth =
+                {
+                    declaringType = Choice2Of2 (typ value delta)
+                    isStatic = true
+                    name = "Insert"
+                    parameters = [ e.Type ]
+                    returnType = typ value delta
+                }
+            Expr.Call(None, meth, [e])
+            
+        let newDelete (value : TypeRef) (delta : TypeRef) =
+            let meth =
+                {
+                    declaringType = Choice2Of2 (typ value delta)
+                    isStatic = true
+                    name = "Delete"
+                    parameters = [ ]
+                    returnType = typ value delta
+                }
+            Expr.Call(None, meth, [])
+            
+        let newUpdate (value : TypeRef) (delta : TypeRef) (e : Expr) =
+            let meth =
+                {
+                    declaringType = Choice2Of2 (typ value delta)
+                    isStatic = true
+                    name = "Update"
+                    parameters = [ e.Type ]
+                    returnType = typ value delta
+                }
+            Expr.Call(None, meth, [e])
+
+    module ElementOperation =
+        let typ (t : TypeRef) =
+            TExtRef(fda, "ElementOperation", [t])
+            
+        let newSet (t : TypeRef) =
+            {
+                declaringType = Choice2Of2 (typ t)
+                isStatic = true
+                name = "Set"
+                parameters = [ t ]
+                returnType = typ t
+            }
+            
+        let newRemove (t : TypeRef) =
+            {
+                declaringType = Choice2Of2 (typ t)
+                isStatic = true
+                name = "Remove"
+                parameters = [ ]
+                returnType = typ t
+            }
+            
+
+    module HashMapDelta =   
+        let typ (k : TypeRef) (op : TypeRef) =
+            TExtRef(fda, "HashMapDelta", [k;op])
+            
+        let toHashMapMeth (k : TypeRef) (v : TypeRef) =
+            {
+                declaringType = Choice1Of2 (Module(fda, "HashMapDelta", false, false))
+                isStatic = true
+                name = "toHashMap"
+                parameters = [ typ k v ]
+                returnType = TExtRef(fda, "HashMap", [k;ElementOperation.typ v])
+            }
+            
+
+
     module HashMap =
         let typ (k : TypeRef) (v : TypeRef) =    
             TExtRef(fda, "HashMap", [k;v])
+            
+        let isEmptyMeth (k : TypeRef) (v : TypeRef) =
+            {
+                declaringType = Choice1Of2 (Module(fda, "HashMap", false, false))
+                isStatic = true
+                name = "isEmpty"
+                parameters = [ typ k v ]
+                returnType = TBool
+            }
+        let computeDeltaExpr (a : Expr) (b : Expr) =
+            let k, v = 
+                match a.Type with
+                    | TRef(_, e, [k;v]) -> k, v
+                    | TModel(_, _, [k;v]) -> k, v
+                    | TExtRef(Namespace "FSharp.Data.Adaptive", "HashMap", [k;v]) -> k, v
+                    | _ -> failwith "not a HashMap"
+            let meth = 
+                {
+                    declaringType = Choice1Of2 (Module(fda, "HashMap", false, false))
+                    isStatic = true
+                    name = "get_computeDelta"
+                    parameters = [ ]
+                    returnType = TFunc(a.Type, TFunc(b.Type, HashMapDelta.typ k v))
+                }
+
+            Expr.Application(
+                Expr.Application(
+                    Expr.Call(None, meth, []),
+                    a
+                ),
+                b
+            )
+            
+        let choose2Meth (k : TypeRef) (v1 : TypeRef) (v2 : TypeRef) (ret : TypeRef) =
+            {
+                declaringType = Choice1Of2 (Module(fda, "HashMap", false, false))
+                isStatic = true
+                name = "choose2"
+                parameters = [ TFunc(k, TFunc(Option.typ v1, TFunc(Option.typ v2, Option.typ ret))); typ k v1; typ k v2 ]
+                returnType = HashMapDelta.typ k ret
+            }
+
+        let getElementDeltasExpr (a : Expr) (b : Expr) (compute : Expr) =
+
+            let k =
+                match a.Type with
+                | TExtRef(_,_,[k;_]) 
+                | TRef(_,_,[k;_]) 
+                | TModel(_,_,[k;_]) ->  
+                    k
+                | _ -> failwith "not a Hashmap"
+
+            let v, d =
+                match compute.Type with
+                | TFunc(v, TFunc(_, (TRef(_,_,[d]) | TExtRef(_,_,[d]) |TModel(_,_,[d])))) -> v, d
+                | _ -> failwith "not a function"
+                
+            let meth =
+                {
+                    declaringType = Choice1Of2 (Module(adaptify, "HashMap", false, false))
+                    isStatic = true
+                    name = "get_getElementDeltas"
+                    parameters = [ ]
+                    returnType = 
+                        TFunc(a.Type, 
+                            TFunc(b.Type, 
+                                TFunc(      
+                                    compute.Type, 
+                                    HashMapDelta.typ k (ElementDelta.typ v d)
+                                )
+                            )
+                        )
+                    
+                }
+            Expr.Application(
+                Expr.Application(
+                    Expr.Application(
+                        Expr.Call(None, meth, []),
+                        a
+                    ),
+                    b
+                ),
+                compute
+            )
+            
 
     module IndexList =
         let typ (t : TypeRef) =    
             TExtRef(fda, "IndexList", [t])
+            
+    module IndexListDelta =
+        let typ (t : TypeRef) =    
+            TExtRef(fda, "IndexListDelta", [t])
+
     module AdaptiveToken =
         let typ  =    
             TExtRef(fda, "AdaptiveToken", [])
@@ -65,6 +270,20 @@ module AdaptiveTypes =
                 parameters = [ TFunc(TTuple(false, []), t) ]
                 returnType = t
             }
+
+    module List =
+        let typ (t : TypeRef) =
+            TExtRef(fsCollections, "list", [t])
+
+        let isEmptyMeth (t : TypeRef) =
+            {
+                declaringType = Choice1Of2 (Module(fsCollections, "List", false, false))
+                isStatic = true
+                name = "isEmpty"
+                parameters = [ t ]
+                returnType = TBool
+            }
+            
 
     module AdaptiveObject =
         let typ  =    
@@ -315,6 +534,15 @@ module AdaptiveTypes =
             declaringType = Choice2Of2(TExtRef(fda, "ShallowEqualityComparer", [t]))
             isStatic = true
             name = "ShallowEquals"
+            parameters = [ t; t ]
+            returnType = TBool
+        }
+  
+    let defaultEquals (t : TypeRef) =
+        {
+            declaringType = Choice2Of2(TExtRef(fda, "DefaultEqualityComparer.Instance", []))
+            isStatic = true
+            name = "Equals"
             parameters = [ t; t ]
             returnType = TBool
         }
