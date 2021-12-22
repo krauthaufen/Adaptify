@@ -1,3 +1,6 @@
+### 1.0.9
+* fix for f# 6.0 compiler error, see https://github.com/krauthaufen/Adaptify/issues/25
+
 ### 1.0.8
 * optional flag to overwrite last-write-time for possibly affected files
 
