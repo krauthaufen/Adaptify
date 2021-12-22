@@ -1,0 +1,10 @@
+
+#load "Microsoft.Build.Framework.csx" 
+#load "Microsoft.Win32.Registry.csx" 
+#load "System.Collections.Immutable.csx" 
+#load "System.Reflection.Metadata.csx" 
+#load "System.Security.Principal.Windows.csx" 
+#load "System.Text.Encoding.CodePages.csx" 
+#load "System.Text.Json.csx" 
+#load "System.Threading.Tasks.Dataflow.csx" 
+#r "../../../../packages/build/Microsoft.Build/lib/netcoreapp2.1/Microsoft.Build.dll" 

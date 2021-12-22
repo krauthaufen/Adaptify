@@ -1,0 +1,10 @@
+
+#load "Fake.Core.Environment.csx" 
+#load "Fake.Core.Process.csx" 
+#load "Fake.Core.String.csx" 
+#load "Fake.Core.Trace.csx" 
+#load "Fake.DotNet.MSBuild.csx" 
+#load "Fake.DotNet.NuGet.csx" 
+#load "Fake.IO.FileSystem.csx" 
+#load "Newtonsoft.Json.csx" 
+#r "../../../../packages/build/Fake.DotNet.Cli/lib/netstandard2.0/Fake.DotNet.Cli.dll" 

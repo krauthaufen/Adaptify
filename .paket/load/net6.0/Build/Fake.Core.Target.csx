@@ -1,0 +1,10 @@
+
+#load "Fake.Core.CommandLineParsing.csx" 
+#load "Fake.Core.Context.csx" 
+#load "Fake.Core.Environment.csx" 
+#load "Fake.Core.FakeVar.csx" 
+#load "Fake.Core.Process.csx" 
+#load "Fake.Core.String.csx" 
+#load "Fake.Core.Trace.csx" 
+#load "FSharp.Control.Reactive.csx" 
+#r "../../../../packages/build/Fake.Core.Target/lib/netstandard2.0/Fake.Core.Target.dll" 
