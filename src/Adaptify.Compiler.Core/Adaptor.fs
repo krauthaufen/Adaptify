@@ -1558,7 +1558,7 @@ module TypeDefinition =
                                                 parameters = props |> List.map (fun p -> p.typ)
                                                 returnType = TTuple(false, [])
                                             }
-                                        let self = new Var(c, n)
+                                        let self = new Var(c.ToLower(), n)
                                         let pat = TypeTest(n, self)
                                         match props with
                                         | [] ->

@@ -85,8 +85,8 @@ type AdaptiveOption<'T, '_primT, '_aT>(value : Option<'T>, _primTinit : 'T -> Sy
 module AdaptiveOption = 
     let (|AdaptiveNone|AdaptiveSome|) (value : AdaptiveOptionCase<'T, '_primT, '_aT>) =
         match value with
-        | (:? AdaptiveOptionNone<'T, '_primT, '_aT> as None) -> AdaptiveNone
-        | (:? AdaptiveOptionSome<'T, '_primT, '_aT> as Some) -> AdaptiveSome(Some.Value)
+        | (:? AdaptiveOptionNone<'T, '_primT, '_aT> as none) -> AdaptiveNone
+        | (:? AdaptiveOptionSome<'T, '_primT, '_aT> as some) -> AdaptiveSome(some.Value)
         | _ -> failwith "unreachable"
 type AdaptiveChoiceCase<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2> =
     abstract member Update : Choice<'T1, 'T2> -> AdaptiveChoiceCase<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2>
@@ -743,23 +743,23 @@ type AdaptiveChoice<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '
 module AdaptiveChoice = 
     let (|AdaptiveChoice1Of2|AdaptiveChoice2Of2|) (value : AdaptiveChoiceCase<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2>) =
         match value with
-        | (:? AdaptiveChoiceChoice1Of2<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2> as Choice1Of2) -> AdaptiveChoice1Of2(Choice1Of2.Item)
-        | (:? AdaptiveChoiceChoice2Of2<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2> as Choice2Of2) -> AdaptiveChoice2Of2(Choice2Of2.Item)
+        | (:? AdaptiveChoiceChoice1Of2<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2> as choice1Of2) -> AdaptiveChoice1Of2(choice1Of2.Item)
+        | (:? AdaptiveChoiceChoice2Of2<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2> as choice2Of2) -> AdaptiveChoice2Of2(choice2Of2.Item)
         | _ -> failwith "unreachable"
 
     let (|AdaptiveChoice1Of3|AdaptiveChoice2Of3|AdaptiveChoice3Of3|) (value : AdaptiveChoiceCase<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3>) =
         match value with
-        | (:? AdaptiveChoiceChoice1Of3<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3> as Choice1Of3) -> AdaptiveChoice1Of3(Choice1Of3.Item)
-        | (:? AdaptiveChoiceChoice2Of3<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3> as Choice2Of3) -> AdaptiveChoice2Of3(Choice2Of3.Item)
-        | (:? AdaptiveChoiceChoice3Of3<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3> as Choice3Of3) -> AdaptiveChoice3Of3(Choice3Of3.Item)
+        | (:? AdaptiveChoiceChoice1Of3<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3> as choice1Of3) -> AdaptiveChoice1Of3(choice1Of3.Item)
+        | (:? AdaptiveChoiceChoice2Of3<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3> as choice2Of3) -> AdaptiveChoice2Of3(choice2Of3.Item)
+        | (:? AdaptiveChoiceChoice3Of3<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3> as choice3Of3) -> AdaptiveChoice3Of3(choice3Of3.Item)
         | _ -> failwith "unreachable"
 
     let (|AdaptiveChoice1Of4|AdaptiveChoice2Of4|AdaptiveChoice3Of4|AdaptiveChoice4Of4|) (value : AdaptiveChoiceCase<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3, 'T4, '_primT4, '_aT4>) =
         match value with
-        | (:? AdaptiveChoiceChoice1Of4<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3, 'T4, '_primT4, '_aT4> as Choice1Of4) -> AdaptiveChoice1Of4(Choice1Of4.Item)
-        | (:? AdaptiveChoiceChoice2Of4<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3, 'T4, '_primT4, '_aT4> as Choice2Of4) -> AdaptiveChoice2Of4(Choice2Of4.Item)
-        | (:? AdaptiveChoiceChoice3Of4<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3, 'T4, '_primT4, '_aT4> as Choice3Of4) -> AdaptiveChoice3Of4(Choice3Of4.Item)
-        | (:? AdaptiveChoiceChoice4Of4<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3, 'T4, '_primT4, '_aT4> as Choice4Of4) -> AdaptiveChoice4Of4(Choice4Of4.Item)
+        | (:? AdaptiveChoiceChoice1Of4<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3, 'T4, '_primT4, '_aT4> as choice1Of4) -> AdaptiveChoice1Of4(choice1Of4.Item)
+        | (:? AdaptiveChoiceChoice2Of4<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3, 'T4, '_primT4, '_aT4> as choice2Of4) -> AdaptiveChoice2Of4(choice2Of4.Item)
+        | (:? AdaptiveChoiceChoice3Of4<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3, 'T4, '_primT4, '_aT4> as choice3Of4) -> AdaptiveChoice3Of4(choice3Of4.Item)
+        | (:? AdaptiveChoiceChoice4Of4<'T1, '_primT1, '_aT1, 'T2, '_primT2, '_aT2, 'T3, '_primT3, '_aT3, 'T4, '_primT4, '_aT4> as choice4Of4) -> AdaptiveChoice4Of4(choice4Of4.Item)
         | _ -> failwith "unreachable"
 type AdaptiveResultCase<'T, '_primT, '_aT, 'TError, '_primTError, '_aTError> =
     abstract member Update : Result<'T, 'TError> -> AdaptiveResultCase<'T, '_primT, '_aT, 'TError, '_primTError, '_aTError>
@@ -862,6 +862,6 @@ type AdaptiveResult<'T, '_primT, '_aT, 'TError, '_primTError, '_aTError>(value :
 module AdaptiveResult = 
     let (|AdaptiveOk|AdaptiveError|) (value : AdaptiveResultCase<'T, '_primT, '_aT, 'TError, '_primTError, '_aTError>) =
         match value with
-        | (:? AdaptiveResultOk<'T, '_primT, '_aT, 'TError, '_primTError, '_aTError> as Ok) -> AdaptiveOk(Ok.ResultValue)
-        | (:? AdaptiveResultError<'T, '_primT, '_aT, 'TError, '_primTError, '_aTError> as Error) -> AdaptiveError(Error.ErrorValue)
+        | (:? AdaptiveResultOk<'T, '_primT, '_aT, 'TError, '_primTError, '_aTError> as ok) -> AdaptiveOk(ok.ResultValue)
+        | (:? AdaptiveResultError<'T, '_primT, '_aT, 'TError, '_primTError, '_aTError> as error) -> AdaptiveError(error.ErrorValue)
         | _ -> failwith "unreachable"

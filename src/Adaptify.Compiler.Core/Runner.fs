@@ -303,12 +303,13 @@ module Adaptify =
                     if not (file.EndsWith ".g.fs") then
                         let content = File.ReadAllText file
                         let mayDefineModelTypes = modelTypeRx.IsMatch content
-                        let outputExists = File.Exists (getOutputFile file)
+                        let outputFile = getOutputFile file
+                        let outputExists = File.Exists outputFile
 
                         // just diagnostic output for strange case, which is handled with additional care.
                         if noGeneration && not outputExists then 
                             // normally this would be bad, handled in next if. we report this happened.
-                            log.info range0 "[Adaptify]   the output for file %s was not found in output during a design time build. this should not happen, as the build should have generated this one. maybe design time and compile time project infos do not match" file
+                            log.info range0 "[Adaptify]   the output %s for file %s was not found in output during a design time build. this should not happen, as the build should have generated this one. maybe design time and compile time project infos do not match" outputFile file
 
                         if noGeneration && outputExists then // no matter what, if output file does not exist, create it - non-existing files should not be returned
                             newFiles.Add file
