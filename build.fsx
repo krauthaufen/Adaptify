@@ -1,5 +1,4 @@
-#r "paket: groupref Build //"
-#load ".fake/build.fsx/intellisense.fsx"
+#load ".paket/load/net6.0/Build/build.group.fsx"
 
 open System
 open System.IO
@@ -10,6 +9,12 @@ open Fake.IO
 open Fake.IO.Globbing.Operators
 open Fake.Tools
 open System.Text.RegularExpressions
+
+do  // init fake
+    let args = System.Environment.GetCommandLineArgs() |> Array.toList |> List.skip 2
+    let ctx = Context.FakeExecutionContext.Create false "build.fsx" args
+    Context.setExecutionContext (Context.RuntimeContext.Fake ctx)
+    Target.initEnvironment()
 
 do Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 

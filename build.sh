@@ -5,14 +5,7 @@ if [ ! -f .paket/paket ]; then
     dotnet tool install Paket --tool-path .paket
 fi
 
-if [ ! -f paket.lock ]; then
-    echo 'running paket install (no paket.lock found)'
-    .paket/paket install
-fi
-
-if [ ! -f packages/build/fake-cli/tools/netcoreapp2.1/any/fake-cli.dll ]; then
-    echo running paket restore
-    .paket/paket install
-fi
-
-dotnet packages/build/fake-cli/tools/netcoreapp2.1/any/fake-cli.dll build $@ 
+dotnet tool restore
+dotnet paket restore
+dotnet paket generate-load-scripts -g build
+dotnet fsi build.fsx $@ 

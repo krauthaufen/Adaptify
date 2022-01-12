@@ -1,3 +1,9 @@
+### 1.0.11
+* dummy version
+
+### 1.0.10
+* support for net5.0/net6.0
+
 ### 1.0.9
 * fix for f# 6.0 compiler error, see https://github.com/krauthaufen/Adaptify/issues/25
 
