@@ -1,3 +1,6 @@
+### 1.0.11
+* dummy version
+
 ### 1.0.10
 * support for net5.0/net6.0
 
