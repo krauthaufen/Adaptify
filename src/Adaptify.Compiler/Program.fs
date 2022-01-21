@@ -399,7 +399,7 @@ let main argv =
                     if Map.isEmpty m then
                         []
                     else
-                        let noDependencies = m |> Map.filter (fun k v -> Set.isEmpty v) |> Map.keys |> Set.ofSeq
+                        let noDependencies = m |> Map.filter (fun k v -> Set.isEmpty v) |> Map.toSeq |> Seq.map fst |> Set.ofSeq
                         log.info Range.range0 "  level %d:" level
                         for d in noDependencies do
                             log.info Range.range0 "    %s" d
