@@ -6,7 +6,9 @@ on:
       - updates
     paths:
       - RELEASE_NOTES.md
-publish:
+      - .github/workflows/publish.yml
+jobs:
+  publish:
     name: Publish
     runs-on: windows-latest
     steps:  
