@@ -1,7 +1,7 @@
 ﻿open System
 open System.IO
-open FSharp.Compiler.SourceCodeServices
-open FSharp.Compiler.Range
+open FSharp.Compiler.Symbols
+open FSharp.Compiler.Text
 open FSharp.Core
 open Adaptify.Compiler
 open System.Runtime.CompilerServices
@@ -274,9 +274,9 @@ let main argv =
                 | Ok info -> 
                     Some info
                 | Error err ->
-                    log.error range0 "" "ERRORS in %s" projFile
+                    log.error Range.range0 "" "ERRORS in %s" projFile
                     for e in err do 
-                        log.error range0 "" "  %s" e
+                        log.error Range.range0 "" "  %s" e
                     None
             )
 

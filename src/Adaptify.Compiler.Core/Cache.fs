@@ -99,7 +99,7 @@ module CacheFile =
             else
                 None
         with e ->
-            log.debug FSharp.Compiler.Range.range0 "could not read cache file: %A" e
+            log.debug FSharp.Compiler.Text.Range.range0 "could not read cache file: %A" e
             None
 
     let save (cache : CacheFile) (path : string) =

@@ -2,8 +2,9 @@
 
 open System
 open System.IO
-open FSharp.Compiler.SourceCodeServices
-open FSharp.Compiler.Range
+open FSharp.Compiler.Symbols
+open FSharp.Compiler.Text
+open FSharp.Compiler.CodeAnalysis
 
 module Directory =
     let ensure (path : string) =
@@ -65,14 +66,14 @@ module Log =
             try f()
             finally Console.ForegroundColor <- o
 
-        let writeRange (r : FSharp.Compiler.Range.range) =  
-            if r <> range0 then
+        let writeRange (r : FSharp.Compiler.Text.range) =  
+            if r <> Range.range0 then
                 Console.WriteLine(" @ {0} ({1},{2}--{3},{4})", r.FileName, r.StartLine, r.StartColumn, r.EndLine, r.EndColumn)
             else
                 Console.WriteLine()
                 
-        let rangeString (r : FSharp.Compiler.Range.range) =  
-            if r <> range0 then
+        let rangeString (r : FSharp.Compiler.Text.range) =  
+            if r <> Range.range0 then
                 String.Format(" @ {0} ({1},{2}--{3},{4})", r.FileName, r.StartLine, r.StartColumn, r.EndLine, r.EndColumn)
             else
                 ""
@@ -205,7 +206,7 @@ module FSharpAttribute =
             | None ->
                 false
         with ex ->
-            log.error range0 "1337" "checking isAutoOpen: %A" ex
+            log.error Range.range0 "1337" "checking isAutoOpen: %A" ex
             false
             
 
@@ -217,7 +218,7 @@ module FSharpAttribute =
             | None ->
                 false
         with ex ->
-            log.error range0 "1337" "checking isModelType: %A" ex
+            log.error Range.range0 "1337" "checking isModelType: %A" ex
             false
             
     let isTreatAsValue (log : ILog) (a : FSharpAttribute) =
@@ -228,7 +229,7 @@ module FSharpAttribute =
             | None ->
                 false
         with ex ->
-            log.error range0 "1337" "checking isTreatAsValue: %A" ex
+            log.error Range.range0 "1337" "checking isTreatAsValue: %A" ex
             false
 
     let isNonAdaptive (log : ILog) (a : FSharpAttribute) =
@@ -239,7 +240,7 @@ module FSharpAttribute =
             | None ->
                 false
         with ex ->
-            log.error range0 "1337" "checking isNonAdaptive: %A" ex
+            log.error Range.range0 "1337" "checking isNonAdaptive: %A" ex
             false
 
 [<RequireQualifiedAccess>]
@@ -346,9 +347,10 @@ module Versions =
     open System.Reflection
     open System.Threading
 
+
     let newChecker() =
         let c = FSharpChecker.Create(projectCacheSize = 200, keepAssemblyContents = true)
-        c.ImplicitlyStartBackgroundWork <- false
+        //c.ImplicitlyStartBackgroundWork <- false
         c
 
     let startThread (run : unit -> unit) =
@@ -371,7 +373,7 @@ module Versions =
                 info.WorkingDirectory <- work
                 info.WindowStyle <- ProcessWindowStyle.Hidden
             
-                log.debug range0 "running %s %s in %s" program argstr work
+                log.debug Range.range0 "running %s %s in %s" program argstr work
                 //let output = System.Text.StringBuilder()
                 let proc = Process.Start info
 
@@ -392,14 +394,14 @@ module Versions =
                 if proc.ExitCode <> 0 then
                     let err = proc.StandardError.ReadToEnd()
                     //failwithf "%s %s failed with code %d:\r\n%s" program argstr proc.ExitCode err
-                    log.debug range0 "%s exited with %d: %s" program proc.ExitCode err
+                    log.debug Range.range0 "%s exited with %d: %s" program proc.ExitCode err
                     None
                 else
                     let str = proc.StandardOutput.ReadToEnd().Trim [| ' '; '\r'; '\n' |]
-                    log.debug range0 "%s: %s" program str
+                    log.debug Range.range0 "%s: %s" program str
                     Some str
             with e ->
-                log.debug range0 "%s failed: %A" program e
+                log.debug Range.range0 "%s failed: %A" program e
                 None
 
         let tag(log : ILog) =
@@ -428,7 +430,7 @@ module Versions =
 
         match tag with
         | Some tag ->
-            log.info range0 "version: %s (local)" tag
+            log.info Range.range0 "version: %s (local)" tag
             tag
         | None ->
             let version = 
@@ -438,9 +440,9 @@ module Versions =
             
             match version with
             | Some v -> 
-                log.info range0 "version: %s" v
+                log.info Range.range0 "version: %s" v
                 v
             | None -> 
-                log.info range0 "no version: 0.0.0.0"
+                log.info Range.range0 "no version: 0.0.0.0"
                 "0.0.0.0"
 
