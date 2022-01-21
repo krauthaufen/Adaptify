@@ -1,3 +1,6 @@
+### 1.1.0
+* updated dependencies and added local-mode
+
 ### 1.0.11
 * dummy version
 
