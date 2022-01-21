@@ -87,6 +87,7 @@ Target.create "Pack" (fun _ ->
             sprintf "\"%s\"" (String.concat "\\n" notes.Notes)
             "--project-url"
             "\"https://github.com/krauthaufen/Adaptify\""
+            sprintf "\"%s\"" (Path.Combine(__SOURCE_DIRECTORY__, "bin"))
         ]
     let ret = 
         Process.shellExec {
