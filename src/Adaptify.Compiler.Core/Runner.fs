@@ -141,7 +141,7 @@ module Adaptify =
                 ]
                
 
-    let runAsync (checker : FSharpChecker) (outputPath : string) (designTime : bool) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
+    let runAsync (checker : FSharpChecker) (outputPath : string) (designTime : bool) (useCache : bool) (createLenses : bool) (log : ILog) (local : bool) (release : bool) (projectInfo : ProjectInfo) =
         async {
             do! Async.SwitchToThreadPool()
             let projectInfo = ProjectInfo.normalize projectInfo
@@ -163,10 +163,13 @@ module Adaptify =
                     name
 
             let getOutputFile (file : string) =
-                let rel = relativePath file
-                let path = Path.ChangeExtension(Path.Combine(outputDirectory, rel), ".g.fs")
-                File.ensureDirectory path
-                path
+                if local then
+                    Path.ChangeExtension(file, ".g.fs")
+                else
+                    let rel = relativePath file
+                    let path = Path.ChangeExtension(Path.Combine(outputDirectory, rel), ".g.fs")
+                    File.ensureDirectory path
+                    path
 
 
 
@@ -301,7 +304,37 @@ module Adaptify =
                         true
                     else
                         let missing = waitUntilExisting log 200 projectInfo.references
-                        missing.Length > 0
+                        if missing.Length > 0 then
+
+                            log.info Range.range0 "  %s is missing %d references" projectInfo.project missing.Length
+                            log.info Range.range0 "  building referenced projects"
+                            for _, path in projectInfo.projRefs do
+                                log.info Range.range0 "    building %s" (Path.GetFileName path)
+                                let args =
+                                    if release then
+                                        ["build"; "-c"; "Release"; Path.GetFileName path]
+                                    else
+                                        ["build"; "-c"; "Debug"; Path.GetFileName path]
+
+                                let proc = 
+                                    Process.tryStart {
+                                        file        = "dotnet"
+                                        workDir     = Path.GetDirectoryName path
+                                        args        = args
+                                        output      = OutputMode.Custom (fun s m -> log.debug Range.range0 "      %s" m)
+                                    }
+                                match proc with
+                                | Some p -> 
+                                    p.WaitForExit()
+                                    if p.ExitCode <> 0 then log.error Range.range0 "1" "    failed"
+                                | None -> 
+                                    log.info Range.range0 "    success"
+                                    ()
+
+                            let missing = waitUntilExisting log 200 projectInfo.references
+                            missing.Length > 0 && useCache
+                        else
+                            useCache
 
                 for file in projectInfo.files do
                     if not (file.EndsWith ".g.fs") then
@@ -311,7 +344,7 @@ module Adaptify =
                         let outputExists = File.Exists outputFile
 
                         // just diagnostic output for strange case, which is handled with additional care.
-                        if noGeneration && not outputExists then 
+                        if noGeneration && not outputExists && mayDefineModelTypes then 
                             // normally this would be bad, handled in next if. we report this happened.
                             log.info Range.range0 "[Adaptify]   the output %s for file %s was not found in output during a design time build. this should not happen, as the build should have generated this one. maybe design time and compile time project infos do not match" outputFile file
 
@@ -514,8 +547,8 @@ module Adaptify =
                 return Seq.toList projectInfo.files
         }
 
-    let run (checker : FSharpChecker) (outputPath : string) (designTime : bool) (useCache : bool) (createLenses : bool) (log : ILog) (projectInfo : ProjectInfo) =
-        try runAsync checker outputPath designTime useCache createLenses log projectInfo  |> Async.RunSynchronously
+    let run (checker : FSharpChecker) (outputPath : string) (designTime : bool) (useCache : bool) (createLenses : bool) (log : ILog) (local : bool) (release : bool) (projectInfo : ProjectInfo) =
+        try runAsync checker outputPath designTime useCache createLenses log local release projectInfo  |> Async.RunSynchronously
         with e -> 
             log.warn Range.range0 "Internal error?" "[Adaptify]   internal error: %s" (e.Message)
             []

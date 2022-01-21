@@ -112,6 +112,7 @@ module ProjectInfo =
 
         match info with
         | Ok info ->
+            
             let mutable errors = []
             let fscArgs = 
                 info |> List.tryPick (fun res ->
@@ -125,10 +126,26 @@ module ProjectInfo =
                         None
                 )
 
+            let projRefs =
+                let result =
+                    info |> List.tryPick (fun res ->
+                        match res with
+                        | Ok res -> 
+                            match res with
+                            | GetResult.ResolvedP2PRefs refs -> Some refs
+                            | _ -> None
+                        | _ ->  
+                            None
+                    )
+                match result with
+                | Some l -> l |> List.map (fun r -> r.TargetFramework, r.ProjectReferenceFullPath)
+                | None -> []
+
+
             match fscArgs with
             | Some args -> 
                 match args with
-                | Ok args -> Ok (ProjectInfo.ofFscArgs netcore file args)
+                | Ok args -> Ok (ProjectInfo.ofFscArgs netcore file projRefs args)
                 | Error e -> Error [sprintf "%A" e]
             | None -> 
                 let errors = 
@@ -155,6 +172,72 @@ let md5 = System.Security.Cryptography.MD5.Create()
 let inline hash (str : string) = 
     md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes str) |> System.Guid |> string
 
+type Path with
+
+    static member TryGetRelative(path : string, ?ref : string) =
+        let ref =
+            match ref with
+            | Some ref -> Path.GetFullPath ref
+            | None -> Environment.CurrentDirectory
+        let path = Path.GetFullPath path
+
+        if path.StartsWith ref then
+            path.Substring(ref.Length).TrimStart([|Path.DirectorySeparatorChar; Path.AltDirectorySeparatorChar|])
+            |> Some
+        else
+            None
+
+    static member Glob (patterns : #seq<string>, ?directory : string) =
+        let directory = defaultArg directory Environment.CurrentDirectory
+        let patterns = Seq.toList patterns
+
+        let files, patterns =
+            patterns |> List.partition (fun f -> File.Exists(Path.Combine(directory, f)))
+
+        let negative =
+            patterns 
+            |> List.choose (fun p ->
+                if p.StartsWith "!" then
+                    DotNet.Globbing.Glob.Parse (p.Substring 1)
+                    |> Some
+                else
+                    None
+            )
+
+
+        let positive =
+            patterns 
+            |> List.choose (fun p ->
+                if not (p.StartsWith "!") then
+                    DotNet.Globbing.Glob.Parse p
+                    |> Some
+                else
+                    None
+            )
+
+        let matches (file : string) (pat : DotNet.Globbing.Glob) =
+            pat.IsMatch file
+
+        let includeFile (rel : string) =
+            if positive |> List.exists (matches rel) then
+                negative |> List.forall (matches rel >> not)
+            else
+                false
+
+        if Directory.Exists directory then
+            let all = Directory.GetFiles(directory, "*", SearchOption.AllDirectories)
+            all
+            |> Array.filter (fun file ->
+                if Path.GetExtension(file).ToLower() = ".fsproj" then
+                    match Path.TryGetRelative(file, directory) with
+                    | Some rel -> includeFile rel
+                    | None -> false
+                else
+                    false
+            )
+            |> Array.append (List.toArray files)
+        else
+            [||]
 
 [<EntryPoint>]
 let main argv = 
@@ -173,6 +256,11 @@ let main argv =
         printfn "  --killserver  kills the currently running server"
         Environment.Exit 1
 
+    let local =
+        argv |> Array.exists (fun a -> 
+            let a = a.ToLower().Trim()
+            a = "--local"    
+        )
         
     let killserver =
         argv |> Array.exists (fun a -> 
@@ -261,7 +349,19 @@ let main argv =
         //    1
     else
         let log = Log.console verbose
-        let projFiles = argv |> Array.filter (fun a -> not (a.StartsWith "-"))
+        let projFiles = 
+            argv 
+            |> Array.filter (fun a -> not (a.StartsWith "-"))
+            |> Path.Glob
+
+        if projFiles.Length = 0 then
+            log.error Range.range0 "1" "no input files given"
+            exit 1
+
+        log.debug Range.range0 "CWD: %s" Environment.CurrentDirectory
+        log.debug Range.range0 "%d projects" projFiles.Length
+        for f in projFiles do
+            log.debug Range.range0 "%s" f
 
         let props =
             [
@@ -280,18 +380,53 @@ let main argv =
                     None
             )
 
+        let topologicalSort (projects : ProjectInfo[]) : ProjectInfo[][] =
+            if projects.Length <= 1 then
+                [|projects|]
+            else
+                let all =
+                    projects |> Array.map (fun p -> p.project, p) |> Map.ofArray
 
-        projectInfos |> Array.Parallel.iter (fun info ->
+                let dependencies =
+                    projects |> Array.map (fun p ->
+                        let deps = p.projRefs |> List.map snd |> List.filter (fun p -> Map.containsKey p all) |> Set.ofList
+                        p.project, deps
+                    )
+                    |> Map.ofArray
+
+                log.info Range.range0 "topological sort"
+                let rec run (level : int) (m : Map<string, Set<string>>) =    
+                    if Map.isEmpty m then
+                        []
+                    else
+                        let noDependencies = m |> Map.filter (fun k v -> Set.isEmpty v) |> Map.keys |> Set.ofSeq
+                        log.info Range.range0 "  level %d:" level
+                        for d in noDependencies do
+                            log.info Range.range0 "    %s" d
+                        let newMap = 
+                            (m, noDependencies) 
+                            ||> Set.fold (fun m d -> m |> Map.remove d)
+                            |> Map.map (fun _ d -> Set.difference d noDependencies)
+
+                        Set.toList noDependencies :: run (level + 1) newMap
+
+                run 0 dependencies
+                |> List.map (List.map (fun p -> all.[p]) >> List.toArray)
+                |> List.toArray
+
+
+
+
+        projectInfos |> topologicalSort |> Array.iter (Array.Parallel.iter (fun info ->
             let outputPath = 
                 match info.output with
                 | Some output -> Path.GetDirectoryName output
                 | None -> "."
-
-            if client then
+            if client && not local then
                 Client.adaptify CancellationToken.None log info outputPath false (not force) lenses |> ignore<list<string>>
             else
                 let checker = newChecker()
-                Adaptify.run checker outputPath false (not force) lenses log info |> ignore<list<string>>
-        )
+                Adaptify.run checker outputPath false (not force) lenses log local release info |> ignore<list<string>>
+        ))
 
         0 

@@ -20,6 +20,24 @@
                 "reveal": "always"
             },
             "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "tests",
+            "command": "dotnet",
+            "type": "shell",
+            "args": [
+                "build",
+                "Examples.sln",
+                // Ask dotnet build to generate full paths for file names.
+                "/property:GenerateFullPaths=true",
+                // Do not generate summary otherwise it leads to duplicate errors in Problems panel
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": "$msCompile"
         }
     ]
 }

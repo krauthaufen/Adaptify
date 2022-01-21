@@ -110,6 +110,7 @@ type AdaptifyTask() =
                     let projInfo =
                         {
                             project = projectFile
+                            projRefs = []
                             isNewStyle = not isNetFramework
                             references = Array.toList references
                             files = Array.toList files

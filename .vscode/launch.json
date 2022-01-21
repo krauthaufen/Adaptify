@@ -11,8 +11,12 @@
             "preLaunchTask": "build",
             "program": "${workspaceFolder}/bin/Debug/net6.0/adaptify.dll",
             "args": [
-                "--verbose",
-                "${workspaceFolder}/src/Examples/Net6/Net6.fsproj"
+                "--local",
+                "--force",
+                "--lenses",
+                "--release",
+                "src/Examples/**/*.fsproj",
+                "!**/NetFramework*.fsproj",
 
             ],
             "cwd": "${workspaceFolder}",
