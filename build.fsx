@@ -75,17 +75,27 @@ Target.create "Compile" (fun _ ->
 
 
 Target.create "Pack" (fun _ ->
-    Paket.pack (fun o ->
-        { o with
-            ToolPath = Path.Combine(__SOURCE_DIRECTORY__, ".paket", "paket.exe")
-            WorkingDir = Environment.CurrentDirectory
-            OutputPath = "bin"
-            PinProjectReferences = true
-            ProjectUrl = "https://github.com/krauthaufen/Adaptify"
-            Version = notes.NugetVersion
-            ReleaseNotes = String.concat "\n" notes.Notes
+    let args = 
+        [
+            "paket"
+            "pack"
+            "--version"
+            notes.NugetVersion
+            "--interproject-references"
+            "fix"
+            "--release-notes"
+            sprintf "\"%s\"" (String.concat "\\n" notes.Notes)
+            "--project-url"
+            "\"https://github.com/krauthaufen/Adaptify\""
+        ]
+    let ret = 
+        Process.shellExec {
+            ExecParams.Program = "dotnet"
+            WorkingDir = __SOURCE_DIRECTORY__
+            CommandLine = String.concat " " args
+            Args = []
         }
-    )
+    if ret <> 0 then failwithf "paket failed with exit code %d" ret
 
     "src/Adaptify.Compiler/adaptify.fsproj" |> DotNet.pack (fun o -> 
         { o with        
