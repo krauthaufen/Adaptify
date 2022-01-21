@@ -75,9 +75,9 @@ Target.create "Compile" (fun _ ->
 
 
 Target.create "Pack" (fun _ ->
-    
     Paket.pack (fun o ->
         { o with
+            ToolPath = Path.Combine(__SOURCE_DIRECTORY__, ".paket", "paket.exe")
             WorkingDir = Environment.CurrentDirectory
             OutputPath = "bin"
             PinProjectReferences = true
