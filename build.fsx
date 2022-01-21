@@ -277,7 +277,7 @@ Target.create "MergeDotNet" (fun _ ->
 
     
     File.Copy(
-        "packages/FSharp.Core/lib/netstandard1.6/FSharp.Core.dll",
+        "packages/FSharp.Core/lib/netstandard2.0/FSharp.Core.dll",
         Path.Combine(outFolder, "FSharp.Core.dll"),
         true
     )
@@ -318,7 +318,7 @@ Target.create "MergeFramework" (fun _ ->
 
     
     File.Copy(
-        "packages/FSharp.Core/lib/netstandard1.6/FSharp.Core.dll",
+        "packages/FSharp.Core/lib/netstandard2.0/FSharp.Core.dll",
         Path.Combine(outFolder, "FSharp.Core.dll"),
         true
     )
