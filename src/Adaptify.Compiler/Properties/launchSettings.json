@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "adaptify": {
+      "commandName": "Project",
+      "commandLineArgs": "--server --verbose"
+    }
+  }
+}

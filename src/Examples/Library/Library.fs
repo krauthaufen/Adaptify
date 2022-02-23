@@ -7,6 +7,7 @@ open FSharp.Data.Adaptive
 type Thing =    
     {
         name : string
+        guhtest : int
     }
     
 

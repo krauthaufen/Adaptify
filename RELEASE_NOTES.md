@@ -1,4 +1,7 @@
 ### 1.1.0
+* merged 1.0.x with 1.1.0 track
+
+### 1.1.0
 * updated dependencies and added local-mode
 
 ### 1.0.11

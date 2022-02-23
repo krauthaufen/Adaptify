@@ -19,7 +19,7 @@
     <Compile Include="Test.fs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="4.6.2" />
+    <PackageReference Include="FSharp.Core" Version="5.0.0" />
     <PackageReference Include="FSharp.Data.Adaptive" Version="1.2.0" />
     <PackageReference Include="System.Reflection.Emit.Lightweight" Version="4.6.0" />
   </ItemGroup>
