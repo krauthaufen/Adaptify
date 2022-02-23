@@ -4,8 +4,8 @@ open Adaptify.Compiler
 open Microsoft.Build.Utilities
 open Microsoft.Build.Framework
 open System.IO
-open FSharp.Compiler.SourceCodeServices
-open FSharp.Compiler.Range
+open FSharp.Compiler.Symbols
+open FSharp.Compiler.Text
 open System.Threading
 
 
@@ -39,7 +39,7 @@ type AdaptifyTask() =
         match log with
         | Some l -> l
         | None ->
-            let msg (range : FSharp.Compiler.Range.range) imp fmt =
+            let msg (range : FSharp.Compiler.Text.range) imp fmt =
                 fmt |> Printf.kprintf (fun str ->
                     x.Log.LogMessage(
                         "", 
@@ -57,7 +57,7 @@ type AdaptifyTask() =
                 { new ILog with
                     member __.debug range fmt = msg range MessageImportance.Low fmt
                     member __.info range fmt = msg range MessageImportance.Normal fmt
-                    member __.warn (range : FSharp.Compiler.Range.range) code fmt =
+                    member __.warn (range : FSharp.Compiler.Text.range) code fmt =
                         fmt |> Printf.kprintf (fun str ->
                             x.Log.LogWarning(
                                 "Adaptify", 
@@ -110,6 +110,7 @@ type AdaptifyTask() =
                     let projInfo =
                         {
                             project = projectFile
+                            projRefs = []
                             isNewStyle = not isNetFramework
                             references = Array.toList references
                             files = Array.toList files
@@ -123,18 +124,18 @@ type AdaptifyTask() =
                     let newFiles = Client.adaptify cancel.Token x.Logger projInfo outputPath designTime true createLenses
 
                     if touchFiles then
-                        x.Logger.info range0 "[Adaptify] touching project files to trigger code completion updates..."
+                        x.Logger.info Range.range0 "[Adaptify] touching project files to trigger code completion updates..."
                         try
                             let time = System.DateTime.Now
                             for f in newFiles do    
                                 File.SetLastWriteTime(f,time)
                         with e -> 
-                            x.Logger.info range0 "[Adaptify] could not touch files"
+                            x.Logger.info Range.range0 "[Adaptify] could not touch files"
     
                     results <- List.toArray newFiles
                     not cancel.IsCancellationRequested
                 with e ->
-                    x.Logger.error range0 "587" "failed: %A" e
+                    x.Logger.error Range.range0 "587" "failed: %A" e
                     not cancel.IsCancellationRequested
               
             | _other -> 

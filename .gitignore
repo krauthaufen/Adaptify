@@ -22,6 +22,7 @@ symbolCache.db
 /node_modules
 /.fable
 .adaptifycache
-src/Adaptify.Compiler/Properties
-*.g.fs
+*.g
+.fs*
+.g.fs
 .ionide

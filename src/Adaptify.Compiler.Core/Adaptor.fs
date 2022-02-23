@@ -2,8 +2,8 @@
 
 
 open System
-open FSharp.Compiler.SourceCodeServices
-open FSharp.Compiler.Range
+open FSharp.Compiler.Symbols
+open FSharp.Compiler.Text
 open Adaptify.Compiler
 
 module Config =
@@ -350,7 +350,7 @@ module Adaptor =
         | o ->
             o
 
-    let rec get (log : ILog) (range : FSharp.Compiler.Range.range) (mutableScope : bool) (typ : TypeRef) : Adaptor =
+    let rec get (log : ILog) (range : FSharp.Compiler.Text.range) (mutableScope : bool) (typ : TypeRef) : Adaptor =
         match typ with
         | TVar v ->
             if mutableScope then varPrimitive v
@@ -1274,8 +1274,8 @@ module TypeDefinition =
 
                 let adaptors =
                     tpars |> List.map (fun a ->
-                        let pat = Adaptor.get log range0 true (TVar a)
-                        let at = Adaptor.get log range0 false (TVar a)
+                        let pat = Adaptor.get log Range.range0 true (TVar a)
+                        let at = Adaptor.get log Range.range0 false (TVar a)
                         pat, at
                     )
 

@@ -16,6 +16,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Model.fs" />
+    <Compile Include="Model.g.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
@@ -32,8 +33,7 @@
 
   <ItemGroup>
     <Reference Include="Adaptify.Core">
-      <HintPath>..\..\..\bin\Release\netstandard2.0\Adaptify.Core.dll</HintPath>
+      <HintPath>..\..\..\bin\Debug\netstandard2.0\Adaptify.Core.dll</HintPath>
     </Reference>
   </ItemGroup>
-  <Import Project="$(MSBuildThisFileDirectory)..\..\..\bin\Release\Adaptify.MSBuild.targets" />
 </Project>

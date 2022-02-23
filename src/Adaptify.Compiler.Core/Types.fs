@@ -2,8 +2,8 @@
 
 
 open System
-open FSharp.Compiler.SourceCodeServices
-open FSharp.Compiler.Range
+open FSharp.Compiler.Symbols
+open FSharp.Compiler.Text
 open Adaptify.Compiler
 
 type TypeVar(name : string) =
@@ -36,7 +36,7 @@ type TypeDef =
             match t with
             | Generic(t, d) -> print (targs @ t) d
             | _ ->  
-                TModel(range0, lazy x, List.map TVar targs)
+                TModel(Range.range0, lazy x, List.map TVar targs)
                 |> TypeRef.toString Log.empty Global
         print [] x
 
@@ -86,7 +86,7 @@ module AdaptifyMode =
 
 type Prop =
     {
-        range           : FSharp.Compiler.Range.range
+        range           : FSharp.Compiler.Text.range
         name            : string
         typ             : TypeRef
         mode            : AdaptifyMode
@@ -107,7 +107,7 @@ module Prop =
         let typ = TypeRef.ofType log targs f.FieldType
         let name = f.Name
         {
-            range = try f.DeclarationLocation with _ -> range0
+            range = try f.DeclarationLocation with _ -> Range.range0
             name = name
             typ = typ
             mode = mode
@@ -124,7 +124,7 @@ module Prop =
             let typ = TypeRef.ofType log targs mfv.GetterMethod.ReturnParameter.Type
             let name = mfv.DisplayName
             Some {
-                range = try mfv.DeclarationLocation with _ -> range0
+                range = try mfv.DeclarationLocation with _ -> Range.range0
                 name = name
                 typ = typ
                 mode = mode
@@ -182,7 +182,7 @@ module TypeRef =
 
         elif t.HasTypeDefinition then
             let def = t.TypeDefinition
-            let range = try def.DeclarationLocation with _ -> range0
+            let range = try def.DeclarationLocation with _ -> Range.range0
             if def.IsArrayType then
                 let el = ofType log args t.GenericArguments.[0]
                 TArray(el, def.ArrayRank)
@@ -294,7 +294,7 @@ module TypeDef =
             |> Seq.toList
             |> List.choose (Prop.ofMemberOrFunctionOrValue log parMap)
 
-        let range = try e.DeclarationLocation with _ -> range0
+        let range = try e.DeclarationLocation with _ -> Range.range0
 
         if e.IsFSharpRecord then
             let fields = 
@@ -318,7 +318,7 @@ module TypeDef =
                         AdaptifyMode.ofAttributes log c.Attributes
 
                     let fields = 
-                        c.UnionCaseFields
+                        c.Fields
                         |> Seq.toList
                         |> List.map (Prop.ofFSharpField log parMap)
                         |> List.map (fun p -> { p with mode = mode })
@@ -353,7 +353,7 @@ module TypeDef =
             e.Attributes |> Seq.exists (FSharpAttribute.isModelType log)
 
         if isModel then 
-            let loc = try e.DeclarationLocation with _ -> range0
+            let loc = try e.DeclarationLocation with _ -> Range.range0
             if e.IsArrayType then log.warn loc "2413" "arrays cannot be model types"; None
             elif e.IsByRef then log.warn loc "2413" "byrefs cannot be model types"; None
             elif e.IsDelegate then log.warn loc "2413" "delegates cannot be model types"; None

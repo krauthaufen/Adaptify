@@ -23,6 +23,7 @@ type ProjectInfo =
         project     : string
         isNewStyle  : bool
         references  : list<string>
+        projRefs    : list<option<string> * string>
         files       : list<string>
         defines     : list<string>
         target      : Target
@@ -33,7 +34,7 @@ type ProjectInfo =
 
 module ProjectInfo = 
 
-    let ofFscArgs (isNewStyle : bool) (path : string) (args : list<string>) =
+    let ofFscArgs (isNewStyle : bool) (path : string) (projRefs : list<option<string> * string>) (args : list<string>) =
         let mutable parsed = Set.empty
         let path = Path.GetFullPath path
         let dir = Path.GetDirectoryName path
@@ -133,7 +134,7 @@ module ProjectInfo =
         {
             isNewStyle  = isNewStyle
             project     = path
-            //fscArgs     = args
+            projRefs    = projRefs
             references  = references
             files       = files
             target      = defaultArg target Target.Library
@@ -314,10 +315,21 @@ module ProjectInfo =
 
             let debug = r.ReadInt32() |> unpickleDebugType
 
+            let projRefs =
+                let c = r.ReadInt32()
+                List.init c (fun _ ->
+                    let target =
+                        if r.ReadBoolean() then r.ReadString() |> Some
+                        else None
+                    let path = r.ReadString()
+                    target, path
+                )
+
             let project = 
                 normalize {
                     isNewStyle  = isNewStyle
                     project     = project
+                    projRefs    = projRefs
                     references  = references
                     files       = files
                     target      = target
@@ -359,6 +371,16 @@ module ProjectInfo =
         for f in info.additional do w.Write f
 
         w.Write(pickleDebugType info.debug)
+
+        w.Write (List.length info.projRefs)
+        for (target, path) in info.projRefs do
+            match target with
+            | Some t -> 
+                w.Write(true)
+                w.Write(t)
+            | None ->
+                w.Write false
+            w.Write path
 
 
     let pickle (info : ProjectInfo) =

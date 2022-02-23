@@ -6,10 +6,6 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "NetCore", "src\Examples\Net
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Library", "src\Examples\Library\Library.fsproj", "{A61D5D78-B5F2-4EB2-A011-0FDCA8801F4F}"
 EndProject
-Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "NetFramework", "src\Examples\NetFramework\NetFramework.fsproj", "{D10C60C6-E508-4C00-8238-D40738B7EAF3}"
-EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "NetFrameworkOld", "src\Examples\NetFrameworkOld\NetFrameworkOld.fsproj", "{D1F518BD-D47C-4AC6-B375-BE7A8669D3B0}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibraryCSharp", "src\Examples\LibraryCSharp\LibraryCSharp.csproj", "{F72F2245-A01B-49AE-80D1-F45CEAB17BA3}"
 EndProject
 Global

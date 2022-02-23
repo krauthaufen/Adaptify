@@ -2,8 +2,9 @@
 
 open System
 open System.IO
-open FSharp.Compiler.SourceCodeServices
-open FSharp.Compiler.Range
+open FSharp.Compiler.Symbols
+open FSharp.Compiler.Text
+open FSharp.Compiler.CodeAnalysis
 open System.IO.Pipes
 open System.Threading
 open System.Security.Principal
@@ -146,10 +147,11 @@ module private IPC =
 
 
 module Server =
+    
     let private processMessage (cid : int) (log : ILog) (checker : FSharpChecker) project outputPath designTime cache lenses = 
         async {
             try
-                log.debug range0 "  %04d: %s %A %A %A" cid (Path.GetFileName project.project) designTime cache lenses
+                log.debug Range.range0 "  %04d: %s %A %A %A" cid (Path.GetFileName project.project) designTime cache lenses
                 let w = obj()
                 let mutable messages = []
 
@@ -192,7 +194,7 @@ module Server =
                             )
                     }
 
-                let! newFiles = Adaptify.runAsync checker outputPath designTime cache lenses innerLog project
+                let! newFiles = Adaptify.runAsync checker outputPath designTime cache lenses innerLog false false project
                 let reply = IPC.Reply.Success(newFiles, messages)
                 return reply
 
@@ -211,7 +213,7 @@ module Server =
             TCP.Server(IPAddress.Loopback, fun self msg ->
                 let cid = newId()
                 async {
-                    log.debug range0 "%04d: %d bytes" cid msg.Length
+                    log.debug Range.range0 "%04d: %d bytes" cid msg.Length
                     let sw = System.Diagnostics.Stopwatch.StartNew()
                     do! Async.SwitchToThreadPool()
                     let! reply = 
@@ -226,12 +228,12 @@ module Server =
                         | None ->
                             async { return IPC.Reply.Fatal "could not parse command" }
                     sw.Stop()
-                    log.info range0 "%04d took %.3fms" cid sw.Elapsed.TotalMilliseconds
+                    log.info Range.range0 "%04d took %.3fms" cid sw.Elapsed.TotalMilliseconds
 
                     let mem = System.GC.GetTotalMemory(false)
                     if mem > 4L * 1073741824L then
                         let gb = float mem / 1073741824.0 
-                        log.warn range0 "" "shutdown due to large memory: %.3fGB" gb
+                        log.warn Range.range0 "" "shutdown due to large memory: %.3fGB" gb
                         ProcessManagement.releasePort self.Port
                         ProcessManagement.startAdaptifyServer log |> ignore
                         self.Stop()
@@ -242,10 +244,10 @@ module Server =
 
         match ProcessManagement.trySetPort server.Port with
         | Choice1Of2 () ->
-            log.info range0 "server running on port %d" server.Port
+            log.info Range.range0 "server running on port %d" server.Port
             Some server
         | Choice2Of2(otherPid, otherPort) ->
-            log.info range0 "server already running with pid %d and port %d" otherPid otherPort
+            log.info Range.range0 "server already running with pid %d and port %d" otherPid otherPort
             server.Stop()
             server.WaitForExit()
             None
@@ -266,7 +268,7 @@ module Client =
                     match IPC.Reply.tryUnpickle reply with
                     | Some (IPC.Reply.Success(files, messages)) ->
                         for m in messages do
-                            let range = mkRange m.file (mkPos m.startLine m.startCol) (mkPos m.endLine m.endCol)
+                            let range = Range.mkRange m.file (Position.mkPos m.startLine m.startCol) (Position.mkPos m.endLine m.endCol)
                             match m.kind with
                             | IPC.MessageKind.Debug -> log.debug range "%s" m.message
                             | IPC.MessageKind.Info -> log.info range "%s" m.message
@@ -276,11 +278,11 @@ module Client =
                         return Some files
 
                     | Some (IPC.Reply.Fatal msg) ->
-                        log.debug range0 "server: %s" msg
+                        log.debug Range.range0 "server: %s" msg
                         return None
 
                     | Some IPC.Reply.Shutdown ->
-                        log.debug range0 "server: shutdown"
+                        log.debug Range.range0 "server: shutdown"
                         return None
 
                     | None ->
@@ -299,9 +301,9 @@ module Client =
     let adaptify (ct : CancellationToken) (log : ILog) (project : ProjectInfo) (outputPath : string) (designTime : bool) (useCache : bool) (generateLenses : bool) =
         let rec run (retries : int) =
             if retries = 0 then
-                log.warn range0 "" "falling back to local adaptify"
+                log.warn Range.range0 "" "falling back to local adaptify"
                 let checker = newChecker()
-                let run = Adaptify.runAsync checker outputPath designTime useCache generateLenses log project
+                let run = Adaptify.runAsync checker outputPath designTime useCache generateLenses log false false project
                 try Async.RunSynchronously(run, cancellationToken = ct)
                 with _ -> project.files
             else
@@ -310,7 +312,7 @@ module Client =
                     files
                 | None -> 
                     if not ct.IsCancellationRequested then
-                        log.debug range0 "connection failed"
+                        log.debug Range.range0 "connection failed"
                         ProcessManagement.startAdaptifyServer log |> ignore
 
                         let sw = System.Diagnostics.Stopwatch.StartNew()
@@ -341,22 +343,22 @@ module Client =
                     match IPC.Reply.tryUnpickle res with
                     | Some IPC.Reply.Shutdown ->
                         if proc.WaitForExit(60000) then
-                            log.info range0 "server exited"
+                            log.info Range.range0 "server exited"
                         else
-                            log.warn range0 "" "shutdown taking very long -> killing process"
+                            log.warn Range.range0 "" "shutdown taking very long -> killing process"
                             proc.Kill()
                     | Some r ->
-                        log.warn range0 "" "unexpected response %A -> killing process" r
+                        log.warn Range.range0 "" "unexpected response %A -> killing process" r
                         proc.Kill()
                     | None ->
-                        log.warn range0 "" "cannot parse server response -> killing process"
+                        log.warn Range.range0 "" "cannot parse server response -> killing process"
                         proc.Kill()
                         
                 | None ->
-                    log.warn range0 "" "server does not respond -> killing process"
+                    log.warn Range.range0 "" "server does not respond -> killing process"
                     proc.Kill()
             | None ->
-                log.info range0 "no server running"
+                log.info Range.range0 "no server running"
             
     }
 

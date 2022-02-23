@@ -75,17 +75,28 @@ Target.create "Compile" (fun _ ->
 
 
 Target.create "Pack" (fun _ ->
-    
-    Paket.pack (fun o ->
-        { o with
-            WorkingDir = Environment.CurrentDirectory
-            OutputPath = "bin"
-            PinProjectReferences = true
-            ProjectUrl = "https://github.com/krauthaufen/Adaptify"
-            Version = notes.NugetVersion
-            ReleaseNotes = String.concat "\n" notes.Notes
+    let args = 
+        [
+            "paket"
+            "pack"
+            "--version"
+            notes.NugetVersion
+            "--interproject-references"
+            "fix"
+            "--release-notes"
+            sprintf "\"%s\"" (String.concat "\\n" notes.Notes)
+            "--project-url"
+            "\"https://github.com/krauthaufen/Adaptify\""
+            sprintf "\"%s\"" (Path.Combine(__SOURCE_DIRECTORY__, "bin"))
+        ]
+    let ret = 
+        Process.shellExec {
+            ExecParams.Program = "dotnet"
+            WorkingDir = __SOURCE_DIRECTORY__
+            CommandLine = String.concat " " args
+            Args = []
         }
-    )
+    if ret <> 0 then failwithf "paket failed with exit code %d" ret
 
     "src/Adaptify.Compiler/adaptify.fsproj" |> DotNet.pack (fun o -> 
         { o with        
@@ -277,7 +288,7 @@ Target.create "MergeDotNet" (fun _ ->
 
     
     File.Copy(
-        "packages/FSharp.Core/lib/netstandard1.6/FSharp.Core.dll",
+        "packages/FSharp.Core/lib/netstandard2.0/FSharp.Core.dll",
         Path.Combine(outFolder, "FSharp.Core.dll"),
         true
     )
@@ -325,7 +336,7 @@ Target.create "MergeFramework" (fun _ ->
 
     
     File.Copy(
-        "packages/FSharp.Core/lib/netstandard1.6/FSharp.Core.dll",
+        "packages/FSharp.Core/lib/netstandard2.0/FSharp.Core.dll",
         Path.Combine(outFolder, "FSharp.Core.dll"),
         true
     )

@@ -1,7 +1,8 @@
 ﻿namespace Adaptify.Compiler
 
 open System
-open FSharp.Compiler.SourceCodeServices
+open FSharp.Compiler.Symbols
+
 
 type Scope =
     | Global

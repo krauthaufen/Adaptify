@@ -1,7 +1,7 @@
 ﻿namespace rec Adaptify.Compiler
 
 open System
-open FSharp.Compiler.SourceCodeServices
+open FSharp.Compiler.Symbols
 open Adaptify.Compiler
 
 type Var(name : string, t : TypeRef, isMutable : bool) =

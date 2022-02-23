@@ -3,7 +3,7 @@
 open System
 open System.IO
 open System.IO.MemoryMappedFiles
-open FSharp.Compiler.Range
+open FSharp.Compiler.Text
 open System.Reflection
 open System.Runtime.InteropServices
 open System.Diagnostics
@@ -440,7 +440,7 @@ module ProcessManagement =
                 file = if isWindows then "dotnet" else "/usr/bin/dotnet"
                 args = args
                 output = OutputMode.Custom (fun s l ->
-                    log.debug range0 "dotnet: %s" l
+                    log.debug Range.range0 "dotnet: %s" l
                     lock output (fun () -> output.Add l)
                 )
                 workDir = ""
@@ -450,7 +450,7 @@ module ProcessManagement =
             proc.WaitForExit()
             if proc.ExitCode <> 0 then
                 for line in output do
-                    log.debug range0 "dotnet: %s" line
+                    log.debug Range.range0 "dotnet: %s" line
                 failwith "dotnet failed"
         | None ->
             failwith "dotnet failed"
@@ -461,22 +461,22 @@ module ProcessManagement =
         let executablePath = try Process.GetCurrentProcess().MainModule.FileName with _ -> "bar"
 
         if Path.GetFileName(executablePath) = executableName then
-            log.info range0 "starting self-executable"
+            log.info Range.range0 "starting self-executable"
             Process.startDaemon executablePath ["--server"]
 
         elif Path.GetFileName(entryPath) = "adaptify.dll" then  
-            log.info range0 "starting self-dll" 
+            log.info Range.range0 "starting self-dll" 
             Process.startDaemon "dotnet" [sprintf "\"%s\"" entryPath; "--server"]
 
         else    
             let toolPath = Path.Combine(directory(), executableName)
             if not (File.Exists toolPath) then
-                log.info range0 "adaptify tool %s not found in toolpath \"%s\" (installing)" selfVersion toolPath
+                log.info Range.range0 "adaptify tool %s not found in toolpath \"%s\" (installing)" selfVersion toolPath
 
                 let mutable numTry = 0
                 while not (File.Exists toolPath) && numTry < 10 do
                     numTry <- numTry + 1
-                    if numTry > 1 then log.info range0 "retrying..."
+                    if numTry > 1 then log.info Range.range0 "retrying..."
                     locked (fun () ->
                         try
                             dotnet log [ 
@@ -485,16 +485,16 @@ module ProcessManagement =
                                 "--tool-path"; sprintf "\"%s\"" (directory())
                                 "--version"; sprintf "[%s]" selfVersion
                             ]
-                            log.info range0 "installed tool at \"%s\"" toolPath
+                            log.info Range.range0 "installed tool at \"%s\"" toolPath
                         with e ->
-                            log.warn range0 "" "error installing tool to path \"%s\" (%A)" toolPath e
+                            log.warn Range.range0 "" "error installing tool to path \"%s\" (%A)" toolPath e
                             Thread.Sleep(1000)
                             ()
                     )
             
             match readProcessAndPort() with
             | None ->
-                log.info range0 "starting %s" toolPath 
+                log.info Range.range0 "starting %s" toolPath 
                 Process.startDaemon toolPath ["--server"]
             | Some(_otherProc, _) ->
                 ()
