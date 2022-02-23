@@ -24,3 +24,4 @@ symbolCache.db
 .adaptifycache
 src/Adaptify.Compiler/Properties
 *.g.fs
+.ionide

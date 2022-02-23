@@ -434,12 +434,13 @@ module ProcessManagement =
 
     let private dotnet (log : ILog) (args : list<string>) =  
         let output = System.Collections.Generic.List<string>()
+        let isWindows = Environment.OSVersion.Platform <> PlatformID.Unix && Environment.OSVersion.Platform <> PlatformID.MacOSX
         let proc = 
             Process.tryStart {
-                file = "dotnet"
+                file = if isWindows then "dotnet" else "/usr/bin/dotnet"
                 args = args
                 output = OutputMode.Custom (fun s l ->
-                    log.debug range0 "dotnet: %s" l
+                    log.warn range0 "" "dotnet: %s" l
                     lock output (fun () -> output.Add l)
                 )
                 workDir = ""
@@ -485,8 +486,8 @@ module ProcessManagement =
                                 "--version"; sprintf "[%s]" selfVersion
                             ]
                             log.info range0 "installed tool at \"%s\"" toolPath
-                        with _ ->
-                            log.warn range0 "" "error installing tool to path \"%s\"" toolPath
+                        with e ->
+                            log.warn range0 "" "error installing tool to path \"%s\" (%A)" toolPath e
                             Thread.Sleep(1000)
                             ()
                     )

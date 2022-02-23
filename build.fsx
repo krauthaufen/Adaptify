@@ -1,4 +1,4 @@
-#load ".paket/load/net6.0/Build/build.group.fsx"
+#load ".paket/load/net6.0/build/build.group.fsx"
 
 open System
 open System.IO
@@ -294,12 +294,19 @@ Target.create "MergeDotNet" (fun _ ->
             "FSharp.Core.dll"
         ]
 
-    let worked = ilrepack outFolder args
+    if OperatingSystem.IsWindows() then 
+        let worked = ilrepack outFolder args
 
-    if worked = 0 then
-        Trace.log "merged"
+        if worked = 0 then
+            Trace.log "merged"
+        else
+            failwith "error in ILRepack"
     else
-        failwith "error in ILRepack"
+        let copyFile (file : string) = File.Copy(Path.Combine(outFolder, file), Path.Combine(outFolder, "..", file), true)
+        copyFile "Adaptify.MSBuild.DotNet.dll"
+        copyFile "FSharp.Compiler.Service.dll"
+        copyFile "Adaptify.Compiler.Core.dll"
+        copyFile "FSharp.Core.dll"
 )
 
 
@@ -348,12 +355,13 @@ Target.create "Merge" (fun _ ->
     File.Copy("bin/Release/net472/Adaptify.MSBuild.targets", Path.Combine(outDir, "Adaptify.MSBuild.targets"), true)
 )
 
-"Compile" ==> "MergeDotNet"
-"Compile" ==> "MergeFramework"
+if OperatingSystem.IsWindows() then 
+    "Compile" ==> "MergeFramework"
+    "MergeFramework" ==> "Merge"
+else 
+    "Compile" ==> "Default" 
 
 "MergeDotNet" ==> "Merge"
-"MergeFramework" ==> "Merge"
-
 
 "Compile" ==> 
     "Docs"

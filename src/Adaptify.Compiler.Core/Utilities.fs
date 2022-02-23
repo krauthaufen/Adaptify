@@ -288,6 +288,10 @@ module Process =
     let tryStart (cfg : ProcessConfig) =
         try
             let cwd = if String.IsNullOrWhiteSpace cfg.workDir then Environment.CurrentDirectory else cfg.workDir
+            match cfg.output with
+                | OutputMode.Custom write ->
+                    write OutputStream.Stderr (sprintf "%s %s" cfg.file (String.concat " " cfg.args))
+                | _ -> ()
             let info = 
                 ProcessStartInfo(
                     cfg.file, String.concat " " cfg.args,
