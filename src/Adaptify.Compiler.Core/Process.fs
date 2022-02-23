@@ -440,7 +440,7 @@ module ProcessManagement =
                 file = if isWindows then "dotnet" else "/usr/bin/dotnet"
                 args = args
                 output = OutputMode.Custom (fun s l ->
-                    log.warn range0 "" "dotnet: %s" l
+                    log.debug range0 "dotnet: %s" l
                     lock output (fun () -> output.Add l)
                 )
                 workDir = ""

@@ -356,11 +356,12 @@ Target.create "Merge" (fun _ ->
 )
 
 if OperatingSystem.IsWindows() then 
-    "Compile" ==> "MergeFramework"
+    "Compile" ==> "MergeFramework" |> ignore
     "MergeFramework" ==> "Merge"
 else 
     "Compile" ==> "Default" 
 
+"Compile" ==> "MergeDotNet" 
 "MergeDotNet" ==> "Merge"
 
 "Compile" ==> 
