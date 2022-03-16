@@ -1,3 +1,6 @@
+### 1.1.2
+* fixed caching bug
+
 ### 1.1.1
 * merged 1.0.x with 1.1.0 track
 
