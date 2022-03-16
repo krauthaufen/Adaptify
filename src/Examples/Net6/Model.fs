@@ -19,7 +19,7 @@ type MyModel =
         g : HashMap<string, StaticClass.CSharpStruct>
         a : Result<MyModel, string>
         b : float
-        //list : HashSet<MyModel>
+        list : HashSet<MyModel>
         map : HashMap<int, MyModel>
     } with 
         member x.c = x.a

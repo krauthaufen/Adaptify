@@ -342,19 +342,23 @@ module Adaptify =
                         let mayDefineModelTypes = modelTypeRx.IsMatch content
                         let outputFile = getOutputFile file
                         let outputExists = File.Exists outputFile
+                        let fileHash = hash content
+                        let hashEquals = 
+                            match Map.tryFind file oldHashes with
+                            | Some oldHash -> oldHash.fileHash = fileHash
+                            | _ -> false
 
                         // just diagnostic output for strange case, which is handled with additional care.
                         if noGeneration && not outputExists && mayDefineModelTypes then 
                             // normally this would be bad, handled in next if. we report this happened.
                             log.info Range.range0 "[Adaptify]   the output %s for file %s was not found in output during a design time build. this should not happen, as the build should have generated this one. maybe design time and compile time project infos do not match" outputFile file
 
-                        if noGeneration && outputExists then // no matter what, if output file does not exist, create it - non-existing files should not be returned
+                        if noGeneration && outputExists && hashEquals then // no matter what, if output file does not exist, create it - non-existing files should not be returned
                             newFiles.Add file
                             let generated = getOutputFile file
                             if mayDefineModelTypes then
                                 newFiles.Add generated
                         else
-                            let fileHash = hash content
 
                             let mayDefineModelTypes = modelTypeRx.IsMatch content
 

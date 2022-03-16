@@ -1,5 +1,5 @@
-//be23d296-5a18-47ed-2bfc-2ce459f0232b
-//110fab23-cf91-d699-0c28-6223a73084e0
+//7ff49558-c0cb-8b0a-10c9-fbf82b7296e3
+//e1fa36b5-4896-140d-0c31-692e7dcf4de3
 #nowarn "49" // upper case patterns
 #nowarn "66" // upcast is unncecessary
 #nowarn "1337" // internal types
@@ -78,7 +78,7 @@ module AdaptiveMyUnion =
         | _ -> failwith "unreachable"
 [<System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
 type AdaptiveMyModel(value : MyModel) =
-    let mutable _c_ =
+    let mutable _d_ =
         let inline __arg2 (o : System.Object) (v : MyModel) =
             (unbox<AdaptiveMyModel> o).Update(v)
             o
@@ -88,7 +88,7 @@ type AdaptiveMyModel(value : MyModel) =
         let inline __arg11 (o : System.Object) (v : Microsoft.FSharp.Core.string) =
             (unbox<FSharp.Data.Adaptive.cval<Microsoft.FSharp.Core.string>> o).Value <- v
             o
-        Adaptify.FSharp.Core.AdaptiveResult<Model.MyModel, Model.AdaptiveMyModel, Model.AdaptiveMyModel, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>(value.c, (fun (v : MyModel) -> AdaptiveMyModel(v) :> System.Object), __arg2, (fun (o : System.Object) -> unbox<AdaptiveMyModel> o), (fun (v : MyModel) -> AdaptiveMyModel(v) :> System.Object), __arg5, (fun (o : System.Object) -> unbox<AdaptiveMyModel> o), (fun (v : Microsoft.FSharp.Core.string) -> v :> System.Object), (fun (o : System.Object) (v : Microsoft.FSharp.Core.string) -> v :> System.Object), (fun (o : System.Object) -> unbox<Microsoft.FSharp.Core.string> o), (fun (v : Microsoft.FSharp.Core.string) -> FSharp.Data.Adaptive.cval(v) :> System.Object), __arg11, (fun (o : System.Object) -> unbox<FSharp.Data.Adaptive.cval<Microsoft.FSharp.Core.string>> o :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>))
+        Adaptify.FSharp.Core.AdaptiveResult<Model.MyModel, Model.AdaptiveMyModel, Model.AdaptiveMyModel, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>(value.d, (fun (v : MyModel) -> AdaptiveMyModel(v) :> System.Object), __arg2, (fun (o : System.Object) -> unbox<AdaptiveMyModel> o), (fun (v : MyModel) -> AdaptiveMyModel(v) :> System.Object), __arg5, (fun (o : System.Object) -> unbox<AdaptiveMyModel> o), (fun (v : Microsoft.FSharp.Core.string) -> v :> System.Object), (fun (o : System.Object) (v : Microsoft.FSharp.Core.string) -> v :> System.Object), (fun (o : System.Object) -> unbox<Microsoft.FSharp.Core.string> o), (fun (v : Microsoft.FSharp.Core.string) -> FSharp.Data.Adaptive.cval(v) :> System.Object), __arg11, (fun (o : System.Object) -> unbox<FSharp.Data.Adaptive.cval<Microsoft.FSharp.Core.string>> o :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>))
     let _e_ = FSharp.Data.Adaptive.cval(value.e)
     let _g_ = FSharp.Data.Adaptive.cmap(value.g)
     let _a_ =
@@ -103,6 +103,7 @@ type AdaptiveMyModel(value : MyModel) =
             o
         Adaptify.FSharp.Core.AdaptiveResult<Model.MyModel, Model.AdaptiveMyModel, Model.AdaptiveMyModel, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>(value.a, (fun (v : MyModel) -> AdaptiveMyModel(v) :> System.Object), __arg2, (fun (o : System.Object) -> unbox<AdaptiveMyModel> o), (fun (v : MyModel) -> AdaptiveMyModel(v) :> System.Object), __arg5, (fun (o : System.Object) -> unbox<AdaptiveMyModel> o), (fun (v : Microsoft.FSharp.Core.string) -> v :> System.Object), (fun (o : System.Object) (v : Microsoft.FSharp.Core.string) -> v :> System.Object), (fun (o : System.Object) -> unbox<Microsoft.FSharp.Core.string> o), (fun (v : Microsoft.FSharp.Core.string) -> FSharp.Data.Adaptive.cval(v) :> System.Object), __arg11, (fun (o : System.Object) -> unbox<FSharp.Data.Adaptive.cval<Microsoft.FSharp.Core.string>> o :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>))
     let _b_ = FSharp.Data.Adaptive.cval(value.b)
+    let _x_ = FSharp.Data.Adaptive.cval(value.x)
     let _map_ =
         let inline __arg2 (m : AdaptiveMyModel) (v : MyModel) =
             m.Update(v)
@@ -116,25 +117,19 @@ type AdaptiveMyModel(value : MyModel) =
         if Microsoft.FSharp.Core.Operators.not((FSharp.Data.Adaptive.ShallowEqualityComparer<MyModel>.ShallowEquals(value, __value))) then
             __value <- value
             __adaptive.MarkOutdated()
-            _c_.Update(value.c)
+            _d_.Update(value.d)
             _e_.Value <- value.e
             _g_.Value <- value.g
             _a_.Update(value.a)
             _b_.Value <- value.b
+            _x_.Value <- value.x
             _map_.Update(value.map)
     member __.Current = __adaptive
-    member __.c = _c_ :> FSharp.Data.Adaptive.aval<Adaptify.FSharp.Core.AdaptiveResultCase<MyModel, AdaptiveMyModel, AdaptiveMyModel, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>>
+    member __.d = _d_ :> FSharp.Data.Adaptive.aval<Adaptify.FSharp.Core.AdaptiveResultCase<MyModel, AdaptiveMyModel, AdaptiveMyModel, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>>
     member __.e = _e_ :> FSharp.Data.Adaptive.aval<LibraryCSharp.StaticClass.CSharpClass>
     member __.g = _g_ :> FSharp.Data.Adaptive.amap<Microsoft.FSharp.Core.string, LibraryCSharp.StaticClass.CSharpStruct>
     member __.a = _a_ :> FSharp.Data.Adaptive.aval<Adaptify.FSharp.Core.AdaptiveResultCase<MyModel, AdaptiveMyModel, AdaptiveMyModel, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>>
     member __.b = _b_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.float>
+    member __.x = _x_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.int>
     member __.map = _map_ :> FSharp.Data.Adaptive.amap<Microsoft.FSharp.Core.int, AdaptiveMyModel>
-[<AutoOpen; System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
-module MyModelLenses = 
-    type MyModel with
-        static member e_ = ((fun (self : MyModel) -> self.e), (fun (value : LibraryCSharp.StaticClass.CSharpClass) (self : MyModel) -> { self with e = value }))
-        static member g_ = ((fun (self : MyModel) -> self.g), (fun (value : FSharp.Data.Adaptive.HashMap<Microsoft.FSharp.Core.string, LibraryCSharp.StaticClass.CSharpStruct>) (self : MyModel) -> { self with g = value }))
-        static member a_ = ((fun (self : MyModel) -> self.a), (fun (value : Microsoft.FSharp.Core.Result<MyModel, Microsoft.FSharp.Core.string>) (self : MyModel) -> { self with a = value }))
-        static member b_ = ((fun (self : MyModel) -> self.b), (fun (value : Microsoft.FSharp.Core.float) (self : MyModel) -> { self with b = value }))
-        static member map_ = ((fun (self : MyModel) -> self.map), (fun (value : FSharp.Data.Adaptive.HashMap<Microsoft.FSharp.Core.int, MyModel>) (self : MyModel) -> { self with map = value }))
 
