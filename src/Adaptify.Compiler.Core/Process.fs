@@ -465,7 +465,7 @@ module ProcessManagement =
 
         let tool = 
             let name = if isWindows then "dotnet.exe" else "dotnet"
-            match Helpers.findTool "dotnet.exe" with
+            match Helpers.findTool name with
             | None -> 
                 log.error Range.range0 "dotnet" "could not find tool dotnet on path. trying anyways to invoke plain 'dotnet'"
                 "dotnet"
