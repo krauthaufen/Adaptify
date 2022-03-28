@@ -294,12 +294,13 @@ module Process =
                 | OutputMode.Custom write ->
                     write OutputStream.Stderr (sprintf "%s %s" cfg.file (String.concat " " cfg.args))
                 | _ -> ()
+
             let info = 
                 ProcessStartInfo(
                     cfg.file, String.concat " " cfg.args,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
-                    UseShellExecute = true,
+                    UseShellExecute = false,
                     CreateNoWindow = true,
                     WorkingDirectory = cwd
                 )
@@ -333,16 +334,13 @@ module Process =
                 let dispose =
                     match cfg.output with
                     | OutputMode.None -> 
-                        proc.StandardOutput.Close()
-                        proc.StandardError.Close()
                         { new IDisposable with member x.Dispose() = () }
                     | _ ->
                         proc.BeginOutputReadLine()
                         proc.BeginErrorReadLine()
                         { new IDisposable with 
-                            member x.Dispose() =  // seems to be necessary in some situations https://github.com/krauthaufen/Adaptify/issues/27
-                                proc.StandardOutput.Close()
-                                proc.StandardError.Close()
+                            member x.Dispose() =  
+                                ()
                         }
 
                 Some (proc, dispose)

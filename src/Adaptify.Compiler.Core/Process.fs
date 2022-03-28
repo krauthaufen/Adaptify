@@ -432,12 +432,48 @@ module ProcessManagement =
                 ()
         )
 
-    let private dotnet (log : ILog) (args : list<string>) =  
+    module Helpers =
+        // taken from: https://github.com/fsprojects/FAKE/blob/bed4955b96097ee25b84a314b6cc77f088a1d83b/src/app/Fake.Core.Process/ProcessUtils.fs
+    
+        let environVarOrNone name = 
+            match Environment.GetEnvironmentVariable("PATH") with
+            | null -> None
+            | e -> Some e
+    
+        let splitEnvironVar name =
+            let var = environVarOrNone name
+            if var = None then [ ]
+            else var.Value.Split([| Path.PathSeparator |]) |> Array.toList
+    
+        let pathDirectories = 
+            splitEnvironVar "PATH"
+            |> Seq.map (fun value -> value.Trim())
+            |> Seq.append ["."]
+    
+        let findTool (name : string) = 
+            pathDirectories 
+            |> Seq.tryPick (fun path -> 
+                let p = Path.Combine(path, name)
+                if File.Exists p then Some p else None
+            )
+
+ 
+
+    let dotnet (log : ILog) (args : list<string>) =  
         let output = System.Collections.Generic.List<string>()
         let isWindows = Environment.OSVersion.Platform <> PlatformID.Unix && Environment.OSVersion.Platform <> PlatformID.MacOSX
+
+        let tool = 
+            let name = if isWindows then "dotnet.exe" else "dotnet"
+            match Helpers.findTool "dotnet.exe" with
+            | None -> 
+                log.error Range.range0 "dotnet" "could not find tool dotnet on path. trying anyways to invoke plain 'dotnet'"
+                "dotnet"
+            | Some s -> s
+
         let proc = 
             Process.tryStart {
-                file = "dotnet" // switched to shell execute to make it work on linux/mac/win more uniformely
+                file = tool
                 args = args
                 output = OutputMode.Custom (fun s l ->
                     log.debug Range.range0 "dotnet: %s" l

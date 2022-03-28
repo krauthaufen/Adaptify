@@ -1,3 +1,8 @@
+### 1.1.4
+* fixed install on osx https://github.com/krauthaufen/Adaptify/issues/28
+* potentially fixed occasional msbuild hangs https://github.com/krauthaufen/Adaptify/issues/27
+
+
 ### 1.1.3
 * fixed install on osx https://github.com/krauthaufen/Adaptify/issues/28
 * potentially fixed occasional msbuild hangs https://github.com/krauthaufen/Adaptify/issues/27

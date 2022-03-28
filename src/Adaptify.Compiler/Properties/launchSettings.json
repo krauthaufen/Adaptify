@@ -2,7 +2,7 @@
   "profiles": {
     "adaptify": {
       "commandName": "Project",
-      "commandLineArgs": "--local \"F:\\pro3d\\PRo3D-lite\\SAFE\\src\\Server\\Server.fsproj\""
+      "commandLineArgs": "\"F:\\aardvark\\Adaptify\\src\\Examples\\Net6\\Net6.fsproj\""
     }
   }
 }

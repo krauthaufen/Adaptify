@@ -239,8 +239,12 @@ type Path with
         else
             [||]
 
+
+
 [<EntryPoint>]
 let main argv = 
+
+    //let r = ProcessManagement.dotnet (Log.console true) ["--list-sdks"]
 
     if argv.Length <= 0 then
         printfn "Usage: adaptify [options] [projectfiles]"
