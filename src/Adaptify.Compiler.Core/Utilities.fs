@@ -274,17 +274,18 @@ module Process =
                 CreateNoWindow = RuntimeInformation.IsOSPlatform(OSPlatform.Windows),
                 WorkingDirectory = Path.GetDirectoryName file
             )
-        info.RedirectStandardInput <- true
-        info.RedirectStandardOutput <- true
-        info.RedirectStandardError <- true
+        //info.RedirectStandardInput <- true
+        //info.RedirectStandardOutput <- true
+        //info.RedirectStandardError <- true
         info.EnvironmentVariables.["COMPlus_DefaultStackSize"] <- "800000" // avoiding stack overflows on MacOS
         let proc = new Process()
         
         proc.StartInfo <- info
         if proc.Start() then
-            proc.StandardOutput.Close()
-            proc.StandardError.Close()
-            proc.StandardInput.Close()
+            //proc.StandardOutput.Close()
+            //proc.StandardError.Close()
+            //proc.StandardInput.Close()
+            ()
 
     let tryStart (cfg : ProcessConfig) =
         try
@@ -298,7 +299,7 @@ module Process =
                     cfg.file, String.concat " " cfg.args,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
-                    UseShellExecute = false,
+                    UseShellExecute = true,
                     CreateNoWindow = true,
                     WorkingDirectory = cwd
                 )
@@ -329,15 +330,22 @@ module Process =
 
 
             if proc.Start() then
-                match cfg.output with
-                | OutputMode.None -> 
-                    proc.StandardOutput.Close()
-                    proc.StandardError.Close()
-                | _ ->
-                    proc.BeginOutputReadLine()
-                    proc.BeginErrorReadLine()
+                let dispose =
+                    match cfg.output with
+                    | OutputMode.None -> 
+                        proc.StandardOutput.Close()
+                        proc.StandardError.Close()
+                        { new IDisposable with member x.Dispose() = () }
+                    | _ ->
+                        proc.BeginOutputReadLine()
+                        proc.BeginErrorReadLine()
+                        { new IDisposable with 
+                            member x.Dispose() =  // seems to be necessary in some situations https://github.com/krauthaufen/Adaptify/issues/27
+                                proc.StandardOutput.Close()
+                                proc.StandardError.Close()
+                        }
 
-                Some proc
+                Some (proc, dispose)
             else
                 None 
         with e -> 

@@ -2,7 +2,7 @@
   "profiles": {
     "adaptify": {
       "commandName": "Project",
-      "commandLineArgs": "--server --verbose"
+      "commandLineArgs": "--local \"F:\\pro3d\\PRo3D-lite\\SAFE\\src\\Server\\Server.fsproj\""
     }
   }
 }

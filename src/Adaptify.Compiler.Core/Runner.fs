@@ -324,8 +324,9 @@ module Adaptify =
                                         output      = OutputMode.Custom (fun s m -> log.debug Range.range0 "      %s" m)
                                     }
                                 match proc with
-                                | Some p -> 
+                                | Some (p, d) -> 
                                     p.WaitForExit()
+                                    d.Dispose()
                                     if p.ExitCode <> 0 then log.error Range.range0 "1" "    failed"
                                 | None -> 
                                     log.info Range.range0 "    success"

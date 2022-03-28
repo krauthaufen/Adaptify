@@ -437,7 +437,7 @@ module ProcessManagement =
         let isWindows = Environment.OSVersion.Platform <> PlatformID.Unix && Environment.OSVersion.Platform <> PlatformID.MacOSX
         let proc = 
             Process.tryStart {
-                file = if isWindows then "dotnet" else "/usr/bin/dotnet"
+                file = "dotnet" // switched to shell execute to make it work on linux/mac/win more uniformely
                 args = args
                 output = OutputMode.Custom (fun s l ->
                     log.debug Range.range0 "dotnet: %s" l
@@ -446,8 +446,9 @@ module ProcessManagement =
                 workDir = ""
             }
         match proc with
-        | Some proc ->
+        | Some (proc, d) ->
             proc.WaitForExit()
+            d.Dispose()
             if proc.ExitCode <> 0 then
                 for line in output do
                     log.debug Range.range0 "dotnet: %s" line

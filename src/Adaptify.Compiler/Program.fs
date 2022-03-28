@@ -98,7 +98,7 @@ module ProjectInfo =
 
             let additionalArgs = additionalMSBuildProps |> List.map (Dotnet.ProjInfo.Inspect.MSBuild.MSbuildCli.Property)
 
-            let log = ignore
+            let log = printfn "[LOG] %A"
 
             let projs = Dotnet.ProjInfo.Inspect.getResolvedP2PRefs
 

@@ -15,8 +15,8 @@ let main _argv =
     let bla = fst MyModel.a_ Unchecked.defaultof<MyModel>
     
     
-    let v : AdaptiveMyModel = test.init { a = Error "bad"; b = 3.0; map = HashMap.empty; e = null; list = HashSet.empty; g = Unchecked.defaultof<_>;  }
-    test.update v { a = Error "bad"; b = 4.0; map = HashMap.empty; e = null; list = HashSet.empty; g = Unchecked.defaultof<_>;  }
+    let v : AdaptiveMyModel = test.init { a = Error "bad"; b = 3.0; map = HashMap.empty; e = null; list = HashSet.empty; g = Unchecked.defaultof<_>;  h = 0 }
+    test.update v { a = Error "bad"; b = 4.0; map = HashMap.empty; e = null; list = HashSet.empty; g = Unchecked.defaultof<_>; h = 10 }
     
     
     let _ : aval<MyModel> = v.Current
