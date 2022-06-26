@@ -119,6 +119,7 @@ module Adaptify =
                     yield "#nowarn \"49\" // upper case patterns"
                     yield "#nowarn \"66\" // upcast is unncecessary"
                     yield "#nowarn \"1337\" // internal types"
+                    yield "#nowarn \"1182\" // value is unused"
                 ]
             let m = rx.Match code
             if m.Success then
