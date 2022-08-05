@@ -1,6 +1,6 @@
-FSharp.Core
-BlackFox.VsWhere
-Dotnet.ProjInfo
-Dotnet.ProjInfo.Workspace
-FSharp.Compiler.Service
-DotNet.Glob
+group Tool 
+    FSharp.Compiler.Service
+    DotNet.Glob
+    FSharp.Core
+    BlackFox.VsWhere
+    Ionide.ProjInfo 

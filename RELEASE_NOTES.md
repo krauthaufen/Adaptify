@@ -1,3 +1,6 @@
+### 1.1.6
+* upgraded tool dependencies
+
 ### 1.1.5
 * fixed install on osx https://github.com/krauthaufen/Adaptify/issues/28
 * potentially fixed occasional msbuild hangs https://github.com/krauthaufen/Adaptify/issues/27

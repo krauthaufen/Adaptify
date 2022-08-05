@@ -6,12 +6,15 @@ open FSharp.Core
 open Adaptify.Compiler
 open System.Runtime.CompilerServices
 open System.Threading
+open Ionide.ProjInfo.ProjectLoader
+open Ionide.ProjInfo.Types
+open Microsoft.Build.Definition
+open System.Reflection
+open Microsoft.FSharp.Reflection
 
 module ProjectInfo =
-    open Dotnet.ProjInfo
-    open Dotnet.ProjInfo.Inspect
-    open Dotnet.ProjInfo.Workspace
-
+    open Ionide.ProjInfo
+    
     module internal Utils =
         let runProcess (log: string -> unit) (workingDir: string) (exePath: string) (args: string) =
             let psi = System.Diagnostics.ProcessStartInfo()
@@ -41,132 +44,46 @@ module ProjectInfo =
 
             exitCode, (workingDir, exePath, args)
 
-    let private projInfo additionalMSBuildProps (file : string) =
+    let private cases = FSharpType.GetUnionCases(typeof<ProjectLoadingStatus>, true)
+    let private success = cases |> Array.find (fun c -> c.Name = "Success")
+    let private error = cases |> Array.find (fun c -> c.Name = "Error")
+    let private readTag = FSharpValue.PreComputeUnionTagReader(typeof<ProjectLoadingStatus>, true)
+    let private readSuccess = FSharpValue.PreComputeUnionReader(success, true)
+    let private readError = FSharpValue.PreComputeUnionReader(error, true)
 
+    let tryOfProject additionalMSBuildProps (file : string) =
         let projDir = Path.GetDirectoryName file
         let runCmd exePath args = Utils.runProcess ignore projDir exePath (args |> String.concat " ")
     
+        let dotnet = Ionide.ProjInfo.Paths.dotnetRoot.Value
+        let path = Init.init (DirectoryInfo Environment.CurrentDirectory) dotnet
+        
         let additionalMSBuildProps = ("GenerateDomainTypes", "false") :: additionalMSBuildProps
-
-        let netcore =
-            match ProjectRecognizer.kindOfProjectSdk file with
-            | Some ProjectRecognizer.ProjectSdkKind.DotNetSdk -> true
-            | _ -> false
-    
-        let projectAssetsJsonPath = Path.Combine(projDir, "obj", "project.assets.json")
-        if netcore && not(File.Exists(projectAssetsJsonPath)) then
-            let (s, a) = runCmd "dotnet" ["restore"; sprintf "\"%s\"" file]
-            if s <> 0 then 
-                failwithf "Cannot find restored info for project %s" file
-    
-        let getFscArgs = 
-            if netcore then
-                Dotnet.ProjInfo.Inspect.getFscArgs
-            else
-                let asFscArgs props =
-                    let fsc = Microsoft.FSharp.Build.Fsc()
-                    Dotnet.ProjInfo.FakeMsbuildTasks.getResponseFileFromTask props fsc
-                Dotnet.ProjInfo.Inspect.getFscArgsOldSdk (asFscArgs >> Ok)
-
-        let results =
-            let msbuildExec =
-                let msbuildPath =
-                    if netcore then Dotnet.ProjInfo.Inspect.MSBuildExePath.DotnetMsbuild "dotnet"
-                    else 
-                        let all = 
-                            BlackFox.VsWhere.VsInstances.getWithPackage "Microsoft.Component.MSBuild" true
-
-                        let probes =
-                            [
-                                @"MSBuild\Current\Bin\MSBuild.exe"
-                                @"MSBuild\15.0\Bin\MSBuild.exe"
-                            ]
-
-                        let msbuild =
-                            all |> List.tryPick (fun i ->
-                                probes |> List.tryPick (fun p ->
-                                    let path = Path.Combine(i.InstallationPath, p)
-                                    if File.Exists path then Some path
-                                    else None
-                                )
-                            )
-
-                        match msbuild with
-                        | Some msbuild -> Dotnet.ProjInfo.Inspect.MSBuildExePath.Path msbuild
-                        | None -> failwith "no msbuild"
-                Dotnet.ProjInfo.Inspect.msbuild msbuildPath runCmd
-
-            let additionalArgs = additionalMSBuildProps |> List.map (Dotnet.ProjInfo.Inspect.MSBuild.MSbuildCli.Property)
-
-            let log = printfn "[LOG] %A"
-
-            let projs = Dotnet.ProjInfo.Inspect.getResolvedP2PRefs
-
-            file
-            |> Inspect.getProjectInfos log msbuildExec [projs; getFscArgs] additionalArgs
-
-        netcore, results
-
-    let tryOfProject (additionalMSBuildProps : list<string * string>) (file : string) =
-        let (netcore, info) = projInfo additionalMSBuildProps file
-
-        match info with
-        | Ok info ->
-            
-            let mutable errors = []
-            let fscArgs = 
-                info |> List.tryPick (fun res ->
-                    match res with
-                    | Ok res ->
-                        match res with
-                        | GetResult.FscArgs args -> Some (Ok args)
-                        | _ -> None
-                    | Error err ->
-                        errors <- err :: errors
-                        None
-                )
-
-            let projRefs =
-                let result =
-                    info |> List.tryPick (fun res ->
-                        match res with
-                        | Ok res -> 
-                            match res with
-                            | GetResult.ResolvedP2PRefs refs -> Some refs
-                            | _ -> None
-                        | _ ->  
-                            None
+        let s = Ionide.ProjInfo.ProjectLoader.loadProject file BinaryLogGeneration.Off additionalMSBuildProps 
+        let t = readTag s
+        if t = success.Tag then
+            let p = readSuccess(s).[0] :?> LoadedProject
+            match ProjectLoader.getLoadedProjectInfo file [] p with
+            | Result.Ok info ->
+                let isNewStyle =
+                    info.ProjectSdkInfo.TargetFrameworks |> List.exists (fun f -> f.StartsWith "netframework")  |> not
+                
+                let fscArgs = ProjectLoader.getFscArgs p |> Seq.toList
+                
+                let projs = 
+                    info.ReferencedProjects |> List.map (fun p ->
+                        let path = Path.Combine(projDir, p.RelativePath.Replace('\\', Path.DirectorySeparatorChar), p.ProjectFileName) |> Path.GetFullPath
+                        (Some p.TargetFramework, path)   
                     )
-                match result with
-                | Some l -> l |> List.map (fun r -> r.TargetFramework, r.ProjectReferenceFullPath)
-                | None -> []
+                    
+                Ok (ProjectInfo.ofFscArgs isNewStyle file projs fscArgs)
+            | Result.Error e ->
+                Error [e]
+                    
+        else
+            let e = readError(s).[0] :?> string
+            Error [e]
 
-
-            match fscArgs with
-            | Some args -> 
-                match args with
-                | Ok args -> Ok (ProjectInfo.ofFscArgs netcore file projRefs args)
-                | Error e -> Error [sprintf "%A" e]
-            | None -> 
-                let errors = 
-                    errors |> List.map (fun e ->
-                        match e with
-                        | MSBuildFailed (code, err) ->
-                            sprintf "msbuild error %d: %A" code err
-                        | MSBuildSkippedTarget ->
-                            sprintf "msbuild skipped target"
-                        | UnexpectedMSBuildResult res ->
-                            sprintf "msbuild error: %s" res
-                    )
-                Error errors
-        | Error e ->
-            match e with
-            | MSBuildFailed (code, err) ->
-                Error [sprintf "msbuild error %d: %A" code err]
-            | MSBuildSkippedTarget ->
-                Error [sprintf "msbuild skipped target"]
-            | UnexpectedMSBuildResult res ->
-                Error [sprintf "msbuild error: %s" res]
 
 let md5 = System.Security.Cryptography.MD5.Create()
 let inline hash (str : string) = 
