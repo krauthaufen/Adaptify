@@ -1,5 +1,5 @@
 ### 1.1.6
-* upgraded tool dependencies
+* upgraded tool dependencies 
 * adaptify now only on net6.0
 
 ### 1.1.5
