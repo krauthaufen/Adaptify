@@ -6,7 +6,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <DisableImplicitFSharpCoreReference>True</DisableImplicitFSharpCoreReference>
     <GenerateLenses>True</GenerateLenses>
-    <DebugHate>true</DebugHate>
+    <!--<DebugHate>true</DebugHate>-->
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

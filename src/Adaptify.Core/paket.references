@@ -1,3 +1,5 @@
+group Library
+
 FSharp.Core
 FSharp.Data.Adaptive
 System.Reflection.Emit.Lightweight

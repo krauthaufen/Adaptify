@@ -2,9 +2,6 @@ source https://api.nuget.org/v3/index.json
 redirects: off
 framework: netstandard2.0, net472, netcoreapp2.0, netcoreapp2.1, netcoreapp2.2, netcoreapp3.0, netcoreapp3.1, net6.0, net5.0
 
-nuget FSharp.Core                           >= 5.0.0 lowest_matching: true
-nuget FSharp.Data.Adaptive                  ~> 1.2.8
-nuget System.Reflection.Emit.Lightweight    >= 4.6.0
 
 # PreCompiler
 nuget FSharp.Compiler.Service               ~> 41.0.5
@@ -14,6 +11,11 @@ nuget Microsoft.Build.Framework             ~> 17.1.0
 nuget Microsoft.Build.Utilities.Core        ~> 17.1.0
 nuget Microsoft.Build                       ~> 17.1.0
 
+group Library
+  source https://api.nuget.org/v3/index.json
+  nuget FSharp.Core                           ~> 5.0.2 lowest_matching: true
+  nuget FSharp.Data.Adaptive                  ~> 1.2.8
+  nuget System.Reflection.Emit.Lightweight    >= 4.6.0
 
 group Tool
   source https://api.nuget.org/v3/index.json
