@@ -2,7 +2,7 @@
   "profiles": {
     "adaptify": {
       "commandName": "Project",
-      "commandLineArgs": "\"F:\\aardvark\\Adaptify\\src\\Examples\\Net6\\Net6.fsproj\""
+      "commandLineArgs": "--server"
     }
   }
 }
