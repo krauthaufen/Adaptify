@@ -1,3 +1,6 @@
+### 1.1.8
+* fixed https://github.com/krauthaufen/Adaptify/issues/30
+
 ### 1.1.7
 * upgraded tool dependencies
 
