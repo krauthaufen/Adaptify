@@ -1,8 +1,9 @@
-//05a89e3c-de71-db0d-8077-73738ec0cbc6
-//b9972a76-21af-0d46-d2df-57aeb54cbe44
+//01768e15-d2af-b3fe-e082-1b73c4955b4b
+//f3ff857d-791d-4e63-68e5-5fbc3a04ec33
 #nowarn "49" // upper case patterns
 #nowarn "66" // upcast is unncecessary
 #nowarn "1337" // internal types
+#nowarn "1182" // value is unused
 namespace rec LibraryModel2
 
 open System
@@ -30,9 +31,4 @@ type AdaptiveSoup(value : Soup) =
     member __.Current = __adaptive
     member __.important = _important_
     member __.things = _things_ :> FSharp.Data.Adaptive.amap<Microsoft.FSharp.Core.int, LibraryModel.AdaptiveThing>
-[<AutoOpen; System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
-module SoupLenses = 
-    type Soup with
-        static member important_ = ((fun (self : Soup) -> self.important), (fun (value : LibraryModel.Thing) (self : Soup) -> { self with important = value }))
-        static member things_ = ((fun (self : Soup) -> self.things), (fun (value : FSharp.Data.Adaptive.HashMap<Microsoft.FSharp.Core.int, LibraryModel.Thing>) (self : Soup) -> { self with things = value }))
 

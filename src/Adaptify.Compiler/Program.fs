@@ -63,7 +63,7 @@ module ProjectInfo =
         let t = readTag s
         if t = success.Tag then
             let p = readSuccess(s).[0] :?> LoadedProject
-            match ProjectLoader.getLoadedProjectInfo file [] p with
+            match ProjectLoader.getLoadedProjectInfo (Path.GetFullPath file) [] p with
             | Result.Ok info ->
                 let isNewStyle =
                     info.ProjectSdkInfo.TargetFrameworks |> List.exists (fun f -> f.StartsWith "netframework")  |> not

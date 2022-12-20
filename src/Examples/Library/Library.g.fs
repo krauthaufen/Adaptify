@@ -1,8 +1,9 @@
-//2d7e92ed-6829-f51b-35b0-6be6fc02b564
-//796e1e7a-b7b1-bbad-f4c9-b20b72c08313
+//fb015bb5-3676-a6f4-9c25-fb466dd692cf
+//db0a7f9c-2dd7-16c1-cb23-c133af4768b4
 #nowarn "49" // upper case patterns
 #nowarn "66" // upcast is unncecessary
 #nowarn "1337" // internal types
+#nowarn "1182" // value is unused
 namespace rec LibraryModel
 
 open System
@@ -12,6 +13,7 @@ open LibraryModel
 [<System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
 type AdaptiveThing(value : Thing) =
     let _name_ = FSharp.Data.Adaptive.cval(value.name)
+    let _guhtest_ = FSharp.Data.Adaptive.cval(value.guhtest)
     let mutable __value = value
     let __adaptive = FSharp.Data.Adaptive.AVal.custom((fun (token : FSharp.Data.Adaptive.AdaptiveToken) -> __value))
     static member Create(value : Thing) = AdaptiveThing(value)
@@ -21,12 +23,10 @@ type AdaptiveThing(value : Thing) =
             __value <- value
             __adaptive.MarkOutdated()
             _name_.Value <- value.name
+            _guhtest_.Value <- value.guhtest
     member __.Current = __adaptive
     member __.name = _name_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>
-[<AutoOpen; System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
-module ThingLenses = 
-    type Thing with
-        static member name_ = ((fun (self : Thing) -> self.name), (fun (value : Microsoft.FSharp.Core.string) (self : Thing) -> { self with name = value }))
+    member __.guhtest = _guhtest_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.int>
 [<System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
 type AdaptiveMyUnionCase =
     abstract member Update : MyUnion -> AdaptiveMyUnionCase
@@ -145,11 +145,4 @@ type AdaptiveObject<'a, '_prima, '_aa>(value : Object<'a>, _primainit : 'a -> Sy
     member __.a = _a_ :> FSharp.Data.Adaptive.aval<Adaptify.FSharp.Core.AdaptiveResultCase<Object<'a>, AdaptiveObject<'a, '_prima, '_aa>, AdaptiveObject<'a, '_prima, '_aa>, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>>
     member __.b = _b_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.float>
     member __.map = _map_ :> FSharp.Data.Adaptive.amap<Microsoft.FSharp.Core.int, AdaptiveObject<'a, '_prima, '_aa>>
-[<AutoOpen; System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
-module ObjectLenses = 
-    type Object<'a> with
-        static member value_ = ((fun (self : Object<'a>) -> self.value), (fun (value : 'a) (self : Object<'a>) -> { self with value = value }))
-        static member a_ = ((fun (self : Object<'a>) -> self.a), (fun (value : Microsoft.FSharp.Core.Result<Object<'a>, Microsoft.FSharp.Core.string>) (self : Object<'a>) -> { self with a = value }))
-        static member b_ = ((fun (self : Object<'a>) -> self.b), (fun (value : Microsoft.FSharp.Core.float) (self : Object<'a>) -> { self with b = value }))
-        static member map_ = ((fun (self : Object<'a>) -> self.map), (fun (value : FSharp.Data.Adaptive.HashMap<Microsoft.FSharp.Core.int, Object<'a>>) (self : Object<'a>) -> { self with map = value }))
 
