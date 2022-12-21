@@ -1,3 +1,6 @@
+### 1.1.9
+* fixed https://github.com/krauthaufen/Adaptify/issues/32
+
 ### 1.1.8
 * fixed https://github.com/krauthaufen/Adaptify/issues/30
 
