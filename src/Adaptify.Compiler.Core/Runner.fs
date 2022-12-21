@@ -152,7 +152,7 @@ module Adaptify =
             let projDir = Path.GetDirectoryName projectFile
             let outputDirectory = 
                 let dir = Path.Combine(Path.GetTempPath(), hash)
-                File.ensureDirectory dir
+                Directory.ensure dir |> ignore
                 dir
 
             let relativePath (name : string) =
@@ -531,7 +531,7 @@ module Adaptify =
                                         log.info Range.range0 "[Adaptify]   gen  %s" (relativePath outputFile)
 
                                 | FSharpCheckFileAnswer.Aborted ->
-                                    log.error Range.range0 "587" "[Adaptify]   could not parse %s" (relativePath file)
+                                    log.error Range.range0 "587" "[Adaptify]   could not parse (aborted) %s" (relativePath file)
                                     newFiles.Add file
                                     ()
                             else
