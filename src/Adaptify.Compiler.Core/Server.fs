@@ -194,7 +194,7 @@ module Server =
                             )
                     }
 
-                let! newFiles = Adaptify.runAsync checker outputPath designTime cache lenses innerLog false false project
+                let! newFiles, _ = Adaptify.runAsync checker outputPath designTime cache lenses innerLog false false project
                 let reply = IPC.Reply.Success(newFiles, messages)
                 return reply
 
@@ -304,7 +304,9 @@ module Client =
                 log.warn Range.range0 "" "falling back to local adaptify"
                 let checker = newChecker()
                 let run = Adaptify.runAsync checker outputPath designTime useCache generateLenses log false false project
-                try Async.RunSynchronously(run, cancellationToken = ct)
+                try 
+                    let newFiles, generatedFiles = Async.RunSynchronously(run, cancellationToken = ct)
+                    newFiles
                 with _ -> project.files
             else
                 match tryAdaptify ct log project outputPath designTime useCache generateLenses with

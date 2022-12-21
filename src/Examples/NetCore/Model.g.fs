@@ -1,8 +1,9 @@
 //7ff49558-c0cb-8b0a-10c9-fbf82b7296e3
-//e1fa36b5-4896-140d-0c31-692e7dcf4de3
+//540cf499-4d3f-ad19-cc83-09873b3c72b8
 #nowarn "49" // upper case patterns
 #nowarn "66" // upcast is unncecessary
 #nowarn "1337" // internal types
+#nowarn "1182" // value is unused
 namespace rec Model
 
 open System

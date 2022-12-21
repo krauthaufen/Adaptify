@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Library</OutputType>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DisableImplicitFSharpCoreReference>True</DisableImplicitFSharpCoreReference>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -13,17 +13,10 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="Utilities.fs" />
-    <Compile Include="Scope.fs" />
-    <Compile Include="Types.fs" />
-    <Compile Include="Ast.fs" />
-    <Compile Include="CoreTypes.fs" />
-    <Compile Include="Adaptor.fs" />
-    <Compile Include="ProjectInfo.fs" />
-    <Compile Include="Cache.fs" />
-    <Compile Include="Runner.fs" />
-    <Compile Include="Process.fs" />
-    <Compile Include="Server.fs" />
+    <Compile Include="PatchProject.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Adaptify.Compiler.Core\Adaptify.Compiler.Core.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

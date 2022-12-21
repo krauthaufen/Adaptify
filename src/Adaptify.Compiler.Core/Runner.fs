@@ -172,7 +172,7 @@ module Adaptify =
                     File.ensureDirectory path
                     path
 
-
+            let gFiles = System.Collections.Generic.List<_>()
 
             if Path.GetExtension projectFile = ".fsproj" then
             
@@ -349,6 +349,7 @@ module Adaptify =
                             match Map.tryFind file oldHashes with
                             | Some oldHash -> oldHash.fileHash = fileHash
                             | _ -> false
+
 
                         // just diagnostic output for strange case, which is handled with additional care.
                         if noGeneration && not outputExists && mayDefineModelTypes then 
@@ -540,6 +541,12 @@ module Adaptify =
                                 else
                                     log.info Range.range0 "[Adaptify]   skip %s (no model types)" (relativePath file)
 
+                        if mayDefineModelTypes then
+                            if File.Exists outputFile then
+                                gFiles.Add((relativePath file, relativePath outputFile))
+                            else 
+                                log.debug Range.range0 "[Adaptify]   %s: output file %s does not exist" (relativePath file) (relativePath outputFile)
+
                 if not designTime then
                     CacheFile.save { lenses = createLenses; projectHash = projHash; fileHashes = newHashes } cacheFile
 
@@ -547,14 +554,17 @@ module Adaptify =
                 let files = newFiles |> Seq.map relativePath |> String.concat "; " |> sprintf "[%s]"
                 log.debug Range.range0 "[Adaptify]   files: %s" files
 
-                return Seq.toList newFiles
+                let newFiles = newFiles |> Seq.toList 
+                let genFiles = gFiles |> Seq.toList
+
+                return newFiles, genFiles
             else
                 log.info Range.range0 "[Adaptify] skipping project %s" projectFile
-                return Seq.toList projectInfo.files
+                return (Seq.toList projectInfo.files), []
         }
 
     let run (checker : FSharpChecker) (outputPath : string) (designTime : bool) (useCache : bool) (createLenses : bool) (log : ILog) (local : bool) (release : bool) (projectInfo : ProjectInfo) =
         try runAsync checker outputPath designTime useCache createLenses log local release projectInfo  |> Async.RunSynchronously
         with e -> 
             log.warn Range.range0 "Internal error?" "[Adaptify]   internal error: %s" (e.Message)
-            []
+            [], []

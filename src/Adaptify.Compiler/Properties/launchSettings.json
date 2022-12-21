@@ -2,7 +2,7 @@
   "profiles": {
     "adaptify": {
       "commandName": "Project",
-      "commandLineArgs": "--server"
+      "commandLineArgs": "--local --force \"..\\..\\..\\src\\Examples\\NetCore\\NetCore.fsproj\" --addToProject --verbose"
     }
   }
 }
