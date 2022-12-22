@@ -1,3 +1,6 @@
+### 1.1.0-prerelease1 
+* experimental 'addToProject' option
+
 ### 1.1.9 
 * fixed https://github.com/krauthaufen/Adaptify/issues/32
 

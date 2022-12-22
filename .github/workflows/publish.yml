@@ -4,6 +4,7 @@ on:
     branches:
       - master
       - updates
+      - features/addGFilesToProject
     paths:
       - RELEASE_NOTES.md
       - .github/workflows/publish.yml
