@@ -223,9 +223,8 @@ However as long as the top-level model is not generic you should never need to w
 
 
 
-### Generics
+### Tradeoffs and notes for local mode.
 
-Tradeoffs and notes for local mode.
 Using `dotnet adaptify --local --force --lenses --addToProject project.fsproj` invokes the tool an the project and performs the translation of model types. It generates .g files and adds them to the project.
 Please note, that while this is WYSIWYG and good for example when using vscode, it has some drawbacks:
  - people need to take care of running the tool when they change a model type. 
