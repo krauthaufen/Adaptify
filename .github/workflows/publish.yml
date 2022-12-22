@@ -31,6 +31,9 @@ jobs:
         with:
           name: packages
           path: bin\*.nupkg
+      - name: Push Tag
+        shell: cmd
+        run: build.cmd -t PushTag
       - name: NuGet
         env:
           NUGET_KEY: ${{ secrets.NUGET_KEY }}

@@ -108,6 +108,17 @@ Target.create "Pack" (fun _ ->
 
 )
 
+let tag() =
+    Git.CommandHelper.directRunGitCommandAndFail "." "fetch --tags"
+    Git.Branches.tag "." notes.NugetVersion
+
+    let branch = Git.Information.getBranchName "."
+    Git.Branches.pushBranch "." "origin" branch
+
+Target.create "PushTag" (fun _ ->
+    tag()
+)
+
 Target.create "Push" (fun _ ->
     let packageNameRx = Regex @"^(?<name>[a-zA-Z_0-9\.-]+?)\.(?<version>([0-9]+\.)*[0-9]+.*?)\.nupkg$"
     
@@ -148,12 +159,7 @@ Target.create "Push" (fun _ ->
             )
             |> Map.ofArray
             
-        
-        Git.CommandHelper.directRunGitCommandAndFail "." "fetch --tags"
-        Git.Branches.tag "." notes.NugetVersion
-
-        let branch = Git.Information.getBranchName "."
-        Git.Branches.pushBranch "." "origin" branch
+        tag()
 
         if List.isEmpty packages then
             failwith "no packages produced"

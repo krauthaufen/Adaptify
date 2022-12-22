@@ -1,4 +1,4 @@
-### 1.1.0-prerelease1 
+### 1.2.0-prerelease1 
 * experimental 'addToProject' option
 
 ### 1.1.9 
