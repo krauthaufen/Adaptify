@@ -1,3 +1,6 @@
+### 1.2.0-prerelease2 
+* lots of improvements mostly for addToProject/standalone option
+
 ### 1.2.0-prerelease1 
 * experimental 'addToProject' option
 

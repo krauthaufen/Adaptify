@@ -349,7 +349,7 @@ let main argv =
 
 
 
-        projectInfos |> topologicalSort |> Array.iter (Array.Parallel.iter (fun info ->
+        projectInfos |> topologicalSort |> Array.iter (Array.iter (fun info ->
             let outputPath = 
                 match info.output with
                 | Some output -> Path.GetDirectoryName output
@@ -363,11 +363,10 @@ let main argv =
                     let genFiles = genFiles |> Seq.toArray
                     if genFiles.Length <> 0 then
                         try
-                            let genFileMap = Map.ofArray genFiles
                             for (modelFile, genFile) in genFiles do
                                 log.info Range.range0 "[PatchProject] (%s) trying to add %s" info.project genFile  
                             
-                            Adaptify.PatchProject.patchProject log info.project genFileMap
+                            Adaptify.PatchProject.patchProject log info.project genFiles
                         with e -> 
                             log.error Range.range0 "" "could not add gen files to project: %s" info.project
                             log.error Range.range0 "" "the error was: %A" e

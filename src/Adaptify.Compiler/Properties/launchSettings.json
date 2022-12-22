@@ -2,7 +2,8 @@
   "profiles": {
     "adaptify": {
       "commandName": "Project",
-      "commandLineArgs": "--local --force \"..\\..\\..\\src\\Examples\\NetCore\\NetCore.fsproj\" --addToProject --verbose"
+      "commandLineArgs": "--local --lenses --force --addToProject src\\**\\*.fsproj !src\\PRo3D.CorrelationPanels\\PRo3D.CorrelationPanels.fsproj",
+      "workingDirectory": "F:\\pro3d\\PRo3D-develop"
     }
   }
 }

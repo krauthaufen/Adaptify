@@ -8,15 +8,18 @@ open FSharp.Compiler.Text
 module PatchProject =
    open Microsoft.Build.Construction
 
-   let patchProject (log : ILog) (projectFileName : string) (adaptifyFiles : Map<string, string>) = 
+   let patchProject (log : ILog) (projectFileName : string) (adaptifyFiles : array<string * string>) = 
         let p = ProjectRootElement.Open(projectFileName)
         let mutable changed = false
         for g in p.ItemGroups do
             for i in g.Items do
                 if i.ItemType = "Compile" && Path.GetExtension(i.Include) = ".fs" then
-                    match Map.tryFind i.Include adaptifyFiles with
+                    if i.Include.Contains("HeightValidator-Model") then
+                        System.Diagnostics.Debugger.Break()
+                    let toSlash (s : string) = s.Replace("\\","/")
+                    match Array.tryFind (fun (source,gen) -> toSlash i.Include = toSlash source) adaptifyFiles with
                     | None -> ()
-                    | Some generatedFileName -> 
+                    | Some (source, generatedFileName) -> 
                         let correspondingGFile =
                             g.Items |> Seq.tryFind (fun o -> 
                                 o.Include = generatedFileName

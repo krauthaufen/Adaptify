@@ -309,7 +309,7 @@ module Adaptify =
 
                             log.info Range.range0 "  %s is missing %d references" projectInfo.project missing.Length
                             log.info Range.range0 "  building referenced projects"
-                            for _, path in projectInfo.projRefs do
+                            for _, path in projectInfo.projRefs |> List.distinctBy (fun (_,path) -> path) do
                                 log.info Range.range0 "    building %s" (Path.GetFileName path)
                                 let args =
                                     if release then
@@ -317,18 +317,28 @@ module Adaptify =
                                     else
                                         ["build"; "-c"; "Debug"; Path.GetFileName path]
 
+                                // capture output and only print if build failed.
+                                let outputList = System.Collections.Generic.List<_>()
                                 let proc = 
                                     Process.tryStart {
                                         file        = "dotnet"
                                         workDir     = Path.GetDirectoryName path
                                         args        = args
-                                        output      = OutputMode.Custom (fun s m -> log.debug Range.range0 "      %s" m)
+                                        output      = 
+                                            OutputMode.Custom (fun s m -> 
+                                                let output = sprintf "      %s" m
+                                                outputList.Add(output)
+                                                log.debug Range.range0 "%s" output
+                                            )
                                     }
                                 match proc with
                                 | Some (p, d) -> 
                                     p.WaitForExit()
                                     d.Dispose()
-                                    if p.ExitCode <> 0 then log.error Range.range0 "1" "    failed"
+                                    if p.ExitCode <> 0 then 
+                                        log.error Range.range0 "1" "    failed"
+                                        for e in outputList do
+                                            log.error Range.range0 "1" "%s" e
                                 | None -> 
                                     log.info Range.range0 "    success"
                                     ()
@@ -499,9 +509,14 @@ module Adaptify =
                                             []
 
                                     let entities = 
-                                        res.ImplementationFile.Value.Declarations
-                                        |> Seq.toList
-                                        |> List.collect allEntities
+                                        match res.ImplementationFile with
+                                        | None -> 
+                                            log.error Range.range0 file "[Adaptify] Implementation file was None."
+                                            []
+                                        | Some implementation ->
+                                            implementation.Declarations
+                                            |> Seq.toList
+                                            |> List.collect allEntities
                                         
                                     let definitions =   
                                         entities 
