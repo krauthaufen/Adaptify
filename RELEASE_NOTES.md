@@ -1,4 +1,7 @@
 ### 1.2.0-prerelease2 
+* added --hideGenFiles option which hides .g files in fsproj files.
+
+### 1.2.0-prerelease2 
 * lots of improvements mostly for addToProject/standalone option
 
 ### 1.2.0-prerelease1 

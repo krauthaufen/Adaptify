@@ -1,21 +1,53 @@
 ﻿namespace Adaptify
 
 open System
-open System.IO
 open Adaptify.Compiler
+open System.IO
 open FSharp.Compiler.Text
+
+module private Parsing =
+    open System.Xml.Linq
+    open System.Text.RegularExpressions
+
+    let compileInclude = Regex("""(<Compile (Include="(.*\.g\.fs)") (\/)>)""")
+    let addVisibleAttribute (s : string) =
+        let m = compileInclude.Match s
+        if m.Success then
+            let a = XElement.Parse(s)
+            a.SetAttributeValue("Visible", "false")
+            a.ToString(SaveOptions.None) |> Some
+        else
+            None
+    
+
+    let addVisbleToAllCompileIncludes (fsprojContent : string) =
+        let r (m : Match) = 
+            match m.Value |> addVisibleAttribute with
+            | None -> m.Value
+            | Some v -> v
+        compileInclude.Replace(fsprojContent, r)
+
+
+    module Test =
+        let test () = """<Compile Include="ab/b/f\cSceneObjects-Model.g.fs" />"""
+        let result () = test () |> addVisibleAttribute  
+        let all () = 
+            File.ReadAllText @"C:\Users\steinlechner\Desktop\PRo3D-nomsbuild\src\PRo3D.Core\PRo3D.Core.fsproj"
+            |> addVisbleToAllCompileIncludes
+            |> printfn "%s"
+
+
+
 
 module PatchProject =
    open Microsoft.Build.Construction
 
-   let patchProject (log : ILog) (projectFileName : string) (adaptifyFiles : array<string * string>) = 
+   let patchProject (log : ILog) (projectFileName : string) (hideGFilesInProjects : bool) (adaptifyFiles : array<string * string>) = 
         let p = ProjectRootElement.Open(projectFileName)
         let mutable changed = false
         for g in p.ItemGroups do
             for i in g.Items do
                 if i.ItemType = "Compile" && Path.GetExtension(i.Include) = ".fs" then
-                    if i.Include.Contains("HeightValidator-Model") then
-                        System.Diagnostics.Debugger.Break()
                     let toSlash (s : string) = s.Replace("\\","/")
                     match Array.tryFind (fun (source,gen) -> toSlash i.Include = toSlash source) adaptifyFiles with
                     | None -> ()
@@ -35,5 +67,8 @@ module PatchProject =
         if changed then
             p.Save()
             log.info Range.range0 "[PatchProject] added .g files to project %s." projectFileName
+            if hideGFilesInProjects then
+                let patched = Parsing.addVisbleToAllCompileIncludes (File.ReadAllText projectFileName)
+                File.WriteAllText(projectFileName, patched)
         else
             log.info Range.range0 "[PatchProject] skipped all .g files in project -> nothing was added."

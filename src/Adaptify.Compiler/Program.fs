@@ -231,10 +231,19 @@ let main argv =
             a = "--addtoproject"     
         )
 
+    let hideGeneratedFiles =
+        argv |> Array.exists (fun a -> 
+            let a = a.ToLower().Trim()
+            a = "--hidegenfiles"     
+        )
+
     if addToProject && not local then
         printfn "--addToProject only available in local mode."
 
     let addToProject = addToProject && local
+
+    if not addToProject && hideGeneratedFiles then
+        printfn "--hideGenFiles only available when addToProject option is active is available."
         
     if killserver then
         let log = Log.console verbose
@@ -366,7 +375,7 @@ let main argv =
                             for (modelFile, genFile) in genFiles do
                                 log.info Range.range0 "[PatchProject] (%s) trying to add %s" info.project genFile  
                             
-                            Adaptify.PatchProject.patchProject log info.project genFiles
+                            Adaptify.PatchProject.patchProject log info.project hideGeneratedFiles genFiles
                         with e -> 
                             log.error Range.range0 "" "could not add gen files to project: %s" info.project
                             log.error Range.range0 "" "the error was: %A" e

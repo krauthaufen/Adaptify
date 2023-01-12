@@ -2,8 +2,8 @@
   "profiles": {
     "adaptify": {
       "commandName": "Project",
-      "commandLineArgs": "--local --lenses --force --addToProject src\\**\\*.fsproj !src\\PRo3D.CorrelationPanels\\PRo3D.CorrelationPanels.fsproj",
-      "workingDirectory": "F:\\pro3d\\PRo3D-develop"
+      "commandLineArgs": "--local --lenses --force --addToProject --hideGenFiles src\\**\\*.fsproj !src\\PRo3D.CorrelationPanels\\PRo3D.CorrelationPanels.fsproj",
+      "workingDirectory": "C:\\Users\\steinlechner\\Desktop\\PRo3D-nomsbuild\\"
     }
   }
 }
