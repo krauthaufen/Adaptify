@@ -1,4 +1,4 @@
-### 1.2.0-prerelease2 
+### 1.2.0-prerelease3 
 * added --hideGenFiles option which hides .g files in fsproj files.
 
 ### 1.2.0-prerelease2 
