@@ -1,3 +1,12 @@
+### 1.2.0-prerelease3 
+* added --hideGenFiles option which hides .g files in fsproj files.
+
+### 1.2.0-prerelease2 
+* lots of improvements mostly for addToProject/standalone option
+
+### 1.2.0-prerelease1 
+* experimental 'addToProject' option
+
 ### 1.1.9 
 * fixed https://github.com/krauthaufen/Adaptify/issues/32
 

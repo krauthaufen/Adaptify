@@ -1,0 +1,6 @@
+FSharp.Core
+FSharp.Compiler.Service
+Microsoft.Build.Framework 
+
+Microsoft.Build 
+Microsoft.Build.Utilities.Core 

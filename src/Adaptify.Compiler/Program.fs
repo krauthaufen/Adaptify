@@ -224,6 +224,26 @@ let main argv =
             let a = a.ToLower().Trim()
             a = "--server"    
         )
+
+    let addToProject =
+        argv |> Array.exists (fun a -> 
+            let a = a.ToLower().Trim()
+            a = "--addtoproject"     
+        )
+
+    let hideGeneratedFiles =
+        argv |> Array.exists (fun a -> 
+            let a = a.ToLower().Trim()
+            a = "--hidegenfiles"     
+        )
+
+    if addToProject && not local then
+        printfn "--addToProject only available in local mode."
+
+    let addToProject = addToProject && local
+
+    if not addToProject && hideGeneratedFiles then
+        printfn "--hideGenFiles only available when addToProject option is active is available."
         
     if killserver then
         let log = Log.console verbose
@@ -338,7 +358,7 @@ let main argv =
 
 
 
-        projectInfos |> topologicalSort |> Array.iter (Array.Parallel.iter (fun info ->
+        projectInfos |> topologicalSort |> Array.iter (Array.iter (fun info ->
             let outputPath = 
                 match info.output with
                 | Some output -> Path.GetDirectoryName output
@@ -347,7 +367,18 @@ let main argv =
                 Client.adaptify CancellationToken.None log info outputPath false (not force) lenses |> ignore<list<string>>
             else
                 let checker = newChecker()
-                Adaptify.run checker outputPath false (not force) lenses log local release info |> ignore<list<string>>
+                let newFiles, genFiles = Adaptify.run checker outputPath false (not force) lenses log local release info
+                if addToProject then
+                    let genFiles = genFiles |> Seq.toArray
+                    if genFiles.Length <> 0 then
+                        try
+                            for (modelFile, genFile) in genFiles do
+                                log.info Range.range0 "[PatchProject] (%s) trying to add %s" info.project genFile  
+                            
+                            Adaptify.PatchProject.patchProject log info.project hideGeneratedFiles genFiles
+                        with e -> 
+                            log.error Range.range0 "" "could not add gen files to project: %s" info.project
+                            log.error Range.range0 "" "the error was: %A" e
         ))
 
         0 

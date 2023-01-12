@@ -172,7 +172,7 @@ module Adaptify =
                     File.ensureDirectory path
                     path
 
-
+            let gFiles = System.Collections.Generic.List<_>()
 
             if Path.GetExtension projectFile = ".fsproj" then
             
@@ -309,7 +309,7 @@ module Adaptify =
 
                             log.info Range.range0 "  %s is missing %d references" projectInfo.project missing.Length
                             log.info Range.range0 "  building referenced projects"
-                            for _, path in projectInfo.projRefs do
+                            for _, path in projectInfo.projRefs |> List.distinctBy (fun (_,path) -> path) do
                                 log.info Range.range0 "    building %s" (Path.GetFileName path)
                                 let args =
                                     if release then
@@ -317,18 +317,28 @@ module Adaptify =
                                     else
                                         ["build"; "-c"; "Debug"; Path.GetFileName path]
 
+                                // capture output and only print if build failed.
+                                let outputList = System.Collections.Generic.List<_>()
                                 let proc = 
                                     Process.tryStart {
                                         file        = "dotnet"
                                         workDir     = Path.GetDirectoryName path
                                         args        = args
-                                        output      = OutputMode.Custom (fun s m -> log.debug Range.range0 "      %s" m)
+                                        output      = 
+                                            OutputMode.Custom (fun s m -> 
+                                                let output = sprintf "      %s" m
+                                                outputList.Add(output)
+                                                log.debug Range.range0 "%s" output
+                                            )
                                     }
                                 match proc with
                                 | Some (p, d) -> 
                                     p.WaitForExit()
                                     d.Dispose()
-                                    if p.ExitCode <> 0 then log.error Range.range0 "1" "    failed"
+                                    if p.ExitCode <> 0 then 
+                                        log.error Range.range0 "1" "    failed"
+                                        for e in outputList do
+                                            log.error Range.range0 "1" "%s" e
                                 | None -> 
                                     log.info Range.range0 "    success"
                                     ()
@@ -349,6 +359,7 @@ module Adaptify =
                             match Map.tryFind file oldHashes with
                             | Some oldHash -> oldHash.fileHash = fileHash
                             | _ -> false
+
 
                         // just diagnostic output for strange case, which is handled with additional care.
                         if noGeneration && not outputExists && mayDefineModelTypes then 
@@ -498,9 +509,14 @@ module Adaptify =
                                             []
 
                                     let entities = 
-                                        res.ImplementationFile.Value.Declarations
-                                        |> Seq.toList
-                                        |> List.collect allEntities
+                                        match res.ImplementationFile with
+                                        | None -> 
+                                            log.error Range.range0 file "[Adaptify] Implementation file was None."
+                                            []
+                                        | Some implementation ->
+                                            implementation.Declarations
+                                            |> Seq.toList
+                                            |> List.collect allEntities
                                         
                                     let definitions =   
                                         entities 
@@ -540,6 +556,12 @@ module Adaptify =
                                 else
                                     log.info Range.range0 "[Adaptify]   skip %s (no model types)" (relativePath file)
 
+                        if mayDefineModelTypes then
+                            if File.Exists outputFile then
+                                gFiles.Add((relativePath file, relativePath outputFile))
+                            else 
+                                log.debug Range.range0 "[Adaptify]   %s: output file %s does not exist" (relativePath file) (relativePath outputFile)
+
                 if not designTime then
                     CacheFile.save { lenses = createLenses; projectHash = projHash; fileHashes = newHashes } cacheFile
 
@@ -547,14 +569,17 @@ module Adaptify =
                 let files = newFiles |> Seq.map relativePath |> String.concat "; " |> sprintf "[%s]"
                 log.debug Range.range0 "[Adaptify]   files: %s" files
 
-                return Seq.toList newFiles
+                let newFiles = newFiles |> Seq.toList 
+                let genFiles = gFiles |> Seq.toList
+
+                return newFiles, genFiles
             else
                 log.info Range.range0 "[Adaptify] skipping project %s" projectFile
-                return Seq.toList projectInfo.files
+                return (Seq.toList projectInfo.files), []
         }
 
     let run (checker : FSharpChecker) (outputPath : string) (designTime : bool) (useCache : bool) (createLenses : bool) (log : ILog) (local : bool) (release : bool) (projectInfo : ProjectInfo) =
         try runAsync checker outputPath designTime useCache createLenses log local release projectInfo  |> Async.RunSynchronously
         with e -> 
             log.warn Range.range0 "Internal error?" "[Adaptify]   internal error: %s" (e.Message)
-            []
+            [], []

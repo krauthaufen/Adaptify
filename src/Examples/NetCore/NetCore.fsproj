@@ -1,13 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.0</TargetFramework>
     <DisableImplicitFSharpCoreReference>True</DisableImplicitFSharpCoreReference>
     <GenerateLenses>True</GenerateLenses>
   </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <OutputPath>..\..\..\bin\Debug\</OutputPath>
   </PropertyGroup>
@@ -19,18 +17,15 @@
     <Compile Include="Model.g.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="FSharp.Core" Version="4.6.2" />
     <PackageReference Include="FSharp.Data.Adaptive" Version="1.2.0" />
     <PackageReference Include="System.Reflection.Emit.Lightweight" Version="4.6.0" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\LibraryCSharp\LibraryCSharp.csproj" />
     <ProjectReference Include="..\Library\Library.fsproj" />
   </ItemGroup>
-
   <ItemGroup>
     <Reference Include="Adaptify.Core">
       <HintPath>..\..\..\bin\Debug\netstandard2.0\Adaptify.Core.dll</HintPath>

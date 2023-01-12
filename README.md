@@ -6,9 +6,19 @@ Adaptify provides a MSBuild plugin for automatically *incrementalizing* F# types
 
 ### Notes
 
-This project also contains a command line version of the generator which will be published as a dotnet tool when its done.
+This project also contains a command line version of the generator which can be run in the *background* (similarly to language servers) or *locally*. The local mode allows to work with adaptify without needing to care about msbuild tasks and IDE integration.
 
-Note that the MSBuild plugin cannot be built on Linux/MacOS currently. Nonetheless it should work on these platforms.
+#### Background mode (server mode)
+
+By using `--server` the tool runs at the background and waits for compilation requests. When using the build task (Adaptify.MSBuild), the server gets started automatically and is reused for all compilation requests.
+
+#### Local mode
+
+By using `--local` option and given a fsproj file (or many), the tool runs once and generates .g files for the project files.
+An additional option `--addToProject` adds the generated file into the project when generated. See below for a guide on using adaptivy locally.
+
+
+Note that the MSBuild plugin cannot be built on Linux/MacOS currently (ILRepack). Nonetheless it should work on these platforms.
 Currently there are efforts to improve the MSBuild integration, so in case I break something for VS/VSCode let me know...
 
 The generated files (and their base library) are fable-compatible and the generated package includes the `fable/` folder, so all of this should simply be usable in fable projects.
@@ -210,3 +220,13 @@ type AdaptiveModel<'T, 'T1, 'T2> =
 As you see there are lots of functions in the constructor that account for inner changes of the generic values. 
 For more information please see the generator code or feel free to contact us on gitter/discord.
 However as long as the top-level model is not generic you should never need to worry about these details.
+
+
+
+### Tradeoffs and notes for local mode.
+
+Using `dotnet adaptify --local --force --lenses --addToProject project.fsproj` invokes the tool an the project and performs the translation of model types. It generates .g files and adds them to the project.
+Please note, that while this is WYSIWYG and good for example when using vscode, it has some drawbacks:
+ - people need to take care of running the tool when they change a model type. 
+ - when renaming files, the zombie .g file needs to be deleted manually
+ - the addToProject option rewrites the project files
