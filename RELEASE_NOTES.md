@@ -1,3 +1,6 @@
+### 1.1.10
+* net7
+
 ### 1.1.9 
 * fixed https://github.com/krauthaufen/Adaptify/issues/32
 

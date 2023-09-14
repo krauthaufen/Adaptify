@@ -4,3 +4,5 @@ group Tool
     FSharp.Core
     BlackFox.VsWhere
     Ionide.ProjInfo 
+    Microsoft.Build.Framework
+    NuGet.Frameworks

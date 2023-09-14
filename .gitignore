@@ -27,3 +27,4 @@ symbolCache.db
 .g.fs
 .ionide
 **/.idea/
+.DS_Store

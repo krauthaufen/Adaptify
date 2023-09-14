@@ -2,7 +2,7 @@
   "profiles": {
     "adaptify": {
       "commandName": "Project",
-      "commandLineArgs": "--server"
+      "commandLineArgs": "--local --verbose --force /Users/schorsch/Development/Adaptify/src/Examples/Library/Library.fsproj"
     }
   }
 }

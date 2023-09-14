@@ -53,10 +53,11 @@ module ProjectInfo =
 
     let tryOfProject additionalMSBuildProps (file : string) =
         let projDir = Path.GetDirectoryName file
-        let runCmd exePath args = Utils.runProcess ignore projDir exePath (args |> String.concat " ")
-    
+        
+       // Ionide.ProjInfo.ProjectLoader.loadProject
+        
         let dotnet = Ionide.ProjInfo.Paths.dotnetRoot.Value
-        let path = Init.init (DirectoryInfo Environment.CurrentDirectory) dotnet
+        let path = Init.init (DirectoryInfo projDir) dotnet
         
         let additionalMSBuildProps = ("GenerateDomainTypes", "false") :: additionalMSBuildProps
         let s = Ionide.ProjInfo.ProjectLoader.loadProject file BinaryLogGeneration.Off additionalMSBuildProps 
@@ -81,6 +82,7 @@ module ProjectInfo =
                 Error [e]
                     
         else
+            printfn "asdjlashdjkadjoas"
             let e = readError(s).[0] :?> string
             Error [e]
 
