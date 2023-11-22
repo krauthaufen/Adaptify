@@ -1,3 +1,6 @@
+### 1.1.12
+* assembly version fix 2
+
 ### 1.1.11
 * assembly version fix
 
