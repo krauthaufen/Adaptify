@@ -1,3 +1,12 @@
+### 1.1.13
+* assembly version fix 3
+
+### 1.1.12
+* assembly version fix 2
+
+### 1.1.11
+* assembly version fix
+
 ### 1.1.10
 * net7
 

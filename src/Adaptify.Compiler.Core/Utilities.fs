@@ -444,8 +444,8 @@ module Versions =
             tag
         | None ->
             let version = 
-                typeof<ILog>.Assembly.GetCustomAttributes(typeof<AssemblyVersionAttribute>, true)
-                |> Array.choose (function :? AssemblyVersionAttribute as a -> Some a.Version | _ -> None)
+                typeof<ILog>.Assembly.GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, true)
+                |> Array.choose (function :? AssemblyInformationalVersionAttribute as a -> Some a.InformationalVersion | _ -> None)
                 |> Array.tryHead
             
             match version with
