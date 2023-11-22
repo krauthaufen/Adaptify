@@ -444,9 +444,12 @@ module Versions =
             tag
         | None ->
             let version = 
-                typeof<ILog>.Assembly.GetCustomAttributes(typeof<AssemblyVersionAttribute>, true)
-                |> Array.choose (function :? AssemblyVersionAttribute as a -> Some a.Version | _ -> None)
-                |> Array.tryHead
+                try typeof<ILog>.Assembly.GetName().Version.ToString() |> Some
+                with e -> 
+                    log.info Range.range0 "could not get version via getName: %A" e
+                    typeof<ILog>.Assembly.GetCustomAttributes(typeof<AssemblyVersionAttribute>, true)
+                    |> Array.choose (function :? AssemblyVersionAttribute as a -> Some a.Version | _ -> None)
+                    |> Array.tryHead
             
             match version with
             | Some v -> 
