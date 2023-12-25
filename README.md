@@ -210,3 +210,7 @@ type AdaptiveModel<'T, 'T1, 'T2> =
 As you see there are lots of functions in the constructor that account for inner changes of the generic values. 
 For more information please see the generator code or feel free to contact us on gitter/discord.
 However as long as the top-level model is not generic you should never need to worry about these details.
+
+# Contributing
+
+Contact the maintainers and the community at Discord [![Discord](https://discordapp.com/api/guilds/611129394764840960/widget.png)](https://discord.gg/UyecnhM) and in this repository's [issues section](https://github.com/krauthaufen/Adaptify/issues).
