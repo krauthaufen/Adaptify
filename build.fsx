@@ -281,14 +281,14 @@ Target.create "MergeDotNet" (fun _ ->
     Trace.logfn "out folder: %s" outFolder
 
     File.Copy(
-        "packages/FSharp.Compiler.Service/lib/netstandard2.0/FSharp.Compiler.Service.dll",
+        "packages/hans/FSharp.Compiler.Service/lib/netstandard2.0/FSharp.Compiler.Service.dll",
         Path.Combine(outFolder, "FSharp.Compiler.Service.dll"),
         true
     )
 
     
     File.Copy(
-        "packages/FSharp.Core/lib/netstandard2.0/FSharp.Core.dll",
+        "packages/hans/FSharp.Core/lib/netstandard2.0/FSharp.Core.dll",
         Path.Combine(outFolder, "FSharp.Core.dll"),
         true
     )
@@ -329,14 +329,14 @@ Target.create "MergeFramework" (fun _ ->
     Trace.logfn "out folder: %s" outFolder
 
     File.Copy(
-        "packages/FSharp.Compiler.Service/lib/netstandard2.0/FSharp.Compiler.Service.dll",
+        "packages/hans/FSharp.Compiler.Service/lib/netstandard2.0/FSharp.Compiler.Service.dll",
         Path.Combine(outFolder, "FSharp.Compiler.Service.dll"),
         true
     )
 
     
     File.Copy(
-        "packages/FSharp.Core/lib/netstandard2.0/FSharp.Core.dll",
+        "packages/hans/FSharp.Core/lib/netstandard2.0/FSharp.Core.dll",
         Path.Combine(outFolder, "FSharp.Core.dll"),
         true
     )

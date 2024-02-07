@@ -1,35 +1,45 @@
-source https://api.nuget.org/v3/index.json
 redirects: off
-framework: netstandard2.0, net472, netcoreapp2.0, netcoreapp2.1, netcoreapp2.2, netcoreapp3.0, netcoreapp3.1, net7.0, net6.0, net5.0
 
 
-# PreCompiler
-nuget FSharp.Compiler.Service               ~> 43.7.400
-nuget DotNet.Glob                           ~> 3.1.3
-nuget Microsoft.Build.Tasks.Core            ~> 17.7.2
-nuget Microsoft.Build.Framework             ~> 17.7.2
-nuget Microsoft.Build.Utilities.Core        ~> 17.7.2
-nuget Microsoft.Build                       ~> 17.7.2
+group Hans 
+  source https://api.nuget.org/v3/index.json
+  framework: net472, netstandard2.0, net7.0, net6.0
+  # PreCompiler
+  nuget FSharp.Core                           >= 6.0.0 lowest_matching: true
+  nuget FSharp.Compiler.Service               ~> 43.7.400
+  nuget DotNet.Glob                           ~> 3.1.3
+  nuget Microsoft.Build.Tasks.Core            ~> 17.7.2
+  nuget Microsoft.Build.Framework             ~> 17.7.2
+  nuget Microsoft.Build.Utilities.Core        ~> 17.7.2
+  nuget Microsoft.Build                       ~> 17.7.2
 
 group Library
   source https://api.nuget.org/v3/index.json
-  nuget FSharp.Core                           ~> 5.0.2 lowest_matching: true
+  nuget FSharp.Core                           >= 5.0.2 lowest_matching: true
   nuget FSharp.Data.Adaptive                  ~> 1.2.8
   nuget System.Reflection.Emit.Lightweight    >= 4.6.0
 
-group Tool
+group Tool6
+  framework:net6.0
   source https://api.nuget.org/v3/index.json
   nuget FSharp.Core                           >= 6.0.0 lowest_matching: true
   nuget FSharp.Compiler.Service               ~> 43.7.400
   nuget DotNet.Glob                           ~> 3.1.3
   nuget BlackFox.VsWhere                      ~> 1.1.0
-  nuget Ionide.ProjInfo                       ~> 0.62.0
-  nuget Microsoft.Build.Tasks.Core            ~> 17.7.2
-  nuget Microsoft.Build.Framework             ~> 17.7.2
-  nuget Microsoft.Build.Utilities.Core        ~> 17.7.2
-  nuget Microsoft.Build                       ~> 17.7.2
+  nuget Ionide.ProjInfo                       ~> 0.63.0
+  nuget Microsoft.Build                       >= 0.0.0.0 lowest_matching: true
   nuget NuGet.Frameworks                      ~> 6.7.0
 
+group Tool7
+  framework:net7.0
+  source https://api.nuget.org/v3/index.json
+  nuget FSharp.Core                           >= 6.0.0 lowest_matching: true
+  nuget FSharp.Compiler.Service               ~> 43.7.400
+  nuget DotNet.Glob                           ~> 3.1.3
+  nuget BlackFox.VsWhere                      ~> 1.1.0
+  nuget Ionide.ProjInfo                       ~> 0.63.0
+  nuget Microsoft.Build                       >= 0.0.0.0 lowest_matching: true
+  nuget NuGet.Frameworks                      ~> 6.7.0
 
 group Build
   source https://api.nuget.org/v3/index.json

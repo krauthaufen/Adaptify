@@ -1,9 +1,8 @@
-﻿//open Model
+﻿open Model
 open FSharp.Data.Adaptive
 open Adaptify.FSharp.Core
 open Model
 open Adaptify
-open LibraryModel
 
 
 

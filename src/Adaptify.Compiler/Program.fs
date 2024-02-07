@@ -8,7 +8,6 @@ open System.Runtime.CompilerServices
 open System.Threading
 open Ionide.ProjInfo.ProjectLoader
 open Ionide.ProjInfo.Types
-open Microsoft.Build.Definition
 open System.Reflection
 open Microsoft.FSharp.Reflection
 
@@ -58,7 +57,7 @@ module ProjectInfo =
         
         let dotnet = Ionide.ProjInfo.Paths.dotnetRoot.Value
         let path = Init.init (DirectoryInfo projDir) dotnet
-        
+
         let additionalMSBuildProps = ("GenerateDomainTypes", "false") :: additionalMSBuildProps
         let s = Ionide.ProjInfo.ProjectLoader.loadProject file BinaryLogGeneration.Off additionalMSBuildProps 
         let t = readTag s
