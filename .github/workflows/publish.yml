@@ -5,6 +5,7 @@ on:
       - master
       - updates
       - bugs/assemblyVersionTroubles
+      - dotnet8
     paths:
       - RELEASE_NOTES.md
       - .github/workflows/publish.yml
