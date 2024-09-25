@@ -11,6 +11,7 @@
     <OutputPath>..\..\bin\Release\</OutputPath>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="paket.references" />
     <Compile Include="..\Adaptify.MSBuild.DotNet\BuildTask.fs" />
     <None Include="..\Adaptify.MSBuild.DotNet\Adaptify.MSBuild.targets">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

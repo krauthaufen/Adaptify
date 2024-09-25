@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
+    <TargetFrameworks>net6.0;net7.0;net8.0</TargetFrameworks>
     <DisableImplicitFSharpCoreReference>True</DisableImplicitFSharpCoreReference>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>adaptify</ToolCommandName>
@@ -26,8 +26,8 @@
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
-	  <PackageReference Include="FSharp.Core" Version="7.0.400" />
-	  <PackageReference Include="FSharp.Compiler.Service" Version="[43.7.400, 43.8.0)" />
+	  <PackageReference Include="FSharp.Core" Version="8.0.400" />
+	  <PackageReference Include="FSharp.Compiler.Service" Version="[43.8.400, 43.9.0)" />
 	  <PackageReference Include="DotNet.Glob" Version="[3.1.3, 3.2.0)" />
 	  <PackageReference Include="BlackFox.VsWhere" Version="[1.1.0, 1.2.0)" />
 	  <PackageReference Include="Ionide.ProjInfo" Version="[0.63.0, 0.64.0)" />
@@ -37,8 +37,8 @@
 	  <PackageReference Include="Microsoft.Build.Tasks.Core" Version="[17.2.2, 17.3.0)" />
   </ItemGroup>
 	<ItemGroup Condition="'$(TargetFramework)' == 'net7.0'">
-		<PackageReference Include="FSharp.Core" Version="7.0.400" />
-		<PackageReference Include="FSharp.Compiler.Service" Version="[43.7.400, 43.8.0)" />
+		<PackageReference Include="FSharp.Core" Version="8.0.400" />
+		<PackageReference Include="FSharp.Compiler.Service" Version="[43.8.400, 43.9.0)" />
 		<PackageReference Include="DotNet.Glob" Version="[3.1.3, 3.2.0)" />
 		<PackageReference Include="BlackFox.VsWhere" Version="[1.1.0, 1.2.0)" />
 		<PackageReference Include="Ionide.ProjInfo" Version="[0.63.0, 0.64.0)" />
@@ -47,6 +47,17 @@
 		<PackageReference Include="Microsoft.Build.Utilities.Core" Version="[17.7.2, 17.8.0)" />
 		<PackageReference Include="Microsoft.Build.Tasks.Core" Version="[17.7.2, 17.8.0)" />
 	</ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <PackageReference Include="FSharp.Core" Version="8.0.400" />
+    <PackageReference Include="FSharp.Compiler.Service" Version="[43.8.400, 43.9.0)" />
+    <PackageReference Include="DotNet.Glob" Version="[3.1.3, 3.2.0)" />
+    <PackageReference Include="BlackFox.VsWhere" Version="[1.1.0, 1.2.0)" />
+    <PackageReference Include="Ionide.ProjInfo" Version="[0.63.0, 0.64.0)" />
+    <PackageReference Include="Microsoft.Build" Version="[17.11.4, 17.12.0)" />
+    <PackageReference Include="Microsoft.Build.Framework" Version="[17.11.4, 17.12.0)" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="[17.11.4, 17.12.0)" />
+    <PackageReference Include="Microsoft.Build.Tasks.Core" Version="[17.11.4, 17.12.0)" />
+  </ItemGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\Adaptify.Compiler.Core\Adaptify.Compiler.Core.fsproj" />
 	</ItemGroup>

@@ -339,7 +339,7 @@ let main argv =
 
 
 
-        projectInfos |> topologicalSort |> Array.iter (Array.Parallel.iter (fun info ->
+        projectInfos |> topologicalSort |> Array.iter (Array.iter (fun info ->
             let outputPath = 
                 match info.output with
                 | Some output -> Path.GetDirectoryName output

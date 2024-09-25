@@ -437,7 +437,7 @@ module Versions =
         #else
         let tag = None
         #endif
-
+ 
         match tag with
         | Some tag ->
             log.info Range.range0 "version: %s (local)" tag

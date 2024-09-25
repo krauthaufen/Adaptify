@@ -12,6 +12,7 @@
     <OutputPath>..\..\bin\Release\</OutputPath>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="paket.references" />
     <Compile Include="Utilities.fs" />
     <Compile Include="Scope.fs" />
     <Compile Include="Types.fs" />

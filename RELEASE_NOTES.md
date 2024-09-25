@@ -1,3 +1,6 @@
+### 1.2.0-prerelease1
+* dotnet8 support
+
 ### 1.1.13
 * assembly version fix 3
 
