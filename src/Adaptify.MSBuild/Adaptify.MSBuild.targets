@@ -1,40 +1,23 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <PropertyGroup>
-    <TaskAssembly Condition=" '$(MSBuildRuntimeType)' == 'Core'">Adaptify.MSBuild.dll</TaskAssembly>
-    <TaskAssembly Condition=" '$(MSBuildRuntimeType)' != 'Core'">Adaptify.MSBuild.Framework.dll</TaskAssembly>
-  </PropertyGroup>
 
-  <ItemGroup Condition="$(TargetFramework.StartsWith('net4')) Or '$(TargetFramework)' == ''">
-    <Reference Include="netstandard" />
-  </ItemGroup>
 
-  <UsingTask TaskName="Adaptify.MSBuild.AdaptifyTask" AssemblyFile="$(TaskAssembly)" />
   <Target Name="UpdateGeneratedFiles" DependsOnTargets="ResolveProjectReferences;ResolveAssemblyReferences" BeforeTargets="CoreCompile" Condition="'@(Compile)' != '' And '$(GenerateDomainTypes)' != 'false'">
     <ItemGroup>
       <OldItems Include="@(Compile)" />
     </ItemGroup>
+     
+    <PropertyGroup>
+      <AdaptifyCommand Condition="'$(AdaptifyCommand)' != ''">dotnet adaptify</AdaptifyCommand>
+    </PropertyGroup>
+
+    <Exec Command="
+      $(AdaptifyCommand) msbuild --lenses '$(GenerateLenses)' --targetFramework '$(TargetFramework)' --debugHate '$(DebugHate)' --touchFiles '$(TouchFiles)' --projectFile '$(MSBuildProjectFullPath)' --designTime '$(DesignTimeBuild)' --defines '$(DefineConstants)' --outputPath '$(IntermediateOutputPath)' --outputType '$(OutputType)' --files '@(OldItems, ';')' --references '@(_ResolveAssemblyReferenceResolvedFiles, ';')'" Condition="$(MSBuildProjectFullPath.EndsWith('.fsproj'))" />
     
-    <Exec Command="/bin/ls -la">
-      <Output TaskParameter="ToolOut" />
-    </Exec>
-    
-    <Message Text="$(ToolOut)" />
-    
-    <AdaptifyTask 
-        GenerateLenses="$(GenerateLenses)" 
-        TargetFramework="$(TargetFramework)" 
-        Debug="$(DebugHate)" 
-        TouchFiles="$(TouchFiles)"
-        Files="@(OldItems)" 
-        References="@(_ResolveAssemblyReferenceResolvedFiles)" 
-        ProjectFile="$(MSBuildProjectFullPath)"
-        DesignTime="$(DesignTimeBuild)"
-        Defines="$(DefineConstants)"
-        OutputPath="$(IntermediateOutputPath)"
-        OutputType="$(OutputType)" >
-      <Output TaskParameter="Results" ItemName="Results" />
-    </AdaptifyTask>
-    <ItemGroup>
+    <ReadLinesFromFile File="$(IntermediateOutputPath)\adaptify.files">
+      <Output TaskParameter="Lines" ItemName="Results"/>
+    </ReadLinesFromFile>
+
+     <ItemGroup>
       <Compile Remove="@(OldItems)" />
       <Compile Include="@(Results)" />
       <OldItems Remove="@(OldItems)" />
@@ -44,9 +27,12 @@
   <ItemGroup>
     <FilesToClean Include="$(IntermediateOutputPath)\.adaptifycache" />
     <FilesToClean Include="$(IntermediateOutputPath)\**\*.g.fs" />
+    <FilesToClean Include="$(IntermediateOutputPath)\adaptify.files" />
   </ItemGroup>
   <Target Name="DeleteAdaptifyCache" BeforeTargets="Clean;Rebuild">
     <Delete Files="@(FilesToClean)" />
   </Target>
+    
+
 
 </Project>
