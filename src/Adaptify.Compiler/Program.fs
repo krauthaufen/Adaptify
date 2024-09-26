@@ -159,196 +159,310 @@ type Path with
 
 
 
+let msbuild (argv : string[]) =
+
+    let mutable lenses = false
+    let mutable debugHate = false
+    let mutable touchFiles = false
+    let mutable designTime = false
+    let mutable targetFramework = ""
+    let mutable projectFile = ""
+    let mutable defines = ""
+    let mutable outputPath = ""
+    let mutable outputType = ""
+    let mutable files = [||]
+    let mutable references = [||]
+    
+    for i in 0 .. argv.Length - 1 do
+        match argv.[i].ToLower().Trim() with
+        | "--lenses" ->
+            if i + 1 < argv.Length && argv.[i+1].Trim().ToLower() = "true" then
+                lenses <- true
+        | "--designtime" ->
+            if i + 1 < argv.Length then
+                designTime <- argv.[i+1].Trim().ToLower() = "true"
+        | "--debughate" ->
+            if i + 1 < argv.Length then
+                debugHate <- argv.[i+1].Trim().ToLower() = "true"
+        | "--touchfiles" ->
+            if i + 1 < argv.Length then
+                touchFiles <- argv.[i+1].Trim().ToLower() = "true"
+        | "--projectfile" ->
+            if i + 1 < argv.Length then
+                projectFile <- argv.[i+1].Trim()
+        | "--defines" ->
+            if i + 1 < argv.Length then
+                defines <- argv.[i+1].Trim()
+        | "--outputpath" ->
+            if i + 1 < argv.Length then
+                outputPath <- argv.[i+1].Trim()
+        | "--outputtype" ->
+            if i + 1 < argv.Length then
+                outputType <- argv.[i+1].Trim()
+        | "--files" ->
+            if i + 1 < argv.Length then
+                let refs = argv.[i+1].Split([|';'|], StringSplitOptions.RemoveEmptyEntries)
+                files <- refs
+                
+        | "--targetframework" ->
+            if i + 1 < argv.Length then
+                targetFramework <- argv.[i+1].Trim()
+        | "--references" ->
+            if i + 1 < argv.Length then
+                let refs = argv.[i+1].Split([|';'|], StringSplitOptions.RemoveEmptyEntries)
+                references <- refs
+        | _ ->
+            ()
+ 
+    let targetType = 
+        match outputType.ToLower() with
+            | "winexe" -> Target.WinExe
+            | "exe" -> Target.Exe
+            | _ -> Target.Library
+
+    let isNetFramework = references |> Array.exists (fun r -> Path.GetFileNameWithoutExtension(r).ToLower() = "mscorlib")
+    
+    let defines = defines.Split([|';'|], System.StringSplitOptions.RemoveEmptyEntries)
+
+    let projInfo =
+        {
+            project = projectFile
+            projRefs = []
+            isNewStyle = not isNetFramework
+            references = Array.toList references
+            files = Array.toList files
+            defines = Array.toList defines
+            target = targetType
+            output = Some (Path.GetTempFileName() + ".dll")
+            additional = ["--noframework"]
+            debug = DebugType.Off
+        }
+        
+    let checker = newChecker()
+    let log : ILog =
+        { new ILog with
+            member this.debug range fmt =
+                Printf.kprintf ignore fmt
+                
+            member this.info range fmt =
+                Printf.kprintf ignore fmt
+                
+            member this.error range code fmt =
+                fmt |> Printf.kprintf (fun str ->
+                    eprintfn "%s(%d,%d,%d,%d): error %s: %s" range.FileName range.StartLine range.StartColumn range.EndLine range.EndColumn code str
+                )
+            
+            member this.warn (range : range) code fmt =
+                fmt |> Printf.kprintf (fun str ->
+                    eprintfn "%s(%d,%d,%d,%d): warning %s: %s" range.FileName range.StartLine range.StartColumn range.EndLine range.EndColumn code str
+                )
+        }
+    
+    let run = Adaptify.runAsync checker outputPath designTime true lenses log false false projInfo
+    
+    let newFiles = 
+        try Async.RunSynchronously(run)
+        with e ->
+            eprintfn "adaptify unexpected error: %A" e
+            projInfo.files
+        
+  
+    File.WriteAllLines(Path.Combine(outputPath, "adaptify.files"), newFiles)
+    
+
 [<EntryPoint>]
-let main argv = 
-
-    //let r = ProcessManagement.dotnet (Log.console true) ["--list-sdks"]
-
-    if argv.Length <= 0 then
-        printfn "Usage: adaptify [options] [projectfiles]"
-        printfn "  Version: %s" selfVersion
-        printfn ""
-        printfn "Options:"
-        printfn "  -f|--force    ignore caches and regenerate files"
-        printfn "  -v|--verbose  verbose output"
-        printfn "  -l|--lenses   generate aether lenses for records"
-        printfn "  -c|--client   uses or creates a local server process"
-        printfn "  -r|--release  generate release files"
-        printfn "  --server      runs as server"
-        printfn "  --killserver  kills the currently running server"
-        Environment.Exit 1
-
-    let local =
-        argv |> Array.exists (fun a -> 
-            let a = a.ToLower().Trim()
-            a = "--local"    
-        )
-        
-    let killserver =
-        argv |> Array.exists (fun a -> 
-            let a = a.ToLower().Trim()
-            a = "--killserver"    
-        )
-
-
-    let force =
-        argv |> Array.exists (fun a -> 
-            let a = a.ToLower().Trim()
-            a = "-f" || a = "--force"    
-        )
-        
-    let lenses =
-        argv |> Array.exists (fun a -> 
-            let a = a.ToLower().Trim()
-            a = "-l" || a = "--lenses"    
-        )
-        
-    let release =
-        argv |> Array.exists (fun a -> 
-            let a = a.ToLower().Trim()
-            a = "-r" || a = "--release"    
-        )
-    let verbose =
-        argv |> Array.exists (fun a -> 
-            let a = a.ToLower().Trim()
-            a = "-v" || a = "--verbose"    
-        )
-         
-    let client =
-        argv |> Array.exists (fun a -> 
-            let a = a.ToLower().Trim()
-            a = "-c" || a = "--client"    
-        )
-   
-    let server =
-        argv |> Array.exists (fun a -> 
-            let a = a.ToLower().Trim()
-            a = "--server"    
-        )
-        
-    if killserver then
-        let log = Log.console verbose
-        Client.shutdown log
+let main argv =
+    if argv.[0] = "msbuild" then
+        msbuild argv
         0
-    elif server then
-        let log = 
-            Log.ofList [
-                Log.console verbose
-                Log.file verbose ProcessManagement.logFile
-            ]
-
-        match Server.start log with
-        | Some server ->
-            let hasConsole = try ignore Console.WindowHeight; true with _ -> false
-            if hasConsole then
-                startThread (fun () ->
-                    try
-                        
-                        let mutable line = ""
-                        while line <> "exit" do
-                            line <- Console.ReadLine().Trim().ToLower()
-                            if line = "" then Thread.Sleep 100
-                        server.Stop()
-                    with _ ->
-                        ()
-                ) |> ignore
-
-            server.WaitForExit()
-            0
-
-        | None ->
-            1
-
-        //if running then
-        //    let rec wait() =
-        //        let line = Console.ReadLine().Trim().ToLower()
-        //        if line <> "exit" then wait()
-
-        //    wait()
-        //    cancel()
-        //    0
-        //else
-        //    1
     else
-        let log = Log.console verbose
-        let projFiles = 
-            argv 
-            |> Array.filter (fun a -> not (a.StartsWith "-"))
-            |> Path.Glob
+        //let r = ProcessManagement.dotnet (Log.console true) ["--list-sdks"]
 
-        if projFiles.Length = 0 then
-            log.error Range.range0 "1" "no input files given"
-            exit 1
+        if argv.Length <= 0 then
+            printfn "Usage: adaptify [options] [projectfiles]"
+            printfn "  Version: %s" selfVersion
+            printfn ""
+            printfn "Options:"
+            printfn "  -f|--force    ignore caches and regenerate files"
+            printfn "  -v|--verbose  verbose output"
+            printfn "  -l|--lenses   generate aether lenses for records"
+            printfn "  -c|--client   uses or creates a local server process"
+            printfn "  -r|--release  generate release files"
+            printfn "  --server      runs as server"
+            printfn "  --killserver  kills the currently running server"
+            Environment.Exit 1
 
-        log.debug Range.range0 "CWD: %s" Environment.CurrentDirectory
-        log.debug Range.range0 "%d projects" projFiles.Length
-        for f in projFiles do
-            log.debug Range.range0 "%s" f
-
-        let props =
-            [
-                if release then "Configuration", "Release"
-            ]
-
-        let projectInfos = 
-            projFiles |> Array.choose (fun projFile ->
-                match ProjectInfo.tryOfProject props projFile with
-                | Ok info -> 
-                    Some info
-                | Error err ->
-                    log.error Range.range0 "" "ERRORS in %s" projFile
-                    for e in err do 
-                        log.error Range.range0 "" "  %s" e
-                    None
+        let local =
+            argv |> Array.exists (fun a -> 
+                let a = a.ToLower().Trim()
+                a = "--local"    
+            )
+            
+        let killserver =
+            argv |> Array.exists (fun a -> 
+                let a = a.ToLower().Trim()
+                a = "--killserver"    
             )
 
-        let topologicalSort (projects : ProjectInfo[]) : ProjectInfo[][] =
-            if projects.Length <= 1 then
-                [|projects|]
-            else
-                let all =
-                    projects |> Array.map (fun p -> p.project, p) |> Map.ofArray
 
-                let dependencies =
-                    projects |> Array.map (fun p ->
-                        let deps = p.projRefs |> List.map snd |> List.filter (fun p -> Map.containsKey p all) |> Set.ofList
-                        p.project, deps
-                    )
-                    |> Map.ofArray
+        let force =
+            argv |> Array.exists (fun a -> 
+                let a = a.ToLower().Trim()
+                a = "-f" || a = "--force"    
+            )
+            
+        let lenses =
+            argv |> Array.exists (fun a -> 
+                let a = a.ToLower().Trim()
+                a = "-l" || a = "--lenses"    
+            )
+            
+        let release =
+            argv |> Array.exists (fun a -> 
+                let a = a.ToLower().Trim()
+                a = "-r" || a = "--release"    
+            )
+        let verbose =
+            argv |> Array.exists (fun a -> 
+                let a = a.ToLower().Trim()
+                a = "-v" || a = "--verbose"    
+            )
+             
+        let client =
+            argv |> Array.exists (fun a -> 
+                let a = a.ToLower().Trim()
+                a = "-c" || a = "--client"    
+            )
+       
+        let server =
+            argv |> Array.exists (fun a -> 
+                let a = a.ToLower().Trim()
+                a = "--server"    
+            )
+            
+        if killserver then
+            let log = Log.console verbose
+            Client.shutdown log
+            0
+        elif server then
+            let log = 
+                Log.ofList [
+                    Log.console verbose
+                    Log.file verbose ProcessManagement.logFile
+                ]
 
-                log.info Range.range0 "topological sort"
-                let rec run (level : int) (m : Map<string, Set<string>>) =    
-                    if Map.isEmpty m then
-                        []
-                    else
-                        let noDependencies = m |> Map.filter (fun k v -> Set.isEmpty v) |> Map.toSeq |> Seq.map fst |> Set.ofSeq
-                        log.info Range.range0 "  level %d:" level
-                        for d in noDependencies do
-                            log.info Range.range0 "    %s" d
-                        let newMap = 
-                            (m, noDependencies) 
-                            ||> Set.fold (fun m d -> m |> Map.remove d)
-                            |> Map.map (fun _ d -> Set.difference d noDependencies)
+            match Server.start log with
+            | Some server ->
+                let hasConsole = try ignore Console.WindowHeight; true with _ -> false
+                if hasConsole then
+                    startThread (fun () ->
+                        try
+                            
+                            let mutable line = ""
+                            while line <> "exit" do
+                                line <- Console.ReadLine().Trim().ToLower()
+                                if line = "" then Thread.Sleep 100
+                            server.Stop()
+                        with _ ->
+                            ()
+                    ) |> ignore
 
-                        Set.toList noDependencies :: run (level + 1) newMap
+                server.WaitForExit()
+                0
 
-                run 0 dependencies
-                |> List.map (List.map (fun p -> all.[p]) >> List.toArray)
-                |> List.toArray
+            | None ->
+                1
+
+            //if running then
+            //    let rec wait() =
+            //        let line = Console.ReadLine().Trim().ToLower()
+            //        if line <> "exit" then wait()
+
+            //    wait()
+            //    cancel()
+            //    0
+            //else
+            //    1
+        else
+            let log = Log.console verbose
+            let projFiles = 
+                argv 
+                |> Array.filter (fun a -> not (a.StartsWith "-"))
+                |> Path.Glob
+
+            if projFiles.Length = 0 then
+                log.error Range.range0 "1" "no input files given"
+                exit 1
+
+            log.debug Range.range0 "CWD: %s" Environment.CurrentDirectory
+            log.debug Range.range0 "%d projects" projFiles.Length
+            for f in projFiles do
+                log.debug Range.range0 "%s" f
+
+            let props =
+                [
+                    if release then "Configuration", "Release"
+                ]
+
+            let projectInfos = 
+                projFiles |> Array.choose (fun projFile ->
+                    match ProjectInfo.tryOfProject props projFile with
+                    | Ok info -> 
+                        Some info
+                    | Error err ->
+                        log.error Range.range0 "" "ERRORS in %s" projFile
+                        for e in err do 
+                            log.error Range.range0 "" "  %s" e
+                        None
+                )
+
+            let topologicalSort (projects : ProjectInfo[]) : ProjectInfo[][] =
+                if projects.Length <= 1 then
+                    [|projects|]
+                else
+                    let all =
+                        projects |> Array.map (fun p -> p.project, p) |> Map.ofArray
+
+                    let dependencies =
+                        projects |> Array.map (fun p ->
+                            let deps = p.projRefs |> List.map snd |> List.filter (fun p -> Map.containsKey p all) |> Set.ofList
+                            p.project, deps
+                        )
+                        |> Map.ofArray
+
+                    log.info Range.range0 "topological sort"
+                    let rec run (level : int) (m : Map<string, Set<string>>) =    
+                        if Map.isEmpty m then
+                            []
+                        else
+                            let noDependencies = m |> Map.filter (fun k v -> Set.isEmpty v) |> Map.toSeq |> Seq.map fst |> Set.ofSeq
+                            log.info Range.range0 "  level %d:" level
+                            for d in noDependencies do
+                                log.info Range.range0 "    %s" d
+                            let newMap = 
+                                (m, noDependencies) 
+                                ||> Set.fold (fun m d -> m |> Map.remove d)
+                                |> Map.map (fun _ d -> Set.difference d noDependencies)
+
+                            Set.toList noDependencies :: run (level + 1) newMap
+
+                    run 0 dependencies
+                    |> List.map (List.map (fun p -> all.[p]) >> List.toArray)
+                    |> List.toArray
 
 
 
 
-        projectInfos |> topologicalSort |> Array.iter (Array.iter (fun info ->
-            let outputPath = 
-                match info.output with
-                | Some output -> Path.GetDirectoryName output
-                | None -> "."
-            if client && not local then
-                Client.adaptify CancellationToken.None log info outputPath false (not force) lenses |> ignore<list<string>>
-            else
-                let checker = newChecker()
-                Adaptify.run checker outputPath false (not force) lenses log local release info |> ignore<list<string>>
-        ))
+            projectInfos |> topologicalSort |> Array.iter (Array.iter (fun info ->
+                let outputPath = 
+                    match info.output with
+                    | Some output -> Path.GetDirectoryName output
+                    | None -> "."
+                if client && not local then
+                    Client.adaptify CancellationToken.None log info outputPath false (not force) lenses |> ignore<list<string>>
+                else
+                    let checker = newChecker()
+                    Adaptify.run checker outputPath false (not force) lenses log local release info |> ignore<list<string>>
+            ))
 
-        0 
+            0 

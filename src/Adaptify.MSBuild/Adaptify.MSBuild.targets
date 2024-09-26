@@ -1,6 +1,6 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <TaskAssembly Condition=" '$(MSBuildRuntimeType)' == 'Core'">Adaptify.MSBuild.DotNet.dll</TaskAssembly>
+    <TaskAssembly Condition=" '$(MSBuildRuntimeType)' == 'Core'">Adaptify.MSBuild.dll</TaskAssembly>
     <TaskAssembly Condition=" '$(MSBuildRuntimeType)' != 'Core'">Adaptify.MSBuild.Framework.dll</TaskAssembly>
   </PropertyGroup>
 
@@ -13,6 +13,13 @@
     <ItemGroup>
       <OldItems Include="@(Compile)" />
     </ItemGroup>
+    
+    <Exec Command="/bin/ls -la">
+      <Output TaskParameter="ToolOut" />
+    </Exec>
+    
+    <Message Text="$(ToolOut)" />
+    
     <AdaptifyTask 
         GenerateLenses="$(GenerateLenses)" 
         TargetFramework="$(TargetFramework)" 

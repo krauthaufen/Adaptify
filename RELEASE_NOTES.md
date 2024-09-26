@@ -1,3 +1,6 @@
+### 1.3.0-prerelease2
+* pure XML msbuild integration
+
 ### 1.2.0-prerelease1
 * dotnet8 support
 

@@ -440,7 +440,7 @@ module Versions =
  
         match tag with
         | Some tag ->
-            log.info Range.range0 "version: %s (local)" tag
+            //log.info Range.range0 "version: %s (local)" tag
             tag
         | None ->
             let version = 

@@ -72,8 +72,6 @@ Target.create "Compile" (fun _ ->
     DotNet.build options "Adaptify.sln"
 )
 
-
-
 Target.create "Pack" (fun _ ->
     let args = 
         [
@@ -273,107 +271,7 @@ let ilrepack (outFolder : string) (args : list<string>) =
     Fake.Core.Process.shellExec paramters
 
 
-Target.create "MergeDotNet" (fun _ ->
-    
-    let outFolder =
-        Path.GetFullPath(Path.Combine("bin", "Release", "netstandard2.0"))
-        
-    Trace.logfn "out folder: %s" outFolder
-
-    File.Copy(
-        "packages/hans/FSharp.Compiler.Service/lib/netstandard2.0/FSharp.Compiler.Service.dll",
-        Path.Combine(outFolder, "FSharp.Compiler.Service.dll"),
-        true
-    )
-
-    
-    File.Copy(
-        "packages/hans/FSharp.Core/lib/netstandard2.0/FSharp.Core.dll",
-        Path.Combine(outFolder, "FSharp.Core.dll"),
-        true
-    )
-
-    let args =
-        [
-            "/out:../Adaptify.MSBuild.DotNet.dll"
-            "/internalize"
-            sprintf "/ver:%d.%d.%d.%d" notes.SemVer.Major notes.SemVer.Minor notes.SemVer.Patch (int notes.SemVer.Build)
-
-            "Adaptify.MSBuild.DotNet.dll"
-            "Adaptify.Compiler.Core.dll"
-            "FSharp.Compiler.Service.dll"
-            "FSharp.Core.dll"
-        ]
-
-    if OperatingSystem.IsWindows() then 
-        let worked = ilrepack outFolder args
-
-        if worked = 0 then
-            Trace.log "merged"
-        else
-            failwith "error in ILRepack"
-    else
-        let copyFile (file : string) = File.Copy(Path.Combine(outFolder, file), Path.Combine(outFolder, "..", file), true)
-        copyFile "Adaptify.MSBuild.DotNet.dll"
-        copyFile "FSharp.Compiler.Service.dll"
-        copyFile "Adaptify.Compiler.Core.dll"
-        copyFile "FSharp.Core.dll"
-)
-
-
-Target.create "MergeFramework" (fun _ ->
-    
-    let outFolder =
-        Path.GetFullPath(Path.Combine("bin", "Release", "net472"))
-        
-    Trace.logfn "out folder: %s" outFolder
-
-    File.Copy(
-        "packages/hans/FSharp.Compiler.Service/lib/netstandard2.0/FSharp.Compiler.Service.dll",
-        Path.Combine(outFolder, "FSharp.Compiler.Service.dll"),
-        true
-    )
-
-    
-    File.Copy(
-        "packages/hans/FSharp.Core/lib/netstandard2.0/FSharp.Core.dll",
-        Path.Combine(outFolder, "FSharp.Core.dll"),
-        true
-    )
-
-    let args =
-        [
-            "/out:../Adaptify.MSBuild.Framework.dll"
-            "/internalize"
-            sprintf "/ver:%d.%d.%d.%d" notes.SemVer.Major notes.SemVer.Minor notes.SemVer.Patch (int notes.SemVer.Build)
-            
-            "Adaptify.MSBuild.Framework.dll"
-            "Adaptify.Compiler.Core.dll"
-            "FSharp.Compiler.Service.dll"
-            "FSharp.Core.dll"
-        ]
-        
-    let worked = ilrepack outFolder args
-
-    if worked = 0 then
-        Trace.log "merged"
-    else
-        failwith "error in ILRepack"
-)
-
-Target.create "Merge" (fun _ ->
-    let outDir = "bin/Release"
-    File.Copy("bin/Release/net472/Adaptify.MSBuild.targets", Path.Combine(outDir, "Adaptify.MSBuild.targets"), true)
-)
-
-if OperatingSystem.IsWindows() then 
-    "Compile" ==> "MergeFramework" |> ignore
-    "MergeFramework" ==> "Merge"
-else 
-    "Compile" ==> "Default" 
-
-"Compile" ==> "MergeDotNet" 
-"MergeDotNet" ==> "Merge"
+"Compile" ==> "Default" 
 
 "Compile" ==> 
     "Docs"
@@ -382,12 +280,10 @@ else
     "GenerateDocs" ==> 
     "ReleaseDocs"
 
-"Merge" ==> 
+"Compile" ==> 
     "Pack" ==>
     "Push"
 
-"Merge" ==> 
-    "Default"
 
 
 Target.runOrDefault "Default"
