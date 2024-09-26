@@ -172,9 +172,12 @@ let msbuild (argv : string[]) =
     let mutable outputType = ""
     let mutable files = [||]
     let mutable references = [||]
-    
+    let mutable verbose = false
+
     for i in 0 .. argv.Length - 1 do
         match argv.[i].ToLower().Trim() with
+        | "--verbose" | "-v" ->
+            verbose <- true
         | "--lenses" ->
             if i + 1 < argv.Length && argv.[i+1].Trim().ToLower() = "true" then
                 lenses <- true
@@ -242,10 +245,16 @@ let msbuild (argv : string[]) =
     let log : ILog =
         { new ILog with
             member this.debug range fmt =
-                Printf.kprintf ignore fmt
+                fmt |> Printf.kprintf (fun str ->
+                    if verbose then
+                        printfn "%s(%d,%d,%d,%d): %s" range.FileName range.StartLine range.StartColumn range.EndLine range.EndColumn str
+                )
                 
             member this.info range fmt =
-                Printf.kprintf ignore fmt
+                fmt |> Printf.kprintf (fun str ->
+                    if verbose then
+                        printfn "%s(%d,%d,%d,%d): %s" range.FileName range.StartLine range.StartColumn range.EndLine range.EndColumn str
+                )
                 
             member this.error range code fmt =
                 fmt |> Printf.kprintf (fun str ->

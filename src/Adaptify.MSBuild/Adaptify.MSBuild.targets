@@ -8,10 +8,11 @@
      
     <PropertyGroup>
       <AdaptifyCommand Condition="'$(AdaptifyCommand)' == ''">dotnet adaptify</AdaptifyCommand>
+      <AdaptifyVerbosity Condition="'$(AdaptifyVerbose)' == 'true'">--verbose</AdaptifyVerbosity>
     </PropertyGroup>
 
     <Exec Command="
-      $(AdaptifyCommand) msbuild --lenses '$(GenerateLenses)' --targetFramework '$(TargetFramework)' --debugHate '$(DebugHate)' --touchFiles '$(TouchFiles)' --projectFile '$(MSBuildProjectFullPath)' --designTime '$(DesignTimeBuild)' --defines '$(DefineConstants)' --outputPath '$(IntermediateOutputPath)' --outputType '$(OutputType)' --files '@(OldItems, ';')' --references '@(_ResolveAssemblyReferenceResolvedFiles, ';')'" Condition="$(MSBuildProjectFullPath.EndsWith('.fsproj'))" />
+      $(AdaptifyCommand) msbuild --lenses '$(GenerateLenses)' --targetFramework '$(TargetFramework)' --debugHate '$(DebugHate)' --touchFiles '$(TouchFiles)' --projectFile '$(MSBuildProjectFullPath)' --designTime '$(DesignTimeBuild)' --defines '$(DefineConstants)' --outputPath '$(IntermediateOutputPath)' --outputType '$(OutputType)' $(AdaptifyVerbosity) --files '@(OldItems, ';')' --references '@(_ResolveAssemblyReferenceResolvedFiles, ';')'" Condition="$(MSBuildProjectFullPath.EndsWith('.fsproj'))" />
     
     <ReadLinesFromFile File="$(IntermediateOutputPath)\adaptify.files">
       <Output TaskParameter="Lines" ItemName="Results"/>

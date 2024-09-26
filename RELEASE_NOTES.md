@@ -1,3 +1,6 @@
+### 1.3.0-prerelease5
+* pure XML msbuild integration 4/N
+
 ### 1.3.0-prerelease4
 * pure XML msbuild integration 3/N
 
