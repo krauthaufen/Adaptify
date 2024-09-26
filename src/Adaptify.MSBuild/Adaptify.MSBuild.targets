@@ -7,7 +7,7 @@
     </ItemGroup>
      
     <PropertyGroup>
-      <AdaptifyCommand Condition="'$(AdaptifyCommand)' != ''">dotnet adaptify</AdaptifyCommand>
+      <AdaptifyCommand Condition="'$(AdaptifyCommand)' == ''">dotnet adaptify</AdaptifyCommand>
     </PropertyGroup>
 
     <Exec Command="
