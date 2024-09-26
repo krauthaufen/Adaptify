@@ -150,10 +150,13 @@ module Adaptify =
             let hash = ProjectInfo.computeHash projectInfo
             let projectFile = projectInfo.project
             let projDir = Path.GetDirectoryName projectFile
-            let outputDirectory = 
-                let dir = Path.Combine(Path.GetTempPath(), hash)
-                Directory.ensure dir |> ignore
-                dir
+            let outputDirectory =
+                if local then
+                    let dir = Path.Combine(Path.GetTempPath(), "adaptify", hash)
+                    Directory.ensure dir |> ignore
+                    dir
+                else
+                    outputPath
 
             let relativePath (name : string) =
                 let dirFull = Path.GetFullPath projDir
