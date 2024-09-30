@@ -1,3 +1,6 @@
+### 1.3.0
+* passing args via JSON (avoiding command line length problems)
+
 ### 1.3.0-prerelease6
 * pure XML msbuild integration 5/N
 

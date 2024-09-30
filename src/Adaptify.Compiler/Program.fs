@@ -1,5 +1,6 @@
 ﻿open System
 open System.IO
+open System.Text.Json
 open FSharp.Compiler.Symbols
 open FSharp.Compiler.Text
 open FSharp.Core
@@ -160,7 +161,7 @@ type Path with
 
 
 let msbuild (argv : string[]) =
-
+    
     let mutable lenses = false
     let mutable debugHate = false
     let mutable touchFiles = false
@@ -173,50 +174,93 @@ let msbuild (argv : string[]) =
     let mutable files = [||]
     let mutable references = [||]
     let mutable verbose = false
+    
+    let mutable argv = argv
+    if argv.Length = 2 && File.Exists argv.[1] then
+        let args = File.ReadAllText(argv.[1]).Replace("\\", "\\\\")
+        let doc = System.Text.Json.JsonDocument.Parse args
+        let root = doc.RootElement
+        
+        let inline stringArr (e : JsonElement) =
+            let cnt = e.GetArrayLength()
+            Array.init cnt (fun i -> e.[i].GetString())
+        
+        lenses <- root.GetProperty("lenses").GetString().ToLower() = "true"
+        debugHate <- root.GetProperty("debugHate").GetString().ToLower() = "true"
+        touchFiles <- root.GetProperty("touchFiles").GetString().ToLower() = "true"
+        designTime <- root.GetProperty("designTime").GetString().ToLower() = "true"
+        targetFramework <- root.GetProperty("targetFramework").GetString()
+        projectFile <- root.GetProperty("projectFile").GetString()
+        defines <- root.GetProperty("defines").GetString()
+        outputPath <- root.GetProperty("outputPath").GetString()
+        outputType <- root.GetProperty("outputType").GetString()
+        files <- stringArr(root.GetProperty("files"))
+        references <- stringArr(root.GetProperty("references"))
+        verbose <- root.GetProperty("verbose").GetString().ToLower() = "true"
+    else
 
-    for i in 0 .. argv.Length - 1 do
-        match argv.[i].ToLower().Trim() with
-        | "--verbose" | "-v" ->
-            verbose <- true
-        | "--lenses" ->
-            if i + 1 < argv.Length && argv.[i+1].Trim().ToLower() = "true" then
-                lenses <- true
-        | "--designtime" ->
-            if i + 1 < argv.Length then
-                designTime <- argv.[i+1].Trim().ToLower() = "true"
-        | "--debughate" ->
-            if i + 1 < argv.Length then
-                debugHate <- argv.[i+1].Trim().ToLower() = "true"
-        | "--touchfiles" ->
-            if i + 1 < argv.Length then
-                touchFiles <- argv.[i+1].Trim().ToLower() = "true"
-        | "--projectfile" ->
-            if i + 1 < argv.Length then
-                projectFile <- argv.[i+1].Trim()
-        | "--defines" ->
-            if i + 1 < argv.Length then
-                defines <- argv.[i+1].Trim()
-        | "--outputpath" ->
-            if i + 1 < argv.Length then
-                outputPath <- argv.[i+1].Trim()
-        | "--outputtype" ->
-            if i + 1 < argv.Length then
-                outputType <- argv.[i+1].Trim()
-        | "--files" ->
-            if i + 1 < argv.Length then
-                let refs = argv.[i+1].Split([|';'|], StringSplitOptions.RemoveEmptyEntries)
-                files <- refs
-                
-        | "--targetframework" ->
-            if i + 1 < argv.Length then
-                targetFramework <- argv.[i+1].Trim()
-        | "--references" ->
-            if i + 1 < argv.Length then
-                let refs = argv.[i+1].Split([|';'|], StringSplitOptions.RemoveEmptyEntries)
-                references <- refs
-        | _ ->
-            ()
- 
+        for i in 0 .. argv.Length - 1 do
+            match argv.[i].ToLower().Trim() with
+            | "--verbose" | "-v" ->
+                verbose <- true
+            | "--lenses" ->
+                if i + 1 < argv.Length && argv.[i+1].Trim().ToLower() = "true" then
+                    lenses <- true
+            | "--designtime" ->
+                if i + 1 < argv.Length then
+                    designTime <- argv.[i+1].Trim().ToLower() = "true"
+            | "--debughate" ->
+                if i + 1 < argv.Length then
+                    debugHate <- argv.[i+1].Trim().ToLower() = "true"
+            | "--touchfiles" ->
+                if i + 1 < argv.Length then
+                    touchFiles <- argv.[i+1].Trim().ToLower() = "true"
+            | "--projectfile" ->
+                if i + 1 < argv.Length then
+                    projectFile <- argv.[i+1].Trim()
+            | "--defines" ->
+                if i + 1 < argv.Length then
+                    defines <- argv.[i+1].Trim()
+            | "--outputpath" ->
+                if i + 1 < argv.Length then
+                    outputPath <- argv.[i+1].Trim()
+            | "--outputtype" ->
+                if i + 1 < argv.Length then
+                    outputType <- argv.[i+1].Trim()
+            | "--files" ->
+                if i + 1 < argv.Length then
+                    let refs = argv.[i+1].Split([|';'|], StringSplitOptions.RemoveEmptyEntries)
+                    files <- refs
+                    
+            | "--targetframework" ->
+                if i + 1 < argv.Length then
+                    targetFramework <- argv.[i+1].Trim()
+            | "--references" ->
+                if i + 1 < argv.Length then
+                    let refs = argv.[i+1].Split([|';'|], StringSplitOptions.RemoveEmptyEntries)
+                    references <- refs
+            | _ ->
+                ()
+     
+     
+    let outputPath =
+        Path.Combine(Path.GetDirectoryName(projectFile), outputPath) |> Path.GetFullPath
+    //     
+    // if verbose then
+    //     printfn "lenses: %A" lenses
+    //     printfn "debugHate: %A" debugHate
+    //     printfn "touchFiles: %A" touchFiles
+    //     printfn "designTime: %A" designTime
+    //     printfn "targetFramework: %s" targetFramework
+    //     printfn "projectFile: %s" projectFile
+    //     printfn "defines: %s" defines
+    //     printfn "outputPath: %s" outputPath
+    //     printfn "outputType: %s" outputType
+    //     printfn "files: %A" files
+    //     printfn "references: %A" references
+    //     
+        
+     
     let targetType = 
         match outputType.ToLower() with
             | "winexe" -> Target.WinExe
