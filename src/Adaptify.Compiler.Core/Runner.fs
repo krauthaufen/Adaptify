@@ -504,8 +504,12 @@ module Adaptify =
                                         match res.ImplementationFile with
                                         | None -> 
                                             let range = Range.mkRange (relativePath file) Position.pos0 Position.pos0
-                                            localLogger.warn range "1338" "[Adaptify] no implementation file for: %A, assuming no model types" res
-                                            []
+                                            localLogger.warn range "1338" "[Adaptify] no implementation file for: %A, trying to use partial assembly signature." res
+                                            for e in res.Diagnostics do
+                                                let r = Range.mkRange (relativePath file) e.Start e.End
+                                                localLogger.warn r (string e.ErrorNumber) "[Adaptify] compiler returned errors in model file: %A" e.Message
+                                            res.PartialAssemblySignature.Entities 
+                                            |> Seq.toList
                                         | Some implementationFile -> 
                                             implementationFile.Declarations
                                             |> Seq.toList
