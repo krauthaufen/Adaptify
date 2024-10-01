@@ -1,3 +1,6 @@
+### 1.3.3
+* use partial assembly signature if implementationfile is not available
+
 ### 1.3.2
 * null exn in Runner (using DeclarationFile without None check) now uses warning instead of error to keep the build running...
 
