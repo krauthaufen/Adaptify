@@ -501,9 +501,15 @@ module Adaptify =
                                             []
 
                                     let entities = 
-                                        res.ImplementationFile.Value.Declarations
-                                        |> Seq.toList
-                                        |> List.collect allEntities
+                                        match res.ImplementationFile with
+                                        | None -> 
+                                            let range = Range.mkRange (relativePath file) Position.pos0 Position.pos0
+                                            log.error range "1338" "[Adaptify] no implementation file for: %A, assuming no model types" res
+                                            []
+                                        | Some implementationFile -> 
+                                            implementationFile.Declarations
+                                            |> Seq.toList
+                                            |> List.collect allEntities
                                         
                                     let definitions =   
                                         entities 

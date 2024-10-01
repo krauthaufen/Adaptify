@@ -1,3 +1,6 @@
+### 1.3.1
+* fixed null exn in Runner (using DeclarationFile without None check)
+
 ### 1.3.0
 * passing args via JSON (avoiding command line length problems)
 
