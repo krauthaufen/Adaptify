@@ -1,3 +1,6 @@
+### 1.3.2
+* null exn in Runner (using DeclarationFile without None check) now uses warning instead of error to keep the build running...
+
 ### 1.3.1
 * fixed null exn in Runner (using DeclarationFile without None check)
 

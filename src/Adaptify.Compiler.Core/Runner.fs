@@ -504,7 +504,7 @@ module Adaptify =
                                         match res.ImplementationFile with
                                         | None -> 
                                             let range = Range.mkRange (relativePath file) Position.pos0 Position.pos0
-                                            log.error range "1338" "[Adaptify] no implementation file for: %A, assuming no model types" res
+                                            localLogger.warn range "1338" "[Adaptify] no implementation file for: %A, assuming no model types" res
                                             []
                                         | Some implementationFile -> 
                                             implementationFile.Declarations
