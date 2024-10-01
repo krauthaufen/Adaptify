@@ -5,7 +5,9 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
     <DisableImplicitFSharpCoreReference>True</DisableImplicitFSharpCoreReference>
-    <GenerateLenses>True</GenerateLenses>
+    <GenerateLenses>true</GenerateLenses>
+<!--    <AdaptifyCommand>dotnet run &#45;&#45;framework net8.0 &#45;&#45;project "C:\Users\haaser\Development\Adaptify\src\Adaptify.Compiler\adaptify.fsproj" &#45;&#45;</AdaptifyCommand>-->
+<!--    <AdaptifyVerbose>true</AdaptifyVerbose>-->
     <!--<DebugHate>true</DebugHate>-->
   </PropertyGroup>
 
@@ -37,6 +39,6 @@
     </Reference>
   </ItemGroup>
 
-  <Import Project="$(MSBuildThisFileDirectory)..\..\..\bin\Release\Adaptify.MSBuild.targets" />
+  <Import Project="$(MSBuildThisFileDirectory)..\..\Adaptify.MSBuild\Adaptify.MSBuild.targets" />
   
 </Project>

@@ -150,10 +150,13 @@ module Adaptify =
             let hash = ProjectInfo.computeHash projectInfo
             let projectFile = projectInfo.project
             let projDir = Path.GetDirectoryName projectFile
-            let outputDirectory = 
-                let dir = Path.Combine(Path.GetTempPath(), hash)
-                Directory.ensure dir |> ignore
-                dir
+            let outputDirectory =
+                if local then
+                    let dir = Path.Combine(Path.GetTempPath(), "adaptify", hash)
+                    Directory.ensure dir |> ignore
+                    dir
+                else
+                    outputPath
 
             let relativePath (name : string) =
                 let dirFull = Path.GetFullPath projDir
@@ -498,9 +501,19 @@ module Adaptify =
                                             []
 
                                     let entities = 
-                                        res.ImplementationFile.Value.Declarations
-                                        |> Seq.toList
-                                        |> List.collect allEntities
+                                        match res.ImplementationFile with
+                                        | None -> 
+                                            let range = Range.mkRange (relativePath file) Position.pos0 Position.pos0
+                                            localLogger.warn range "1338" "[Adaptify] no implementation file for: %A, trying to use partial assembly signature." res
+                                            for e in res.Diagnostics do
+                                                let r = Range.mkRange (relativePath file) e.Start e.End
+                                                localLogger.warn r (string e.ErrorNumber) "[Adaptify] compiler returned errors in model file: %A" e.Message
+                                            res.PartialAssemblySignature.Entities 
+                                            |> Seq.toList
+                                        | Some implementationFile -> 
+                                            implementationFile.Declarations
+                                            |> Seq.toList
+                                            |> List.collect allEntities
                                         
                                     let definitions =   
                                         entities 

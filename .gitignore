@@ -28,3 +28,5 @@ symbolCache.db
 .ionide
 **/.idea/
 .DS_Store
+/src/Adaptify.Compiler/adaptify.fsproj.user
+**/Adaptify.sln.DotSettings.user

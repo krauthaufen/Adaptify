@@ -1,0 +1,57 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+
+  <Target Name="UpdateGeneratedFiles" DependsOnTargets="ResolveProjectReferences;ResolveAssemblyReferences" BeforeTargets="CoreCompile" Condition="'@(Compile)' != '' And '$(GenerateDomainTypes)' != 'false'">
+    <ItemGroup>
+      <OldItems Include="@(Compile)" />
+    </ItemGroup>
+     
+    <PropertyGroup>
+      <AdaptifyCommand Condition="'$(AdaptifyCommand)' == ''">dotnet adaptify</AdaptifyCommand>
+      <AdaptifyVerbosity Condition="'$(AdaptifyVerbose)' == 'true'">--verbose</AdaptifyVerbosity>
+      <AdaptifyArgs>
+{
+        "lenses": "$(GenerateLenses)",
+        "targetFramework": "$(TargetFramework)",
+        "debugHate": "$(DebugHate)",
+        "touchFiles": "$(TouchFiles)",
+        "projectFile": "$(MSBuildProjectFullPath)",
+        "designTime": "$(DesignTimeBuild)",
+        "defines": "$(DefineConstants.Replace("\n", ""))",
+        "outputPath": "$(IntermediateOutputPath)",
+        "outputType": "$(OutputType)",
+        "files": [ @(OldItems->'&quot;%(FullPath)&quot;', ', ') ],
+        "references": [ @(_ResolveAssemblyReferenceResolvedFiles->'&quot;%(FullPath)&quot;', ', ') ],
+        "verbose": "$(AdaptifyVerbose)"
+}
+      </AdaptifyArgs>
+    </PropertyGroup>
+
+    
+    <WriteLinesToFile File="$(IntermediateOutputPath)\adaptify.args" Lines="$(AdaptifyArgs)" Overwrite="true" />
+    <Exec Command="
+      $(AdaptifyCommand) msbuild $(IntermediateOutputPath)\adaptify.args" Condition="$(MSBuildProjectFullPath.EndsWith('.fsproj'))" />
+    
+    <ReadLinesFromFile File="$(IntermediateOutputPath)\adaptify.files">
+      <Output TaskParameter="Lines" ItemName="Results"/>
+    </ReadLinesFromFile>
+
+     <ItemGroup>
+      <Compile Remove="@(OldItems)" />
+      <Compile Include="@(Results)" />
+      <OldItems Remove="@(OldItems)" />
+      <Results Remove="@(Results)" />
+    </ItemGroup>
+  </Target>
+  <ItemGroup>
+    <FilesToClean Include="$(IntermediateOutputPath)\.adaptifycache" />
+    <FilesToClean Include="$(IntermediateOutputPath)\**\*.g.fs" />
+    <FilesToClean Include="$(IntermediateOutputPath)\adaptify.files" />
+  </ItemGroup>
+  <Target Name="DeleteAdaptifyCache" BeforeTargets="Clean;Rebuild">
+    <Delete Files="@(FilesToClean)" />
+  </Target>
+    
+
+
+</Project>

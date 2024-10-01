@@ -2,7 +2,7 @@
   "profiles": {
     "adaptify": {
       "commandName": "Project",
-      "commandLineArgs": "dotnet adaptify --local --verbose --force \"C:\\repo\\Rail4Future\\src\\PointCloudViewer\\PointCloudViewer.fsproj\""
+      "commandLineArgs": "--server --verbose"
     }
   }
 }

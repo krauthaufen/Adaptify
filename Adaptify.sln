@@ -10,9 +10,15 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "adaptify", "src\Adaptify.Co
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Compiler", "Compiler", "{F28EFCED-51C1-4D6E-94CA-BA7C84247CFC}"
 EndProject
-Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Adaptify.MSBuild.DotNet", "src\Adaptify.MSBuild.DotNet\Adaptify.MSBuild.DotNet.fsproj", "{C11D497B-ACCA-4B76-8A41-71C5E7EC5E30}"
-EndProject
-Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Adaptify.MSBuild.Framework", "src\Adaptify.MSBuild.Framework\Adaptify.MSBuild.Framework.fsproj", "{D6A22C39-5EC6-4D89-A5A4-69DB10BB6AAF}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{5354664B-13B9-431C-83EB-A1F74FD82C2F}"
+	ProjectSection(SolutionItems) = preProject
+		global.json = global.json
+		LICENSE = LICENSE
+		README.md = README.md
+		RELEASE_NOTES.md = RELEASE_NOTES.md
+		.config\dotnet-tools.json = .config\dotnet-tools.json
+		src\Adaptify.MSBuild\Adaptify.MSBuild.targets = src\Adaptify.MSBuild\Adaptify.MSBuild.targets
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -32,14 +38,6 @@ Global
 		{E823BD28-CFED-486F-AED7-5EF54354E579}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E823BD28-CFED-486F-AED7-5EF54354E579}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E823BD28-CFED-486F-AED7-5EF54354E579}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C11D497B-ACCA-4B76-8A41-71C5E7EC5E30}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C11D497B-ACCA-4B76-8A41-71C5E7EC5E30}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C11D497B-ACCA-4B76-8A41-71C5E7EC5E30}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C11D497B-ACCA-4B76-8A41-71C5E7EC5E30}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D6A22C39-5EC6-4D89-A5A4-69DB10BB6AAF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D6A22C39-5EC6-4D89-A5A4-69DB10BB6AAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D6A22C39-5EC6-4D89-A5A4-69DB10BB6AAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D6A22C39-5EC6-4D89-A5A4-69DB10BB6AAF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -47,8 +45,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{AB9C8BA2-30D3-43AD-A6C0-7AF49FB6BAED} = {F28EFCED-51C1-4D6E-94CA-BA7C84247CFC}
 		{E823BD28-CFED-486F-AED7-5EF54354E579} = {F28EFCED-51C1-4D6E-94CA-BA7C84247CFC}
-		{C11D497B-ACCA-4B76-8A41-71C5E7EC5E30} = {F28EFCED-51C1-4D6E-94CA-BA7C84247CFC}
-		{D6A22C39-5EC6-4D89-A5A4-69DB10BB6AAF} = {F28EFCED-51C1-4D6E-94CA-BA7C84247CFC}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F3DF5A5D-D599-45D1-869E-4552860AF1BC}

@@ -6,6 +6,4 @@ developmentDependency true
 dependencies
   Adaptify.Core = CURRENTVERSION
 files
-  Release/Adaptify.MSBuild.Framework.dll ==> build
-  Release/Adaptify.MSBuild.DotNet.dll ==> build
-  Release/Adaptify.MSBuild.targets ==> build
+  Adaptify.MSBuild.targets ==> build

@@ -15,5 +15,11 @@
     <Compile Include="Helpers.fs" />
     <Compile Include="CoreInstances.fs" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="paket.references" />
+    <Content Include="..\..\bin\Adaptify.Core.paket.template">
+      <Link>Adaptify.Core.paket.template</Link>
+    </Content>
+  </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

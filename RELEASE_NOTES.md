@@ -1,3 +1,33 @@
+### 1.3.3
+* use partial assembly signature if implementationfile is not available
+
+### 1.3.2
+* null exn in Runner (using DeclarationFile without None check) now uses warning instead of error to keep the build running...
+
+### 1.3.1
+* fixed null exn in Runner (using DeclarationFile without None check)
+
+### 1.3.0
+* passing args via JSON (avoiding command line length problems)
+
+### 1.3.0-prerelease6
+* pure XML msbuild integration 5/N
+
+### 1.3.0-prerelease5
+* pure XML msbuild integration 4/N
+
+### 1.3.0-prerelease4
+* pure XML msbuild integration 3/N
+
+### 1.3.0-prerelease3
+* pure XML msbuild integration 2/N
+
+### 1.3.0-prerelease2
+* pure XML msbuild integration
+
+### 1.2.0-prerelease1
+* dotnet8 support
+
 ### 1.1.13
 * assembly version fix 3
 
