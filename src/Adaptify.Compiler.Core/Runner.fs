@@ -152,7 +152,12 @@ module Adaptify =
             let projDir = Path.GetDirectoryName projectFile
             let outputDirectory =
                 if local then
-                    let dir = Path.Combine(Path.GetTempPath(), "adaptify", hash)
+                    let dir =
+                        Path.Combine(
+                            Environment.GetFolderPath Environment.SpecialFolder.LocalApplicationData,
+                            "adaptify",
+                            hash
+                        )
                     Directory.ensure dir |> ignore
                     dir
                 else

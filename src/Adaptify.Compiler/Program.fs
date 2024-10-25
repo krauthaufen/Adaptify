@@ -174,6 +174,7 @@ let msbuild (argv : string[]) =
     let mutable files = [||]
     let mutable references = [||]
     let mutable verbose = false
+    let mutable local = false
     
     let mutable argv = argv
     if argv.Length = 2 && File.Exists argv.[1] then
@@ -197,6 +198,8 @@ let msbuild (argv : string[]) =
         files <- stringArr(root.GetProperty("files"))
         references <- stringArr(root.GetProperty("references"))
         verbose <- root.GetProperty("verbose").GetString().ToLower() = "true"
+        local <- root.GetProperty("local").GetString().ToLower() = "true"
+        
     else
 
         for i in 0 .. argv.Length - 1 do
@@ -311,7 +314,7 @@ let msbuild (argv : string[]) =
                 )
         }
     
-    let run = Adaptify.runAsync checker outputPath designTime true lenses log false false projInfo
+    let run = Adaptify.runAsync checker outputPath designTime true lenses log local false projInfo
     
     let newFiles = 
         try Async.RunSynchronously(run)

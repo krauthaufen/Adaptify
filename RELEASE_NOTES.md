@@ -1,3 +1,6 @@
+### 1.3.4
+* added `LocalAdaptify` option to MSBuild task
+
 ### 1.3.3
 * use partial assembly signature if implementationfile is not available
 
