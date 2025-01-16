@@ -1,7 +1,7 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
 
-  <Target Name="UpdateGeneratedFiles" DependsOnTargets="ResolveProjectReferences;ResolveAssemblyReferences" BeforeTargets="CoreCompile" Condition="'@(Compile)' != '' And '$(GenerateDomainTypes)' != 'false'">
+  <Target Name="UpdateGeneratedFiles" DependsOnTargets="ResolveProjectReferences;ResolveAssemblyReferences" BeforeTargets="CoreCompile" Condition="'@(Compile)' != '' And '$(GenerateDomainTypes)' != 'false' And '$(MSBuildProjectExtension)' == '.fsproj'">
     <ItemGroup>
       <OldItems Include="@(Compile)" />
     </ItemGroup>

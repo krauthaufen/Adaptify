@@ -1,3 +1,5 @@
+- skip C# projects
+  
 ### 1.3.4
 * added `LocalAdaptify` option to MSBuild task
 
