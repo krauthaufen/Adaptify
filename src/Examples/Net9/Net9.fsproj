@@ -1,8 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
     <DisableImplicitFSharpCoreReference>True</DisableImplicitFSharpCoreReference>
+    <GenerateLenses>True</GenerateLenses>
+    <AdaptifyToolAssembly>..\..\..\bin\$(Configuration)\msbuild-tool\Adaptify.MSBuild.dll</AdaptifyToolAssembly>
+    <AdaptifyVerbose>true</AdaptifyVerbose>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <OutputPath>..\..\..\bin\Debug\</OutputPath>
@@ -12,14 +16,13 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="Library.fs" />
-    <Compile Include="Library.g.fs" />
-    <Compile Include="Model2.fs" />
-    <Compile Include="Model2.g.fs" />
-    <Compile Include="Test.fs" />
+    <Compile Include="Model.fs" />
+    <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Adaptify.Core\Adaptify.Core.fsproj" />
+    <ProjectReference Include="..\LibraryCSharp\LibraryCSharp.csproj" />
+    <ProjectReference Include="..\Library\Library.fsproj" />
   </ItemGroup>
+  <Import Project="$(MSBuildThisFileDirectory)..\..\..\src\Adaptify.MSBuild\Adaptify.MSBuild.targets" />
   <Import Project="..\..\..\.paket\Paket.Restore.targets" />
 </Project>

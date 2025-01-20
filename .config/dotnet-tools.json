@@ -3,9 +3,16 @@
   "isRoot": true,
   "tools": {
     "paket": {
-      "version": "8.0.3",
+      "version": "9.0.2",
       "commands": [
         "paket"
+      ],
+      "rollForward": false
+    },
+    "aardpack": {
+      "version": "2.0.3",
+      "commands": [
+        "aardpack"
       ],
       "rollForward": false
     }

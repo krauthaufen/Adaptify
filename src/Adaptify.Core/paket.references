@@ -1,5 +1,3 @@
-group Library
-
 FSharp.Core
+Aardvark.Build
 FSharp.Data.Adaptive
-System.Reflection.Emit.Lightweight

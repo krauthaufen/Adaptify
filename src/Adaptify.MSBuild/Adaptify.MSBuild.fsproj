@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UseAppHost>False</UseAppHost>
+    <RollForward>Major</RollForward>
+    <TargetFramework>net8.0</TargetFramework>
+    <DisableImplicitFSharpCoreReference>True</DisableImplicitFSharpCoreReference>
+    <OutputPath>..\..\bin\$(Configuration)\msbuild-tool</OutputPath>
+    <AppendTargetFrameworkToOutputPath>False</AppendTargetFrameworkToOutputPath>
+    <SatelliteResourceLanguages>en-US;en</SatelliteResourceLanguages>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="paket.template" />
+    <None Include="paket.references" />
+    <None Include="Adaptify.MSBuild.targets" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Adaptify.Compiler.Core\Adaptify.Compiler.Core.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>

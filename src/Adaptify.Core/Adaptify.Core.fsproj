@@ -17,9 +17,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="paket.references" />
-    <Content Include="..\..\bin\Adaptify.Core.paket.template">
-      <Link>Adaptify.Core.paket.template</Link>
-    </Content>
+    <Content Include="paket.template" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

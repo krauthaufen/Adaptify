@@ -11,7 +11,7 @@ open FSharp.Data.Adaptive
 type MyUnion =
     | A of int
     | B of float
-
+     
 [<ModelType>]
 type MyModel =  
     {
@@ -19,11 +19,11 @@ type MyModel =
         g : HashMap<string, StaticClass.CSharpStruct>
         a : Result<MyModel, string>
         b : float
-        list : HashSet<MyModel>
+        x : int
+        //list : HashSet<MyModel>
         map : HashMap<int, MyModel>
-        h : int
     } with 
-        member x.c = x.a
+        member x.d = x.a
 
 
 

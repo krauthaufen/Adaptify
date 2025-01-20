@@ -1,3 +1,3 @@
-group Hans
-    FSharp.Core
-    FSharp.Compiler.Service
+FSharp.Core
+Aardvark.Build
+FSharp.Compiler.Service

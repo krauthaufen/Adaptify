@@ -1,4 +1,7 @@
-- skip C# projects
+### 1.3.5
+- Skip C# projects
+- Package adaptify tool with MSBuild task
+- Updated Ionide for NET 9 support
   
 ### 1.3.4
 * added `LocalAdaptify` option to MSBuild task

@@ -1,14 +1,10 @@
-bin/Release
-bin/Debug
-bin/Fable
-bin/Fable.Splitter
+bin
 *.swp
 *.userprefs
 **/obj
 /packages
 !/packages/*.config
 /src/*.suo
-/bin/*.nupkg
 /src/.vs
 /.vs
 /paket-files

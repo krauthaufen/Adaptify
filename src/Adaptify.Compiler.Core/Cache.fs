@@ -76,26 +76,29 @@ type CacheFile =
 module CacheFile =
     let tryRead (log : ILog) (path : string) =
         try
-            let lines = File.ReadAllLines path
-            if lines.Length >= 3 && lines.[0].Trim() = selfVersion then
-                let fileHashes =
-                    Array.skip 3 lines |> Seq.map (fun l ->
-                        let comp = l.Split([|";"|], System.StringSplitOptions.None)
+            if File.Exists path then
+                let lines = File.ReadAllLines path
+                if lines.Length >= 3 && lines.[0].Trim() = selfVersion then
+                    let fileHashes =
+                        Array.skip 3 lines |> Seq.map (fun l ->
+                            let comp = l.Split([|";"|], System.StringSplitOptions.None)
 
-                        let warnings =
-                            if comp.Length > 3 then Warning.parse comp.[3]
-                            else []
+                            let warnings =
+                                if comp.Length > 3 then Warning.parse comp.[3]
+                                else []
 
-                        let hasModels = comp.[2].ToLower().Trim() = "true"
+                            let hasModels = comp.[2].ToLower().Trim() = "true"
 
-                        fromBase64 comp.[0], { fileHash = comp.[1]; hasModels = hasModels; warnings = warnings }
-                    )
-                    |> Map.ofSeq
-                Some {
-                    lenses = lines.[1].ToLower().Trim() = "true"
-                    projectHash = lines.[2]
-                    fileHashes = fileHashes
-                }
+                            fromBase64 comp.[0], { fileHash = comp.[1]; hasModels = hasModels; warnings = warnings }
+                        )
+                        |> Map.ofSeq
+                    Some {
+                        lenses = lines.[1].ToLower().Trim() = "true"
+                        projectHash = lines.[2]
+                        fileHashes = fileHashes
+                    }
+                else
+                    None
             else
                 None
         with e ->

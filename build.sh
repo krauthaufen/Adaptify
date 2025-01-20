@@ -2,5 +2,6 @@
 
 dotnet tool restore
 dotnet paket restore
-dotnet paket generate-load-scripts -g build
-dotnet fsi build.fsx $@ 
+# Build the tool first, which is used for building the examples.
+dotnet build -c Release src/Adaptify.Compiler/adaptify.fsproj
+dotnet build -c Release src/Adaptify.NonWindows.slnf

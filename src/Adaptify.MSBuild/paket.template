@@ -1,9 +1,15 @@
 type file
 id Adaptify.MSBuild
+owners Aardvark Platform Team
 authors Aardvark Platform Team
-description Adaptify MSBuild plugin
+projectUrl http://github.com/aardvark-platform
+repositoryType git
+repositoryUrl https://github.com/krauthaufen/Adaptify
+description
+    Adaptify MSBuild plugin
 developmentDependency true
 dependencies
   Adaptify.Core = CURRENTVERSION
 files
   Adaptify.MSBuild.targets ==> build
+  ../../bin/publish/msbuild-tool ==> msbuild-tool

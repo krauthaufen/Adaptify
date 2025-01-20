@@ -1,0 +1,15 @@
+{
+  "solution": {
+    "path": "Adaptify.sln",
+    "projects": [
+      "Adaptify.Compiler.Core\\Adaptify.Compiler.Core.fsproj",
+      "Adaptify.Compiler\\adaptify.fsproj",
+      "Adaptify.Core\\Adaptify.Core.fsproj",
+      "Examples\\LibraryCSharp\\LibraryCSharp.csproj",
+      "Examples\\Library\\Library.fsproj",
+      "Examples\\Net8\\Net8.fsproj",
+      "Examples\\Net9\\Net9.fsproj",
+      "Tests\\Adaptify.Tests.fsproj"
+    ]
+  }
+}

@@ -1,24 +1,28 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
+  <PropertyGroup>
+    <AdaptifyToolAssembly Condition="'$(AdaptifyToolAssembly)' == ''">$(MSBuildThisFileDirectory)..\msbuild-tool\Adaptify.MSBuild.dll</AdaptifyToolAssembly>
+  </PropertyGroup>
 
-  <Target Name="UpdateGeneratedFiles" DependsOnTargets="ResolveProjectReferences;ResolveAssemblyReferences" BeforeTargets="CoreCompile" Condition="'@(Compile)' != '' And '$(GenerateDomainTypes)' != 'false' And '$(MSBuildProjectExtension)' == '.fsproj'">
+  <Target Name="ValidateAdaptifyTool">
+    <Error Text="MSBuild tool assembly '$(AdaptifyToolAssembly)' not found." Condition="!Exists('$(AdaptifyToolAssembly)')" />
+  </Target>
+
+  <Target Name="UpdateGeneratedFiles" DependsOnTargets="ValidateAdaptifyTool;ResolveProjectReferences;ResolveAssemblyReferences" BeforeTargets="CoreCompile" Condition="'@(Compile)' != '' And '$(GenerateDomainTypes)' != 'false' And '$(MSBuildProjectExtension)' == '.fsproj'">
     <ItemGroup>
       <OldItems Include="@(Compile)" />
     </ItemGroup>
-     
+
     <PropertyGroup>
-      <AdaptifyCommand Condition="'$(AdaptifyCommand)' == ''">dotnet adaptify</AdaptifyCommand>
-      <AdaptifyVerbosity Condition="'$(AdaptifyVerbose)' == 'true'">--verbose</AdaptifyVerbosity>
       <AdaptifyArgs>
 {
         "lenses": "$(GenerateLenses)",
         "targetFramework": "$(TargetFramework)",
-        "debugHate": "$(DebugHate)",
         "touchFiles": "$(TouchFiles)",
         "projectFile": "$(MSBuildProjectFullPath)",
         "designTime": "$(DesignTimeBuild)",
         "defines": "$(DefineConstants.Replace("\n", ""))",
-        "outputPath": "$(IntermediateOutputPath)", 
+        "outputPath": "$(IntermediateOutputPath)",
         "local": "$(LocalAdaptify)",
         "outputType": "$(OutputType)",
         "files": [ @(OldItems->'&quot;%(FullPath)&quot;', ', ') ],
@@ -28,11 +32,9 @@
       </AdaptifyArgs>
     </PropertyGroup>
 
-    
     <WriteLinesToFile File="$(IntermediateOutputPath)\adaptify.args" Lines="$(AdaptifyArgs)" Overwrite="true" />
-    <Exec Command="
-      $(AdaptifyCommand) msbuild $(IntermediateOutputPath)\adaptify.args" Condition="$(MSBuildProjectFullPath.EndsWith('.fsproj'))" />
-    
+    <Exec Command="dotnet &quot;$(AdaptifyToolAssembly)&quot; &quot;$(IntermediateOutputPath)\adaptify.args&quot;" Condition="$(MSBuildProjectFullPath.EndsWith('.fsproj'))" />
+
     <ReadLinesFromFile File="$(IntermediateOutputPath)\adaptify.files">
       <Output TaskParameter="Lines" ItemName="Results"/>
     </ReadLinesFromFile>
@@ -52,7 +54,7 @@
   <Target Name="DeleteAdaptifyCache" BeforeTargets="Clean;Rebuild">
     <Delete Files="@(FilesToClean)" />
   </Target>
-    
+
 
 
 </Project>

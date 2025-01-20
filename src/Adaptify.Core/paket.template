@@ -1,0 +1,15 @@
+type project
+id Adaptify.Core
+owners Aardvark Platform Team
+authors Aardvark Platform Team
+projectUrl http://github.com/aardvark-platform
+repositoryType git
+repositoryUrl https://github.com/krauthaufen/Adaptify
+description
+    Adaptify runtime components
+files
+  **/*.fs => fable
+  **/*.fsi => fable
+  **/*.fsproj => fable
+  !obj/**/*
+include-pdbs true

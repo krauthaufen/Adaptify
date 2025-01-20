@@ -7,9 +7,53 @@ on:
       - RELEASE_NOTES.md
       - .github/workflows/publish.yml
 jobs:
+  test_mac:
+    name: Test (OSX)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Build
+        run: sh ./build.sh
+
+  test_win:
+    name: Test (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Build
+        shell: cmd
+        run: build.cmd
+
+  test_linux:
+    name: Test (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Build
+        run: sh ./build.sh
+
   publish:
     name: Publish
     runs-on: windows-latest
+    needs:
+      - test_mac
+      - test_win
+      - test_linux    
     steps:  
       - name: Checkout
         uses: actions/checkout@v4
@@ -17,13 +61,9 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      - name: Restore Tools
-        run: dotnet tool restore
-      - name: Restore
-        run: dotnet paket restore
-      - name: Build and Pack
+      - name: Pack
         shell: cmd
-        run: build.cmd -t Pack
+        run: pack.cmd
       - name: Upload Package
         uses: actions/upload-artifact@v4
         with:
