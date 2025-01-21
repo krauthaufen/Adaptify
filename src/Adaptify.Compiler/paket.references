@@ -1,7 +1,9 @@
-FSharp.Core
 Aardvark.Build
-DotNet.Glob
-Ionide.ProjInfo
+
+group Compiler
+    FSharp.Core
+    DotNet.Glob
+    Ionide.ProjInfo
 
 group Net8
     Microsoft.Build

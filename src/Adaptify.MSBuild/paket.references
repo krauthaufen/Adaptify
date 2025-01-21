@@ -1,2 +1,4 @@
-FSharp.Core
 Aardvark.Build
+
+group Compiler
+	FSharp.Core

@@ -1,3 +1,5 @@
-FSharp.Core
 Aardvark.Build
-FSharp.Compiler.Service
+
+group Compiler
+	FSharp.Core
+	FSharp.Compiler.Service
