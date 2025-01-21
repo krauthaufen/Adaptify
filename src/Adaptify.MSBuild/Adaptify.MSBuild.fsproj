@@ -17,7 +17,7 @@
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Adaptify.Compiler.Core\Adaptify.Compiler.Core.fsproj" />
+    <ProjectReference Include="..\Adaptify.Compiler\Adaptify.Compiler.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

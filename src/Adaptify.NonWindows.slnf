@@ -2,7 +2,7 @@
   "solution": {
     "path": "Adaptify.sln",
     "projects": [
-      "Adaptify.Compiler.Core\\Adaptify.Compiler.Core.fsproj",
+      "Adaptify.Compiler\\Adaptify.Compiler.fsproj",
       "adaptify\\adaptify.fsproj",
       "Adaptify.Core\\Adaptify.Core.fsproj",
       "Examples\\LibraryCSharp\\LibraryCSharp.csproj",
