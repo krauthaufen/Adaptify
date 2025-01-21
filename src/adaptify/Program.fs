@@ -151,6 +151,7 @@ let main argv =
         printfn "  -l|--lenses   generate aether lenses for records"
         printfn "  -c|--client   uses or creates a local server process"
         printfn "  -r|--release  generate release files"
+        printfn "  --local       create *.g.fs files next to the input file"
         printfn "  --server      runs as server"
         printfn "  --killserver  kills the currently running server"
         Environment.Exit 1
