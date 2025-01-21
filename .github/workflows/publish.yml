@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - master
-      - cleanup
     paths:
       - RELEASE_NOTES.md
       - .github/workflows/publish.yml
@@ -17,13 +16,13 @@ jobs:
       - name: Install Dotnet
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: | 
+          dotnet-version: |
             8.0.x
             9.0.x
       - name: Build
         run: sh ./build.sh
       - name: Test
-        run: dotnet test src/Adaptify.NonWindows.slnf -c Release --no-build --nologo --logger:"console;verbosity=normal"        
+        run: dotnet test src/Adaptify.NonWindows.slnf -c Release --no-build --nologo --logger:"console;verbosity=normal"
 
   test_win:
     name: Test (Windows)
@@ -34,14 +33,14 @@ jobs:
       - name: Install Dotnet
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: | 
+          dotnet-version: |
             8.0.x
             9.0.x
       - name: Build
         shell: cmd
         run: build.cmd
       - name: Test
-        run: dotnet test src\Adaptify.sln -c Release --no-build --nologo --logger:"console;verbosity=normal"        
+        run: dotnet test src\Adaptify.sln -c Release --no-build --nologo --logger:"console;verbosity=normal"
 
   test_linux:
     name: Test (Linux)
@@ -52,13 +51,13 @@ jobs:
       - name: Install Dotnet
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: | 
+          dotnet-version: |
             8.0.x
             9.0.x
       - name: Build
         run: sh ./build.sh
       - name: Test
-        run: dotnet test src/Adaptify.NonWindows.slnf -c Release --no-build --nologo --logger:"console;verbosity=normal"         
+        run: dotnet test src/Adaptify.NonWindows.slnf -c Release --no-build --nologo --logger:"console;verbosity=normal"
 
   publish:
     name: Publish
@@ -66,8 +65,8 @@ jobs:
     needs:
       - test_mac
       - test_win
-      - test_linux    
-    steps:  
+      - test_linux
+    steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install Dotnet
@@ -76,12 +75,19 @@ jobs:
           global-json-file: global.json
       - name: Pack
         shell: cmd
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pack.cmd
       - name: Upload Package
         uses: actions/upload-artifact@v4
         with:
           name: packages
           path: bin\pack\*.nupkg
+      - name: GitHub Packages
+        env:
+          NUGET_KEY: ${{ secrets.GITHUB_TOKEN }}
+        shell: cmd
+        run: dotnet nuget push "bin\pack\*.nupkg" -k %NUGET_KEY% -s "https://nuget.pkg.github.com/krauthaufen/index.json" --skip-duplicate
       - name: NuGet
         env:
           NUGET_KEY: ${{ secrets.NUGET_KEY }}
