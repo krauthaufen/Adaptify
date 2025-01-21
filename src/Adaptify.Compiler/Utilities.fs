@@ -431,8 +431,8 @@ module Versions =
 
 
     let selfVersion = 
-        let log = Log.console false
         #if DEBUG
+        let log = Log.console false
         let tag = Git.version log
         #else
         let tag = None
@@ -445,14 +445,18 @@ module Versions =
         | None ->
             let version = 
                 typeof<ILog>.Assembly.GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, true)
-                |> Array.choose (function :? AssemblyInformationalVersionAttribute as a -> Some a.InformationalVersion | _ -> None)
+                |> Array.choose (function
+                    | :? AssemblyInformationalVersionAttribute as a ->
+                        let regex = System.Text.RegularExpressions.Regex("\\+[a-z0-9]+$")
+                        Some <| regex.Replace(a.InformationalVersion, "")
+                    | _ ->
+                        None
+                )
                 |> Array.tryHead
-            
+
             match version with
             | Some v -> 
-                log.info Range.range0 "version: %s" v
                 v
-            | None -> 
-                log.info Range.range0 "no version: 0.0.0.0"
+            | None ->
                 "0.0.0.0"
 
