@@ -19,6 +19,8 @@ jobs:
           global-json-file: global.json
       - name: Build
         run: sh ./build.sh
+      - name: Test
+        run: dotnet test src/Adaptify.NonWindows.slnf -c Release --no-build --nologo --logger:"console;verbosity=normal"        
 
   test_win:
     name: Test (Windows)
@@ -33,6 +35,8 @@ jobs:
       - name: Build
         shell: cmd
         run: build.cmd
+      - name: Test
+        run: dotnet test src\Adaptify.sln -c Release --no-build --nologo --logger:"console;verbosity=normal"        
 
   test_linux:
     name: Test (Linux)
@@ -46,6 +50,8 @@ jobs:
           global-json-file: global.json
       - name: Build
         run: sh ./build.sh
+      - name: Test
+        run: dotnet test src/Adaptify.NonWindows.slnf -c Release --no-build --nologo --logger:"console;verbosity=normal"         
 
   publish:
     name: Publish
@@ -68,9 +74,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: packages
-          path: bin\*.nupkg
+          path: bin\pack\*.nupkg
       - name: NuGet
         env:
           NUGET_KEY: ${{ secrets.NUGET_KEY }}
         shell: cmd
-        run: dotnet nuget push "bin\*.nupkg" -k %NUGET_KEY% -s "https://api.nuget.org/v3/index.json" --skip-duplicate
+        run: dotnet nuget push "bin\pack\*.nupkg" -k %NUGET_KEY% -s "https://api.nuget.org/v3/index.json" --skip-duplicate
