@@ -1,4 +1,4 @@
-### 1.3.5-prerelease0001
+### 1.3.5
 - Skip C# projects
 - Package adaptify tool with MSBuild task
 - Updated Ionide for NET 9 support
