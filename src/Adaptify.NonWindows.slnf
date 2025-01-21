@@ -3,13 +3,14 @@
     "path": "Adaptify.sln",
     "projects": [
       "Adaptify.Compiler\\Adaptify.Compiler.fsproj",
-      "adaptify\\adaptify.fsproj",
       "Adaptify.Core\\Adaptify.Core.fsproj",
+      "Adaptify.MSBuild\\Adaptify.MSBuild.fsproj",
       "Examples\\LibraryCSharp\\LibraryCSharp.csproj",
       "Examples\\Library\\Library.fsproj",
       "Examples\\Net8\\Net8.fsproj",
       "Examples\\Net9\\Net9.fsproj",
-      "Tests\\Adaptify.Tests.fsproj"
+      "Tests\\Adaptify.Tests.fsproj",
+      "adaptify\\adaptify.fsproj"
     ]
   }
 }
