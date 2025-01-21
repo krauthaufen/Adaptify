@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - cleanup
     paths:
       - RELEASE_NOTES.md
       - .github/workflows/publish.yml
@@ -16,7 +17,9 @@ jobs:
       - name: Install Dotnet
         uses: actions/setup-dotnet@v4
         with:
-          global-json-file: global.json
+          dotnet-version: | 
+            8.0.x
+            9.0.x
       - name: Build
         run: sh ./build.sh
       - name: Test
@@ -31,7 +34,9 @@ jobs:
       - name: Install Dotnet
         uses: actions/setup-dotnet@v4
         with:
-          global-json-file: global.json
+          dotnet-version: | 
+            8.0.x
+            9.0.x
       - name: Build
         shell: cmd
         run: build.cmd
@@ -47,7 +52,9 @@ jobs:
       - name: Install Dotnet
         uses: actions/setup-dotnet@v4
         with:
-          global-json-file: global.json
+          dotnet-version: | 
+            8.0.x
+            9.0.x
       - name: Build
         run: sh ./build.sh
       - name: Test

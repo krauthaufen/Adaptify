@@ -32,10 +32,10 @@
       </AdaptifyArgs>
     </PropertyGroup>
 
-    <WriteLinesToFile File="$(IntermediateOutputPath)\adaptify.args" Lines="$(AdaptifyArgs)" Overwrite="true" />
-    <Exec Command="dotnet &quot;$(AdaptifyToolAssembly)&quot; &quot;$(IntermediateOutputPath)\adaptify.args&quot;" Condition="$(MSBuildProjectFullPath.EndsWith('.fsproj'))" />
+    <WriteLinesToFile File="$(IntermediateOutputPath)adaptify.args" Lines="$(AdaptifyArgs)" Overwrite="true" />
+    <Exec Command="dotnet &quot;$(AdaptifyToolAssembly)&quot; &quot;$(IntermediateOutputPath)adaptify.args&quot;" Condition="$(MSBuildProjectFullPath.EndsWith('.fsproj'))" />
 
-    <ReadLinesFromFile File="$(IntermediateOutputPath)\adaptify.files">
+    <ReadLinesFromFile File="$(IntermediateOutputPath)adaptify.files">
       <Output TaskParameter="Lines" ItemName="Results"/>
     </ReadLinesFromFile>
 
@@ -47,9 +47,9 @@
     </ItemGroup>
   </Target>
   <ItemGroup>
-    <FilesToClean Include="$(IntermediateOutputPath)\.adaptifycache" />
-    <FilesToClean Include="$(IntermediateOutputPath)\**\*.g.fs" />
-    <FilesToClean Include="$(IntermediateOutputPath)\adaptify.files" />
+    <FilesToClean Include="$(IntermediateOutputPath).adaptifycache" />
+    <FilesToClean Include="$(IntermediateOutputPath)**\*.g.fs" />
+    <FilesToClean Include="$(IntermediateOutputPath)adaptify.files" />
   </ItemGroup>
   <Target Name="DeleteAdaptifyCache" BeforeTargets="Clean;Rebuild">
     <Delete Files="@(FilesToClean)" />

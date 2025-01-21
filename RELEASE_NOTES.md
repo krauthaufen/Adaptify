@@ -1,7 +1,8 @@
-### 1.3.5
+### 1.3.5-prerelease0001
 - Skip C# projects
 - Package adaptify tool with MSBuild task
 - Updated Ionide for NET 9 support
+- Updated FSharp.Compiler.Service
   
 ### 1.3.4
 * added `LocalAdaptify` option to MSBuild task
