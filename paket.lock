@@ -359,7 +359,7 @@ GROUP Library
 NUGET
   remote: https://api.nuget.org/v3/index.json
     FSharp.Core (5.0.2)
-    FSharp.Data.Adaptive (1.2.14)
+    FSharp.Data.Adaptive (1.2.26)
       FSharp.Core (>= 4.7)
       System.Reflection.Emit.Lightweight (>= 4.6)
     Microsoft.NETCore.Platforms (7.0.4) - restriction: || (&& (< monoandroid) (< monotouch) (< net45) (>= netstandard1.5) (< netstandard2.0) (< win8) (< wpa81) (< xamarintvos) (< xamarinwatchos)) (&& (< monoandroid) (< net45) (>= netstandard1.0) (< netstandard1.2) (< win8) (< wp8)) (&& (< monoandroid) (< net45) (>= netstandard1.2) (< netstandard1.3) (< win8) (< wpa81)) (&& (< monoandroid) (< net45) (>= netstandard1.3) (< netstandard1.5) (< win8) (< wpa81))

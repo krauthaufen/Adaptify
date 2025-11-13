@@ -3,9 +3,11 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <DisableImplicitFSharpCoreReference>True</DisableImplicitFSharpCoreReference>
     <GenerateLenses>true</GenerateLenses>
+    <PreBuildEvent>dotnet run --framework net8.0 --project $(MSBuildThisFileDirectory)\..\..\Adaptify.Compiler\adaptify.fsproj -- $(MSBuildThisFileFullPath) --local --force --lenses</PreBuildEvent>
+
 <!--    <AdaptifyCommand>dotnet run &#45;&#45;framework net8.0 &#45;&#45;project "C:\Users\haaser\Development\Adaptify\src\Adaptify.Compiler\adaptify.fsproj" &#45;&#45;</AdaptifyCommand>-->
 <!--    <AdaptifyVerbose>true</AdaptifyVerbose>-->
     <!--<DebugHate>true</DebugHate>-->
@@ -19,12 +21,13 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Model.fs" />
+    <Compile Include="Model.g.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="4.6.2" />
-    <PackageReference Include="FSharp.Data.Adaptive" Version="1.2.0" />
+    <PackageReference Include="FSharp.Core" Version="5.0.0" />
+    <PackageReference Include="FSharp.Data.Adaptive" Version="1.2.26" />
     <PackageReference Include="System.Reflection.Emit.Lightweight" Version="4.6.0" />
   </ItemGroup>
 
@@ -39,6 +42,4 @@
     </Reference>
   </ItemGroup>
 
-  <Import Project="$(MSBuildThisFileDirectory)..\..\Adaptify.MSBuild\Adaptify.MSBuild.targets" />
-  
 </Project>

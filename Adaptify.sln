@@ -18,6 +18,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		RELEASE_NOTES.md = RELEASE_NOTES.md
 		.config\dotnet-tools.json = .config\dotnet-tools.json
 		src\Adaptify.MSBuild\Adaptify.MSBuild.targets = src\Adaptify.MSBuild\Adaptify.MSBuild.targets
+		paket.dependencies = paket.dependencies
+		paket.lock = paket.lock
 	EndProjectSection
 EndProject
 Global

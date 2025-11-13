@@ -3,9 +3,11 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <DisableImplicitFSharpCoreReference>True</DisableImplicitFSharpCoreReference>
     <GenerateLenses>True</GenerateLenses>
+    <PreBuildEvent>dotnet run --framework net8.0 --project $(MSBuildThisFileDirectory)\..\..\Adaptify.Compiler\adaptify.fsproj -- $(MSBuildThisFileFullPath) --lenses --local --force</PreBuildEvent>
+
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -21,8 +23,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="4.6.2" />
-    <PackageReference Include="FSharp.Data.Adaptive" Version="1.2.0" />
+    <PackageReference Include="FSharp.Core" Version="5.0.0" />
+    <PackageReference Include="FSharp.Data.Adaptive" Version="1.2.26" />
     <PackageReference Include="System.Reflection.Emit.Lightweight" Version="4.6.0" />
   </ItemGroup>
 
@@ -36,5 +38,4 @@
       <HintPath>..\..\..\bin\Debug\netstandard2.0\Adaptify.Core.dll</HintPath>
     </Reference>
   </ItemGroup>
-	<Import Project="$(MSBuildThisFileDirectory)..\..\..\bin\Release\Adaptify.MSBuild.targets" />
 </Project>

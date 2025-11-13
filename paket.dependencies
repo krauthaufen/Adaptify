@@ -16,7 +16,7 @@ group Hans
 group Library
   source https://api.nuget.org/v3/index.json
   nuget FSharp.Core                           >= 5.0.2 lowest_matching: true
-  nuget FSharp.Data.Adaptive                  ~> 1.2.8
+  nuget FSharp.Data.Adaptive                  ~> 1.2.26
   nuget System.Reflection.Emit.Lightweight    >= 4.6.0
 
 group Tool6

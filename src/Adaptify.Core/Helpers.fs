@@ -31,3 +31,15 @@ type AdaptiveValue<'T>() =
     interface aval<'T> with
         member x.GetValue t = x.GetValue t
 
+type ChangeableListList<'T>(initial : list<'T>) =
+    let inner = clist<'T>(IndexList.ofList initial)
+    
+    member x.Update(value : list<'T>) =
+        let ops = IndexList.computeDeltaToList DefaultEqualityComparer.Instance inner.Value value
+        inner.Perform ops
+    
+    interface alist<'T> with
+        member x.IsConstant = false
+        member x.Content = (inner :> alist<_>).Content
+        member x.GetReader() = (inner :> alist<_>).GetReader()
+        member x.History = (inner :> alist<_>).History

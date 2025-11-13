@@ -1,8 +1,9 @@
-//be23d296-5a18-47ed-2bfc-2ce459f0232b
-//110fab23-cf91-d699-0c28-6223a73084e0
+//5adf8a13-b6e6-3085-28fe-7fd13eaec313
+//6fdd2fcd-0efa-b3bf-0e10-b8b08f41927f
 #nowarn "49" // upper case patterns
 #nowarn "66" // upcast is unncecessary
 #nowarn "1337" // internal types
+#nowarn "1182" // value is unused
 namespace rec Model
 
 open System
@@ -103,11 +104,13 @@ type AdaptiveMyModel(value : MyModel) =
             o
         Adaptify.FSharp.Core.AdaptiveResult<Model.MyModel, Model.AdaptiveMyModel, Model.AdaptiveMyModel, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>(value.a, (fun (v : MyModel) -> AdaptiveMyModel(v) :> System.Object), __arg2, (fun (o : System.Object) -> unbox<AdaptiveMyModel> o), (fun (v : MyModel) -> AdaptiveMyModel(v) :> System.Object), __arg5, (fun (o : System.Object) -> unbox<AdaptiveMyModel> o), (fun (v : Microsoft.FSharp.Core.string) -> v :> System.Object), (fun (o : System.Object) (v : Microsoft.FSharp.Core.string) -> v :> System.Object), (fun (o : System.Object) -> unbox<Microsoft.FSharp.Core.string> o), (fun (v : Microsoft.FSharp.Core.string) -> FSharp.Data.Adaptive.cval(v) :> System.Object), __arg11, (fun (o : System.Object) -> unbox<FSharp.Data.Adaptive.cval<Microsoft.FSharp.Core.string>> o :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>))
     let _b_ = FSharp.Data.Adaptive.cval(value.b)
+    let _list_ = FSharp.Data.Adaptive.cval(value.list)
     let _map_ =
         let inline __arg2 (m : AdaptiveMyModel) (v : MyModel) =
             m.Update(v)
             m
         FSharp.Data.Traceable.ChangeableModelMap(value.map, (fun (v : MyModel) -> AdaptiveMyModel(v)), __arg2, (fun (m : AdaptiveMyModel) -> m))
+    let _h_ = FSharp.Data.Adaptive.cval(value.h)
     let mutable __value = value
     let __adaptive = FSharp.Data.Adaptive.AVal.custom((fun (token : FSharp.Data.Adaptive.AdaptiveToken) -> __value))
     static member Create(value : MyModel) = AdaptiveMyModel(value)
@@ -121,14 +124,18 @@ type AdaptiveMyModel(value : MyModel) =
             _g_.Value <- value.g
             _a_.Update(value.a)
             _b_.Value <- value.b
+            _list_.Value <- value.list
             _map_.Update(value.map)
+            _h_.Value <- value.h
     member __.Current = __adaptive
     member __.c = _c_ :> FSharp.Data.Adaptive.aval<Adaptify.FSharp.Core.AdaptiveResultCase<MyModel, AdaptiveMyModel, AdaptiveMyModel, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>>
     member __.e = _e_ :> FSharp.Data.Adaptive.aval<LibraryCSharp.StaticClass.CSharpClass>
     member __.g = _g_ :> FSharp.Data.Adaptive.amap<Microsoft.FSharp.Core.string, LibraryCSharp.StaticClass.CSharpStruct>
     member __.a = _a_ :> FSharp.Data.Adaptive.aval<Adaptify.FSharp.Core.AdaptiveResultCase<MyModel, AdaptiveMyModel, AdaptiveMyModel, Microsoft.FSharp.Core.string, Microsoft.FSharp.Core.string, FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.string>>>
     member __.b = _b_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.float>
+    member __.list = _list_ :> FSharp.Data.Adaptive.aval<FSharp.Data.Adaptive.HashSet<MyModel>>
     member __.map = _map_ :> FSharp.Data.Adaptive.amap<Microsoft.FSharp.Core.int, AdaptiveMyModel>
+    member __.h = _h_ :> FSharp.Data.Adaptive.aval<Microsoft.FSharp.Core.int>
 [<AutoOpen; System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
 module MyModelLenses = 
     type MyModel with
@@ -136,5 +143,7 @@ module MyModelLenses =
         static member g_ = ((fun (self : MyModel) -> self.g), (fun (value : FSharp.Data.Adaptive.HashMap<Microsoft.FSharp.Core.string, LibraryCSharp.StaticClass.CSharpStruct>) (self : MyModel) -> { self with g = value }))
         static member a_ = ((fun (self : MyModel) -> self.a), (fun (value : Microsoft.FSharp.Core.Result<MyModel, Microsoft.FSharp.Core.string>) (self : MyModel) -> { self with a = value }))
         static member b_ = ((fun (self : MyModel) -> self.b), (fun (value : Microsoft.FSharp.Core.float) (self : MyModel) -> { self with b = value }))
+        static member list_ = ((fun (self : MyModel) -> self.list), (fun (value : FSharp.Data.Adaptive.HashSet<MyModel>) (self : MyModel) -> { self with list = value }))
         static member map_ = ((fun (self : MyModel) -> self.map), (fun (value : FSharp.Data.Adaptive.HashMap<Microsoft.FSharp.Core.int, MyModel>) (self : MyModel) -> { self with map = value }))
+        static member h_ = ((fun (self : MyModel) -> self.h), (fun (value : Microsoft.FSharp.Core.int) (self : MyModel) -> { self with h = value }))
 

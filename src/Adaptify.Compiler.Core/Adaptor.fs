@@ -3,8 +3,40 @@
 
 open System
 open FSharp.Compiler.Symbols
+open FSharp.Compiler.Symbols.FSharpExprPatterns
 open FSharp.Compiler.Text
 open Adaptify.Compiler
+
+module TypeAttributes =
+    
+    let rec primaryKeyExtractor (x : TypeRef) =
+        match x with
+        | TModel(_, def, targs) ->
+            match def.Value with
+            | ProductType(_, _, _, _, _, props) | Union(_, _, _, props, _) ->
+                let fields = 
+                    props |> List.filter (fun p ->
+                        p.attributes |> List.exists (function PropAttribute.PrimaryKey -> true | _ -> false)    
+                    )
+                    
+                match fields with
+                | [] -> None
+                | fs ->
+                    let self = new Var("__self", x)
+                    let expr = 
+                        Expr.Lambda([self],
+                            let args = fs |> List.map (fun f -> Expr.PropertyGet(Expr.Var self, f))
+                            match args with
+                            | [a] -> a
+                            | _ -> Expr.NewTuple(false, args)           
+                        )
+                    Some expr
+            | Generic(_, d) ->
+                TypeRef.TModel(Range.range0, lazy d, targs) |> primaryKeyExtractor
+            
+        | _ ->
+            None
+    
 
 module Config =
     let generatedTypeName       = sprintf "Adaptive%s"
@@ -81,7 +113,16 @@ module TypePatterns =
             | _ -> None
         | _ ->
             None
-                
+               
+    let (|List|_|) (t : TypeRef) =
+        match t with
+        | TRef(_, e, [t]) ->
+            match e.TryFullName with
+            | Some "Microsoft.FSharp.Collections.FSharpList`1" -> Some t
+            | _ -> None
+        | _ ->
+            None
+            
     let (|AVal|_|) (t : TypeRef) =
         match t with
         | TRef(_, e, [t]) ->
@@ -123,12 +164,27 @@ module TypePatterns =
         | IndexList _ -> Some t
         | HashMap _ -> Some t
         | AVal _ -> Some t
+        | List _ -> Some t
         | _ -> None
             
     let (|PlainValue|_|) (t : TypeRef) =
         match t with
         | AnyAdaptive _ -> None
         | _ -> Some t
+
+[<AutoOpen>]
+module ExprExtensions =
+    
+    type Expr with
+        static member ShallowEquals (a : Expr, b : Expr) =
+            Expr.Call(None, AdaptiveTypes.shallowEquals a.Type, [a;b])
+        
+        static member DefaultEquals (a : Expr, b : Expr) =
+            Expr.Call(None, AdaptiveTypes.defaultEquals a.Type, [a;b])
+        
+        static member ReferenceEquals (a : Expr, b : Expr) =
+            Expr.Call(None, AdaptiveTypes.referenceEquals a.Type, [a;b])
+        
 
 module Adaptor =    
     let varPrimitive (t : TypeVar) =
@@ -255,8 +311,60 @@ module Adaptor =
             init = fun v -> Call(None, ChangeableModelList.ctor a.vType a.mType a.aType, [v; init; update; view])
             update = fun c v -> Call(Some c, ChangeableModelList.setValue a.vType a.mType a.aType, [v])
             view = fun c -> Upcast(c, AList.typ a.aType)
-        } 
+        }
+        
+              
+    let alistModelList (a : Adaptor) =
+        let v = new Var("v", a.vType)
+        let m = new Var("m", a.mType)
 
+        let init = Expr.Lambda([v], a.init (Var v))
+        let update = 
+            let b = a.update (Var m) (Var v)
+            match b.Type with
+            | TUnit -> Expr.Lambda([m], Expr.Lambda([v], Seq(b, Var m)))
+            | _ -> Expr.Lambda([m], Expr.Lambda([v], b))
+
+        let view = 
+            Expr.Lambda([m], a.view (Var m))
+
+        let va = new Var("va", a.vType)
+        let vb = new Var("vb", a.vType)
+        
+        let extractor = TypeAttributes.primaryKeyExtractor a.vType
+        
+        match extractor with
+        | Some extractor ->
+            let ea = Expr.Application(extractor, Expr.Var va)
+            let eb = Expr.Application(extractor, Expr.Var vb)
+            let expr = Expr.DefaultEquals(ea, eb)
+            
+            let eq = Expr.Lambda([va], Expr.Lambda([vb], expr))
+            Some {
+                trivial = false
+                vType = List.typ a.vType
+                mType = ChangeableModelListList.typ a.vType a.mType a.aType
+                aType = AList.typ a.aType
+                init = fun v -> Call(None, ChangeableModelListList.ctor a.vType a.mType a.aType, [v; eq; init; update; view])
+                update = fun c v -> Call(Some c, ChangeableModelListList.setValue a.vType a.mType a.aType, [v])
+                view = fun c -> Upcast(c, AList.typ a.aType)
+            } 
+        | None ->
+            None
+        
+
+    let alistList (t : TypeRef) =
+        {
+            trivial = false
+            vType = List.typ t
+            mType = ChangeableListList.typ t
+            aType = AList.typ t
+            init = fun v -> Call(None, ChangeableListList.ctor t, [v])
+            update = fun c v -> Call(Some c, ChangeableListList.setValue t, [v])
+            view = fun c -> Upcast(c, AList.typ t)
+        } 
+    
+    
     let amapPrimitive (k : TypeRef) (v : TypeRef) =
         {
             trivial = false
@@ -375,6 +483,17 @@ module Adaptor =
             let a = get log range true t
             alistModel a
 
+        | List (PlainValue t) ->
+            alistList t
+            
+        | List t ->
+            let a = get log range true t
+            match alistModelList a with
+            | Some a -> a
+            | None ->
+                log.error range "1337" "could not get primary key for list element type %s" (TypeRef.toString log Global t)
+                aval typ
+        
         | HashMap (k, PlainValue v) ->
             amapPrimitive k v
 

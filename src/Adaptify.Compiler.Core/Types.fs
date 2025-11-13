@@ -29,7 +29,7 @@ type TypeDef =
     | ProductType of lenses : bool * range : range * isValueType : bool * scope : Scope * name : string * properties : list<Prop>
     | Union of range : range * scope : Scope * name : string * properties : list<Prop> * cases : list<string * list<Prop>>
     | Generic of tpars : list<TypeVar> * def : TypeDef
-    
+
     member private x.AsString = x.ToString()
     override x.ToString() = 
         let rec print (targs : list<TypeVar>) (t : TypeDef) =
@@ -83,6 +83,24 @@ module AdaptifyMode =
         elif atts |> Seq.exists (FSharpAttribute.isTreatAsValue log) then AdaptifyMode.Value
         else AdaptifyMode.Default
 
+type PropAttribute =
+    | PrimaryKey
+    | ReferenceEquals
+    | DefaultEquals
+    | ShallowEquals
+    
+
+module PropAttribute =
+    let ofAttributes (log : ILog) (atts : seq<FSharpAttribute>) =
+        atts
+        |> Seq.choose (fun att ->
+            if FSharpAttribute.isPrimaryKey log att then Some PrimaryKey
+            elif FSharpAttribute.isReferenceEquals log att then Some ReferenceEquals
+            elif FSharpAttribute.isDefaultEquals log att then Some DefaultEquals
+            elif FSharpAttribute.isShallowEquals log att then Some ShallowEquals
+            else None
+        )
+        |> Seq.toList
 
 type Prop =
     {
@@ -90,6 +108,7 @@ type Prop =
         name            : string
         typ             : TypeRef
         mode            : AdaptifyMode
+        attributes      : list<PropAttribute>
         isRecordField   : bool
     }
 
@@ -111,6 +130,7 @@ module Prop =
             name = name
             typ = typ
             mode = mode
+            attributes = PropAttribute.ofAttributes log f.PropertyAttributes
             isRecordField = match f.DeclaringEntity with | Some e -> e.IsFSharpRecord | _ -> false
         }
 
@@ -128,6 +148,7 @@ module Prop =
                 name = name
                 typ = typ
                 mode = mode
+                attributes = PropAttribute.ofAttributes log mfv.Attributes
                 isRecordField = false
             }
         else
