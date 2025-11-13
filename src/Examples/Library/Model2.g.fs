@@ -1,5 +1,5 @@
-//01768e15-d2af-b3fe-e082-1b73c4955b4b
-//f3ff857d-791d-4e63-68e5-5fbc3a04ec33
+//0f8b15bd-641d-2a3f-3d3e-113cda7b72d3
+//6f288bd1-da34-bd9e-f4ae-a6faf88090d5
 #nowarn "49" // upper case patterns
 #nowarn "66" // upcast is unncecessary
 #nowarn "1337" // internal types
@@ -13,6 +13,12 @@ open LibraryModel2
 [<System.Diagnostics.CodeAnalysis.SuppressMessage("NameConventions", "*")>]
 type AdaptiveSoup(value : Soup) =
     let _important_ = LibraryModel.AdaptiveThing(value.important)
+    let _many_ =
+        let inline __arg3 (m : LibraryModel.AdaptiveThing) (v : LibraryModel.Thing) =
+            m.Update(v)
+            m
+        FSharp.Data.Traceable.ChangeableModelListList(value.many, (fun (va : LibraryModel.Thing) (vb : LibraryModel.Thing) -> FSharp.Data.Adaptive.DefaultEqualityComparer.Equals(((fun (__self : LibraryModel.Thing) -> __self.name) va), ((fun (__self : LibraryModel.Thing) -> __self.name) vb))), (fun (v : LibraryModel.Thing) -> LibraryModel.AdaptiveThing(v)), __arg3, (fun (m : LibraryModel.AdaptiveThing) -> m))
+    let _testy_ = Adaptify.ChangeableListList(value.testy)
     let _things_ =
         let inline __arg2 (m : LibraryModel.AdaptiveThing) (v : LibraryModel.Thing) =
             m.Update(v)
@@ -27,8 +33,12 @@ type AdaptiveSoup(value : Soup) =
             __value <- value
             __adaptive.MarkOutdated()
             _important_.Update(value.important)
+            _many_.Update(value.many)
+            _testy_.Update(value.testy)
             _things_.Update(value.things)
     member __.Current = __adaptive
     member __.important = _important_
+    member __.many = _many_ :> FSharp.Data.Adaptive.alist<LibraryModel.AdaptiveThing>
+    member __.testy = _testy_ :> FSharp.Data.Adaptive.alist<Microsoft.FSharp.Core.int>
     member __.things = _things_ :> FSharp.Data.Adaptive.amap<Microsoft.FSharp.Core.int, LibraryModel.AdaptiveThing>
 

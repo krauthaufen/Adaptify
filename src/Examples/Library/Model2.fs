@@ -8,6 +8,8 @@ open LibraryModel
 type Soup =    
     {
         important : Thing
+        many : list<Thing>
+        testy : list<int>
         things : HashMap<int, Thing>
     }
     

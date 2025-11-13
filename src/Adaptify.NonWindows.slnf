@@ -5,12 +5,12 @@
       "Adaptify.Compiler\\Adaptify.Compiler.fsproj",
       "Adaptify.Core\\Adaptify.Core.fsproj",
       "Adaptify.MSBuild\\Adaptify.MSBuild.fsproj",
+      "adaptify\\adaptify.fsproj",
       "Examples\\LibraryCSharp\\LibraryCSharp.csproj",
       "Examples\\Library\\Library.fsproj",
       "Examples\\Net8\\Net8.fsproj",
       "Examples\\Net9\\Net9.fsproj",
-      "Tests\\Adaptify.Tests.fsproj",
-      "adaptify\\adaptify.fsproj"
+      "Tests\\Adaptify.Tests.fsproj"
     ]
   }
 }

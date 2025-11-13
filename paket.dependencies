@@ -5,13 +5,19 @@ source https://api.nuget.org/v3/index.json
 nuget FSharp.Core                           >= 6.0.0 lowest_matching: true
 nuget Aardvark.Build                        ~> 2.0.0
 
-nuget FSharp.Data.Adaptive                  ~> 1.2.18
+nuget FSharp.Data.Adaptive                  ~> 1.2.26
 
 // Tests
 nuget NUnit                                 ~> 3.14.0
 nuget FsUnit                                ~> 5.6.1
 nuget NUnit3TestAdapter                     ~> 4.5.0
 nuget Microsoft.NET.Test.Sdk                ~> 17.9.0
+
+group Library
+  source https://api.nuget.org/v3/index.json
+  nuget FSharp.Core                           >= 5.0.2 lowest_matching: true
+  nuget FSharp.Data.Adaptive                  ~> 1.2.26
+  nuget System.Reflection.Emit.Lightweight    >= 4.6.0
 
 // Group for the compiler, the adaptify .NET tool, and the MSBuild tool.
 // FSharp.Compiler.Service requires a specific FSharp.Core version -> isolate in its own group.
