@@ -5,7 +5,7 @@ open LibraryModel2
 open FSharp.Data.Adaptive
 
 let test () =
-    let model = { testy = [1;2;3]; many = [{ name = "hans"; guhtest = 1 }]; important = { name = "hans"; guhtest = 1 }; things = HashMap.empty }
+    let model = { bla = [|3;2;1|]; testy = [1;2;3]; many = [{ name = "hans"; guhtest = 1 }]; important = { name = "hans"; guhtest = 1 }; things = HashMap.empty }
     let soup = AdaptiveSoup.Create model
 
     let r = soup.many.GetReader()

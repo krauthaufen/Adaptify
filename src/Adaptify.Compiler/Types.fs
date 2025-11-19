@@ -83,11 +83,15 @@ module AdaptifyMode =
         elif atts |> Seq.exists (FSharpAttribute.isTreatAsValue log) then AdaptifyMode.Value
         else AdaptifyMode.Default
 
+[<RequireQualifiedAccess>]
+type EqualityMode =
+    | Unspecified
+    | Cheap
+    | Default
+
 type PropAttribute =
     | PrimaryKey
-    | ReferenceEquals
-    | DefaultEquals
-    | ShallowEquals
+    | Equality of EqualityMode
     
 
 module PropAttribute =
@@ -95,9 +99,8 @@ module PropAttribute =
         atts
         |> Seq.choose (fun att ->
             if FSharpAttribute.isPrimaryKey log att then Some PrimaryKey
-            elif FSharpAttribute.isReferenceEquals log att then Some ReferenceEquals
-            elif FSharpAttribute.isDefaultEquals log att then Some DefaultEquals
-            elif FSharpAttribute.isShallowEquals log att then Some ShallowEquals
+            elif FSharpAttribute.isDefaultEquals log att then Some (Equality EqualityMode.Default)
+            elif FSharpAttribute.isCheapEquals log att then Some (Equality EqualityMode.Cheap)
             else None
         )
         |> Seq.toList

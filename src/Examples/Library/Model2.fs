@@ -11,5 +11,8 @@ type Soup =
         many : list<Thing>
         testy : list<int>
         things : HashMap<int, Thing>
+        
+        [<CheapEquals>]
+        bla : int[]
     }
     

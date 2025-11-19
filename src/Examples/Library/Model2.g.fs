@@ -1,5 +1,5 @@
-//0f8b15bd-641d-2a3f-3d3e-113cda7b72d3
-//6f288bd1-da34-bd9e-f4ae-a6faf88090d5
+//46ed5842-daf1-8bdb-80ff-a0d141e69a42
+//8b89ddd2-5304-c707-8f33-913247101307
 #nowarn "49" // upper case patterns
 #nowarn "66" // upcast is unncecessary
 #nowarn "1337" // internal types
@@ -24,6 +24,7 @@ type AdaptiveSoup(value : Soup) =
             m.Update(v)
             m
         FSharp.Data.Traceable.ChangeableModelMap(value.things, (fun (v : LibraryModel.Thing) -> LibraryModel.AdaptiveThing(v)), __arg2, (fun (m : LibraryModel.AdaptiveThing) -> m))
+    let _bla_ = Adaptify.ChangeableValueCustomEquality(value.bla, (fun (va : (Microsoft.FSharp.Core.int)[]) (vb : (Microsoft.FSharp.Core.int)[]) -> FSharp.Data.Adaptive.ShallowEqualityComparer<(Microsoft.FSharp.Core.int)[]>.ShallowEquals(va, vb)))
     let mutable __value = value
     let __adaptive = FSharp.Data.Adaptive.AVal.custom((fun (token : FSharp.Data.Adaptive.AdaptiveToken) -> __value))
     static member Create(value : Soup) = AdaptiveSoup(value)
@@ -36,9 +37,11 @@ type AdaptiveSoup(value : Soup) =
             _many_.Update(value.many)
             _testy_.Update(value.testy)
             _things_.Update(value.things)
+            _bla_.Value <- value.bla
     member __.Current = __adaptive
     member __.important = _important_
     member __.many = _many_ :> FSharp.Data.Adaptive.alist<LibraryModel.AdaptiveThing>
     member __.testy = _testy_ :> FSharp.Data.Adaptive.alist<Microsoft.FSharp.Core.int>
     member __.things = _things_ :> FSharp.Data.Adaptive.amap<Microsoft.FSharp.Core.int, LibraryModel.AdaptiveThing>
+    member __.bla = _bla_ :> FSharp.Data.Adaptive.aval<(Microsoft.FSharp.Core.int)[]>
 

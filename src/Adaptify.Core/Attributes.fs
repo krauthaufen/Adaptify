@@ -72,7 +72,4 @@ type PrimaryKeyAttribute() = inherit Attribute()
 type DefaultEqualsAttribute() = inherit Attribute()
 
 [<AttributeUsage(AttributeTargets.Field ||| AttributeTargets.Property)>]
-type ShallowEqualsAttribute() = inherit Attribute()
-
-[<AttributeUsage(AttributeTargets.Field ||| AttributeTargets.Property)>]
-type ReferenceEqualsAttribute() = inherit Attribute() 
+type CheapEqualsAttribute() = inherit Attribute()

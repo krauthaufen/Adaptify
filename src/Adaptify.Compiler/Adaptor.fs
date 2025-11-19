@@ -233,16 +233,32 @@ module Adaptor =
             view = fun c -> c
         } 
 
-    let aval (t : TypeRef) =
-        {
-            trivial = true
-            vType = t
-            mType = CVal.typ t
-            aType = AVal.typ t
-            init = fun v -> Call(None, CVal.ctor t, [v])
-            update = fun c v -> Call(Some c, CVal.setValue t, [v])
-            view = fun c -> Upcast(c, AVal.typ t)
-        } 
+    let aval (mode : EqualityMode) (t : TypeRef) =
+        if mode = EqualityMode.Cheap || (t.IsTArray && mode = EqualityMode.Unspecified) then
+            let eq =
+                let va = new Var("va", t)
+                let vb = new Var("vb", t)
+                let meth = AdaptiveTypes.shallowEquals t
+                Lambda([va], Lambda([vb], Expr.Call(None, meth, [Expr.Var va; Expr.Var vb])))
+            {
+                trivial = true
+                vType = t
+                mType = CValCustomEquality.typ t
+                aType = AVal.typ t
+                init = fun v -> Call(None, CValCustomEquality.ctor t, [v; eq])
+                update = fun c v -> Call(Some c, CValCustomEquality.setValue t, [v])
+                view = fun c -> Upcast(c, AVal.typ t)
+            } 
+        else
+            {
+                trivial = true
+                vType = t
+                mType = CVal.typ t
+                aType = AVal.typ t
+                init = fun v -> Call(None, CVal.ctor t, [v])
+                update = fun c v -> Call(Some c, CVal.setValue t, [v])
+                view = fun c -> Upcast(c, AVal.typ t)
+            } 
         
     [<Obsolete("wrong implementation! cannot hide side-effect")>]
     let lazyAdaptor (a : Adaptor) =
@@ -458,7 +474,7 @@ module Adaptor =
         | o ->
             o
 
-    let rec get (log : ILog) (range : FSharp.Compiler.Text.range) (mutableScope : bool) (typ : TypeRef) : Adaptor =
+    let rec get (equalityMode : EqualityMode) (log : ILog) (range : FSharp.Compiler.Text.range) (mutableScope : bool) (typ : TypeRef) : Adaptor =
         match typ with
         | TVar v ->
             if mutableScope then varPrimitive v
@@ -466,7 +482,7 @@ module Adaptor =
 
         | Option (PlainValue t) ->
             if mutableScope then identity typ
-            else aval typ
+            else aval equalityMode typ
 
         | HashSet (PlainValue t) ->
             asetPrimitive t
@@ -474,41 +490,41 @@ module Adaptor =
         | HashSet t ->
             let fullType = TypeRef.toString log Global t
             log.warn range "7865" "HashSet<%s> cannot be adaptified since HashSets of model-type are not yet implemented" fullType
-            aval typ
+            aval equalityMode typ
 
         | IndexList (PlainValue t) ->
             alistPrimitive t
 
         | IndexList t ->
-            let a = get log range true t
+            let a = get equalityMode log range true t
             alistModel a
 
         | List (PlainValue t) ->
             alistList t
             
         | List t ->
-            let a = get log range true t
+            let a = get equalityMode log range true t
             match alistModelList a with
             | Some a -> a
             | None ->
                 log.error range "1337" "could not get primary key for list element type %s" (TypeRef.toString log Global t)
-                aval typ
+                aval equalityMode typ
         
         | HashMap (k, PlainValue v) ->
             amapPrimitive k v
 
         | HashMap(k, v) ->
-            let a = get log range true v
+            let a = get equalityMode log range true v
             amapModel k a
 
         | TRef(_, e, targs) when e.IsFSharpAbbreviation ->
             let pars = e.GenericParameters |> Seq.map (fun p -> p.Name) |> Seq.toList
             let inst = Map.ofList (List.zip pars targs)
             let r = TypeRef.ofType log inst e.AbbreviatedType
-            let res = get log range mutableScope r
+            let res = get equalityMode log range mutableScope r
             if res.trivial then 
                 if mutableScope then identity typ
-                else aval typ
+                else aval equalityMode typ
             else
                 res
 
@@ -532,8 +548,8 @@ module Adaptor =
                 
                 let adaptors =
                     targs |> List.map (fun a ->
-                        let pat = get log range true a
-                        let at = get log range false a
+                        let pat = get equalityMode log range true a
+                        let at = get equalityMode log range false a
                         pat, at
                     )
 
@@ -645,8 +661,8 @@ module Adaptor =
 
                 let adaptors =
                     targs |> List.map (fun a ->
-                        let pat = get log range true a
-                        let at = get log range false a
+                        let pat = get equalityMode log range true a
+                        let at = get equalityMode log range false a
                         pat, at
                     )
 
@@ -718,7 +734,7 @@ module Adaptor =
                 } 
 
         | TTuple(isStruct, els) ->
-            let adaptors = els |> List.map (get log range false)
+            let adaptors = els |> List.map (get equalityMode log range false)
             tuple isStruct adaptors
 
 
@@ -733,7 +749,7 @@ module Adaptor =
                     "4565"
                     "found model types in opaque scope %s: %s" (TypeRef.toString log Global typ) inner
             if mutableScope then identity typ
-            else aval typ
+            else aval equalityMode typ
 
 
 [<RequireQualifiedAccess>]
@@ -1040,16 +1056,24 @@ module TypeDefinition =
                     new Var("_" + prop.name + "_", prop.typ, isMutable)
 
                 
+                let equalityMode =
+                    prop.attributes |> List.tryPick (function
+                        | PropAttribute.Equality em -> Some em
+                        | _ -> None
+                    )
+                    |> Option.defaultValue EqualityMode.Unspecified
+                
+                    
 
                 match prop.mode with
                 | AdaptifyMode.NonAdaptive -> 
                     local, prop, get, None
                 | AdaptifyMode.Value -> 
-                    local, prop, get, Some (Adaptor.aval prop.typ)
-                | AdaptifyMode.Default -> 
-                    local, prop, get, Some (Adaptor.get log prop.range false prop.typ)
+                    local, prop, get, Some (Adaptor.aval equalityMode prop.typ)
+                | AdaptifyMode.Default ->
+                    local, prop, get, Some (Adaptor.get equalityMode log prop.range false prop.typ)
                 | AdaptifyMode.Lazy ->
-                    let a = Adaptor.get log prop.range false prop.typ
+                    let a = Adaptor.get equalityMode log prop.range false prop.typ
                     local, prop, get, Some a
             )
         let props = ()
@@ -1393,8 +1417,8 @@ module TypeDefinition =
 
                 let adaptors =
                     tpars |> List.map (fun a ->
-                        let pat = Adaptor.get log Range.range0 true (TVar a)
-                        let at = Adaptor.get log Range.range0 false (TVar a)
+                        let pat = Adaptor.get EqualityMode.Unspecified log Range.range0 true (TVar a)
+                        let at = Adaptor.get EqualityMode.Unspecified log Range.range0 false (TVar a)
                         pat, at
                     )
 

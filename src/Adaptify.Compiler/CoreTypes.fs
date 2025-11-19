@@ -168,7 +168,28 @@ module AdaptiveTypes =
                 parameters = [ t ]
                 returnType = typ t
             }
+            
+    module CValCustomEquality =
+        let typ (t : TypeRef) = 
+            TExtRef(adaptify, "ChangeableValueCustomEquality", [t])
 
+        let setValue (t : TypeRef) =
+            {
+                declaringType = Choice2Of2 (typ t)
+                isStatic = false
+                name = "set_Value"
+                parameters = [ t ]
+                returnType = TTuple(false, [])
+            }
+            
+        let ctor (t : TypeRef) =
+            {
+                declaringType = Choice1Of2(adaptify)
+                isStatic = true
+                name = "ChangeableValueCustomEquality"
+                parameters = [ t; TFunc(t, TFunc(t, TBool)) ]
+                returnType = typ t
+            }
     module ASet =
         let typ (t : TypeRef) =    
             TExtRef(fda, "aset", [t])

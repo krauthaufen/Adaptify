@@ -265,27 +265,17 @@ module FSharpAttribute =
             log.error Range.range0 "1337" "checking isDefaultEquals: %A" ex
             false
             
-    let isShallowEquals (log : ILog) (a : FSharpAttribute) =
+    let isCheapEquals (log : ILog) (a : FSharpAttribute) =
         try
             match a.AttributeType.TryFullName with
             | Some name ->
-                name = "Adaptify.ShallowEqualsAttribute"
+                name = "Adaptify.CheapEqualsAttribute"
             | None ->
                 false
         with ex ->
-            log.error Range.range0 "1337" "checking isShallowEquals: %A" ex
+            log.error Range.range0 "1337" "checking isCheapEquals: %A" ex
             false
             
-    let isReferenceEquals (log : ILog) (a : FSharpAttribute) =
-        try
-            match a.AttributeType.TryFullName with
-            | Some name ->
-                name = "Adaptify.ReferenceEqualsAttribute"
-            | None ->
-                false
-        with ex ->
-            log.error Range.range0 "1337" "checking isReferenceEquals: %A" ex
-            false
 [<RequireQualifiedAccess>]
 type OutputStream =
     | Stdout
