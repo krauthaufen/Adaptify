@@ -122,7 +122,7 @@ module TypePatterns =
             | _ -> None
         | _ ->
             None
-            
+             
     let (|AVal|_|) (t : TypeRef) =
         match t with
         | TRef(_, e, [t]) ->
@@ -367,6 +367,44 @@ module Adaptor =
             } 
         | None ->
             None
+                
+    let alistModelArray (a : Adaptor) =
+        let v = new Var("v", a.vType)
+        let m = new Var("m", a.mType)
+
+        let init = Expr.Lambda([v], a.init (Var v))
+        let update = 
+            let b = a.update (Var m) (Var v)
+            match b.Type with
+            | TUnit -> Expr.Lambda([m], Expr.Lambda([v], Seq(b, Var m)))
+            | _ -> Expr.Lambda([m], Expr.Lambda([v], b))
+
+        let view = 
+            Expr.Lambda([m], a.view (Var m))
+
+        let va = new Var("va", a.vType)
+        let vb = new Var("vb", a.vType)
+        
+        let extractor = TypeAttributes.primaryKeyExtractor a.vType
+        
+        match extractor with
+        | Some extractor ->
+            let ea = Expr.Application(extractor, Expr.Var va)
+            let eb = Expr.Application(extractor, Expr.Var vb)
+            let expr = Expr.DefaultEquals(ea, eb)
+            
+            let eq = Expr.Lambda([va], Expr.Lambda([vb], expr))
+            Some {
+                trivial = false
+                vType = TArray(a.vType, 1)
+                mType = ChangeableModelListArray.typ a.vType a.mType a.aType
+                aType = AList.typ a.aType
+                init = fun v -> Call(None, ChangeableModelListArray.ctor a.vType a.mType a.aType, [v; eq; init; update; view])
+                update = fun c v -> Call(Some c, ChangeableModelListArray.setValue a.vType a.mType a.aType, [v])
+                view = fun c -> Upcast(c, AList.typ a.aType)
+            } 
+        | None ->
+            None
         
 
     let alistList (t : TypeRef) =
@@ -377,6 +415,17 @@ module Adaptor =
             aType = AList.typ t
             init = fun v -> Call(None, ChangeableListList.ctor t, [v])
             update = fun c v -> Call(Some c, ChangeableListList.setValue t, [v])
+            view = fun c -> Upcast(c, AList.typ t)
+        }
+        
+    let alistArray (t : TypeRef) =
+        {
+            trivial = false
+            vType = TArray(t, 1)
+            mType = ChangeableListArray.typ t
+            aType = AList.typ t
+            init = fun v -> Call(None, ChangeableListArray.ctor t, [v])
+            update = fun c v -> Call(Some c, ChangeableListArray.setValue t, [v])
             view = fun c -> Upcast(c, AList.typ t)
         } 
     
@@ -474,7 +523,10 @@ module Adaptor =
         | o ->
             o
 
-    let rec get (equalityMode : EqualityMode) (log : ILog) (range : FSharp.Compiler.Text.range) (mutableScope : bool) (typ : TypeRef) : Adaptor =
+    
+    
+    
+    let rec get  (equalityMode : EqualityMode) (log : ILog) (range : FSharp.Compiler.Text.range) (mutableScope : bool) (typ : TypeRef) : Adaptor =
         match typ with
         | TVar v ->
             if mutableScope then varPrimitive v
@@ -498,17 +550,38 @@ module Adaptor =
         | IndexList t ->
             let a = get equalityMode log range true t
             alistModel a
-
-        | List (PlainValue t) ->
-            alistList t
-            
-        | List t ->
-            let a = get equalityMode log range true t
-            match alistModelList a with
-            | Some a -> a
-            | None ->
-                log.error range "1337" "could not get primary key for list element type %s" (TypeRef.toString log Global t)
-                aval equalityMode typ
+        //
+        // | TArray (PlainValue t, 1) ->
+        //     alistArray t
+        //
+        // | List (PlainValue t) ->
+        //     alistList t
+        //     
+        // | List t ->
+        //     let a = get equalityMode log range true t
+        //     match alistModelList a with
+        //     | Some a -> a
+        //     | None ->        //
+                                //        // | TArray (PlainValue t, 1) ->
+                                //        //     alistArray t
+                                //        //
+                                //        // | List (PlainValue t) ->
+                                //        //     alistList t
+                                //        //     
+                                //        // | List t ->
+                                //        //     let a = get equalityMode log range true t
+                                //        //     match alistModelList a with
+                                //        //     | Some a -> a
+                                //        //     | None ->
+                                //        //         log.error range "1337" "could not get primary key for list element type %s" (TypeRef.toString log Global t)
+                                //        //         aval equalityMode typ
+                                //        //
+                                //        
+        //         log.error range "1337" "could not get primary key for list element type %s" (TypeRef.toString log Global t)
+        //         aval equalityMode typ
+        //
+        //
+        
         
         | HashMap (k, PlainValue v) ->
             amapPrimitive k v
@@ -751,7 +824,33 @@ module Adaptor =
             if mutableScope then identity typ
             else aval equalityMode typ
 
+    let getAList (equalityMode : EqualityMode) (log : ILog) (range : FSharp.Compiler.Text.range) (mutableScope : bool) (typ : TypeRef) : Adaptor =
+        match typ with
+        | List (PlainValue t) ->
+            alistPrimitive t
+            
+        | List t ->
+            let a = get equalityMode log range true t
+            match alistModelList a with
+            | Some a -> a
+            | None ->
+                log.error range "1337" "could not get primary key for list element type %s" (TypeRef.toString log Global t)
+                aval equalityMode typ
 
+        | TArray (PlainValue t, 1) ->
+            alistArray t
+        
+        | TArray (t, 1) ->
+            let a = get equalityMode log range true t
+            match alistModelArray a with
+            | Some a -> a
+            | None ->
+                log.error range "1337" "could not get primary key for array element type %s" (TypeRef.toString log Global t)
+                aval equalityMode typ
+        | t ->
+            log.warn range "7834" "expected list or array type but got %s" (TypeRef.toString log Global t)
+            get equalityMode log range mutableScope typ
+            
 [<RequireQualifiedAccess>]
 type TypeKind =
     | Class
@@ -1066,6 +1165,8 @@ module TypeDefinition =
                     
 
                 match prop.mode with
+                | AdaptifyMode.TreatAsList ->
+                    local, prop, get, Some (Adaptor.getAList equalityMode log prop.range false prop.typ)
                 | AdaptifyMode.NonAdaptive -> 
                     local, prop, get, None
                 | AdaptifyMode.Value -> 

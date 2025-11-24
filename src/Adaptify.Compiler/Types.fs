@@ -76,11 +76,13 @@ type AdaptifyMode =
     | Value
     | Lazy
     | NonAdaptive
+    | TreatAsList
 
 module AdaptifyMode =
     let ofAttributes (log : ILog) (atts : seq<FSharpAttribute>) =
         if atts |> Seq.exists (FSharpAttribute.isNonAdaptive log) then AdaptifyMode.NonAdaptive
         elif atts |> Seq.exists (FSharpAttribute.isTreatAsValue log) then AdaptifyMode.Value
+        elif atts |> Seq.exists (FSharpAttribute.isTreatAsList log) then AdaptifyMode.TreatAsList
         else AdaptifyMode.Default
 
 [<RequireQualifiedAccess>]
@@ -160,6 +162,7 @@ module Prop =
     let printDef (p : Prop) =
         let prefix =
             match p.mode with
+            | TreatAsList -> "[<TreatAsList>] "
             | Value -> "[<TreatAsValue>] "
             | NonAdaptive -> "[<NonAdaptive>] "
             | Lazy -> ""

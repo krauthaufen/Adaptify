@@ -275,6 +275,17 @@ module FSharpAttribute =
         with ex ->
             log.error Range.range0 "1337" "checking isCheapEquals: %A" ex
             false
+                
+    let isTreatAsList (log : ILog) (a : FSharpAttribute) =
+        try
+            match a.AttributeType.TryFullName with
+            | Some name ->
+                name = "Adaptify.TreatAsListAttribute"
+            | None ->
+                false
+        with ex ->
+            log.error Range.range0 "1337" "checking isTreatAsList: %A" ex
+            false
             
 [<RequireQualifiedAccess>]
 type OutputStream =

@@ -43,7 +43,21 @@ type ChangeableListList<'T>(initial : list<'T>) =
         member x.Content = (inner :> alist<_>).Content
         member x.GetReader() = (inner :> alist<_>).GetReader()
         member x.History = (inner :> alist<_>).History
-        
+     
+type ChangeableListArray<'T>(initial : array<'T>) =
+    let inner = clist<'T>(IndexList.ofArray initial)
+    
+    member x.Update(value : array<'T>) =
+        let ops = IndexList.computeDeltaToArray DefaultEqualityComparer.Instance inner.Value value
+        inner.Perform ops
+    
+    interface alist<'T> with
+        member x.IsConstant = false
+        member x.Content = (inner :> alist<_>).Content
+        member x.GetReader() = (inner :> alist<_>).GetReader()
+        member x.History = (inner :> alist<_>).History
+      
+       
 type ChangeableValueCustomEquality<'T>(value : 'T, equality : 'T -> 'T -> bool) =
     inherit AdaptiveObject()
     let mutable value = value
