@@ -75,4 +75,4 @@ type DefaultEqualsAttribute() = inherit Attribute()
 type CheapEqualsAttribute() = inherit Attribute()
 
 [<AttributeUsage(AttributeTargets.Field ||| AttributeTargets.Property)>]
-type TreatAsListAttribute() = inherit Attribute()
+type TreatAsAListAttribute() = inherit Attribute()

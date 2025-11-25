@@ -69,6 +69,13 @@ type Adaptor =
 
 [<AutoOpen>]
 module TypePatterns =
+    
+    let rec getName (e : FSharpEntity) =
+        if e.IsFSharpAbbreviation then
+            Some e.AbbreviatedType.BasicQualifiedName
+        else
+            e.TryFullName
+    
     let (|Option|_|) (t : TypeRef) =
         match t with
         | TModel(_, d, [t]) ->
@@ -117,8 +124,9 @@ module TypePatterns =
     let (|List|_|) (t : TypeRef) =
         match t with
         | TRef(_, e, [t]) ->
-            match e.TryFullName with
+            match getName e with
             | Some "Microsoft.FSharp.Collections.FSharpList`1" -> Some t
+            | Some "Microsoft.FSharp.Collections.list`1" -> Some t
             | _ -> None
         | _ ->
             None
@@ -827,7 +835,7 @@ module Adaptor =
     let getAList (equalityMode : EqualityMode) (log : ILog) (range : FSharp.Compiler.Text.range) (mutableScope : bool) (typ : TypeRef) : Adaptor =
         match typ with
         | List (PlainValue t) ->
-            alistPrimitive t
+            alistList t
             
         | List t ->
             let a = get equalityMode log range true t

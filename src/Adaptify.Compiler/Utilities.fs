@@ -280,7 +280,7 @@ module FSharpAttribute =
         try
             match a.AttributeType.TryFullName with
             | Some name ->
-                name = "Adaptify.TreatAsListAttribute"
+                name = "Adaptify.TreatAsAListAttribute"
             | None ->
                 false
         with ex ->

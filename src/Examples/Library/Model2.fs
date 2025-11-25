@@ -8,11 +8,12 @@ open LibraryModel
 type Soup =    
     {
         important : Thing
+        [<TreatAsAList>]
         many : list<Thing>
+        [<TreatAsAList>]
         testy : list<int>
         things : HashMap<int, Thing>
         
-        [<CheapEquals>]
         bla : int[]
     }
     
