@@ -29,7 +29,7 @@ type TypeDef =
     | ProductType of lenses : bool * range : range * isValueType : bool * scope : Scope * name : string * properties : list<Prop>
     | Union of range : range * scope : Scope * name : string * properties : list<Prop> * cases : list<string * list<Prop>>
     | Generic of tpars : list<TypeVar> * def : TypeDef
-    
+
     member private x.AsString = x.ToString()
     override x.ToString() = 
         let rec print (targs : list<TypeVar>) (t : TypeDef) =
@@ -76,13 +76,36 @@ type AdaptifyMode =
     | Value
     | Lazy
     | NonAdaptive
+    | TreatAsList
 
 module AdaptifyMode =
     let ofAttributes (log : ILog) (atts : seq<FSharpAttribute>) =
         if atts |> Seq.exists (FSharpAttribute.isNonAdaptive log) then AdaptifyMode.NonAdaptive
         elif atts |> Seq.exists (FSharpAttribute.isTreatAsValue log) then AdaptifyMode.Value
+        elif atts |> Seq.exists (FSharpAttribute.isTreatAsList log) then AdaptifyMode.TreatAsList
         else AdaptifyMode.Default
 
+[<RequireQualifiedAccess>]
+type EqualityMode =
+    | Unspecified
+    | Cheap
+    | Default
+
+type PropAttribute =
+    | PrimaryKey
+    | Equality of EqualityMode
+    
+
+module PropAttribute =
+    let ofAttributes (log : ILog) (atts : seq<FSharpAttribute>) =
+        atts
+        |> Seq.choose (fun att ->
+            if FSharpAttribute.isPrimaryKey log att then Some PrimaryKey
+            elif FSharpAttribute.isDefaultEquals log att then Some (Equality EqualityMode.Default)
+            elif FSharpAttribute.isCheapEquals log att then Some (Equality EqualityMode.Cheap)
+            else None
+        )
+        |> Seq.toList
 
 type Prop =
     {
@@ -90,6 +113,7 @@ type Prop =
         name            : string
         typ             : TypeRef
         mode            : AdaptifyMode
+        attributes      : list<PropAttribute>
         isRecordField   : bool
     }
 
@@ -111,6 +135,7 @@ module Prop =
             name = name
             typ = typ
             mode = mode
+            attributes = PropAttribute.ofAttributes log f.PropertyAttributes
             isRecordField = match f.DeclaringEntity with | Some e -> e.IsFSharpRecord | _ -> false
         }
 
@@ -128,6 +153,7 @@ module Prop =
                 name = name
                 typ = typ
                 mode = mode
+                attributes = PropAttribute.ofAttributes log mfv.Attributes
                 isRecordField = false
             }
         else
@@ -136,6 +162,7 @@ module Prop =
     let printDef (p : Prop) =
         let prefix =
             match p.mode with
+            | TreatAsList -> "[<TreatAsList>] "
             | Value -> "[<TreatAsValue>] "
             | NonAdaptive -> "[<NonAdaptive>] "
             | Lazy -> ""

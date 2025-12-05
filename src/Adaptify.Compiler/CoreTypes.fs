@@ -5,6 +5,7 @@ module AdaptiveTypes =
     let private fda = Namespace "FSharp.Data.Adaptive"
     let private fdt = Namespace "FSharp.Data.Traceable"
     let private adaptify = Namespace "Adaptify"
+    let private system = Namespace "System"
 
     module Option =
         let typ (t : TypeRef) =
@@ -28,6 +29,11 @@ module AdaptiveTypes =
                 returnType = typ t
             }
  
+    module List =
+        
+        let typ (t : TypeRef) =
+            TExtRef(Namespace "Microsoft.FSharp.Collections", "list", [t])
+    
     module HashSet =
         let typ (t : TypeRef) =    
             TExtRef(fda, "HashSet", [t])
@@ -84,6 +90,57 @@ module AdaptiveTypes =
         let typ (t : TypeRef) =    
             TExtRef(adaptify, "AdaptiveValue", [t])
 
+    module ChangeableListList =
+        let typ (t : TypeRef) =    
+            TExtRef(adaptify, "ChangeableListList", [t])
+    
+        let setValue (t : TypeRef) =
+            {
+                declaringType = Choice2Of2 (typ t)
+                isStatic = false
+                name = "Update"
+                parameters = [ List.typ t ]
+                returnType = TTuple(false, [])
+            }
+            
+        let ctor (t : TypeRef) =
+            {
+                declaringType = Choice1Of2(adaptify)
+                isStatic = true
+                name = "ChangeableListList"
+                parameters = 
+                    [ 
+                        List.typ t
+                    ]
+                returnType = typ t
+            }
+            
+            
+    module ChangeableListArray=
+        let typ (t : TypeRef) =    
+            TExtRef(adaptify, "ChangeableListArray", [t])
+    
+        let setValue (t : TypeRef) =
+            {
+                declaringType = Choice2Of2 (typ t)
+                isStatic = false
+                name = "Update"
+                parameters = [ TArray(t, 1) ]
+                returnType = TTuple(false, [])
+            }
+            
+        let ctor (t : TypeRef) =
+            {
+                declaringType = Choice1Of2(adaptify)
+                isStatic = true
+                name = "ChangeableListArray"
+                parameters = 
+                    [ 
+                        TArray(t, 1)
+                    ]
+                returnType = typ t
+            }
+            
     module Lazy =
         let typ (t : TypeRef) =
             TExtRef(Namespace "System", "Lazy", [t])
@@ -138,7 +195,28 @@ module AdaptiveTypes =
                 parameters = [ t ]
                 returnType = typ t
             }
+            
+    module CValCustomEquality =
+        let typ (t : TypeRef) = 
+            TExtRef(adaptify, "ChangeableValueCustomEquality", [t])
 
+        let setValue (t : TypeRef) =
+            {
+                declaringType = Choice2Of2 (typ t)
+                isStatic = false
+                name = "set_Value"
+                parameters = [ t ]
+                returnType = TTuple(false, [])
+            }
+            
+        let ctor (t : TypeRef) =
+            {
+                declaringType = Choice1Of2(adaptify)
+                isStatic = true
+                name = "ChangeableValueCustomEquality"
+                parameters = [ t; TFunc(t, TFunc(t, TBool)) ]
+                returnType = typ t
+            }
     module ASet =
         let typ (t : TypeRef) =    
             TExtRef(fda, "aset", [t])
@@ -287,6 +365,69 @@ module AdaptiveTypes =
                 returnType = typ a ca aa
             }
 
+    module ChangeableModelListList =
+        let typ (a : TypeRef) (ca : TypeRef) (aa : TypeRef) =
+            TExtRef(fdt, "ChangeableModelListList", [a; ca; aa])
+
+
+        let setValue (a : TypeRef) (ca : TypeRef) (aa : TypeRef) =
+            {
+                declaringType = Choice2Of2 (typ a ca aa)
+                isStatic = false
+                name = "Update"
+                parameters = [ List.typ a ]
+                returnType = TTuple(false, [])
+            }
+            
+        let ctor (a : TypeRef) (ca : TypeRef) (aa : TypeRef) =
+            {
+                declaringType = Choice1Of2(fdt)
+                isStatic = true
+                name = "ChangeableModelListList"
+                parameters = 
+                    [ 
+                        List.typ a
+                        TFunc(a, TFunc(a, TBool))
+                        TFunc(a, ca)
+                        TFunc(ca, TFunc(a, ca))
+                        TFunc(ca, aa)
+                    ]
+                returnType = typ a ca aa
+            }
+
+    
+    module ChangeableModelListArray =
+        let typ (a : TypeRef) (ca : TypeRef) (aa : TypeRef) =
+            TExtRef(fdt, "ChangeableModelListArray", [a; ca; aa])
+
+
+        let setValue (a : TypeRef) (ca : TypeRef) (aa : TypeRef) =
+            {
+                declaringType = Choice2Of2 (typ a ca aa)
+                isStatic = false
+                name = "Update"
+                parameters = [ TArray(a, 1) ]
+                returnType = TTuple(false, [])
+            }
+            
+        let ctor (a : TypeRef) (ca : TypeRef) (aa : TypeRef) =
+            {
+                declaringType = Choice1Of2(fdt)
+                isStatic = true
+                name = "ChangeableModelListArray"
+                parameters = 
+                    [ 
+                        TArray(a, 1)
+                        TFunc(a, TFunc(a, TBool))
+                        TFunc(a, ca)
+                        TFunc(ca, TFunc(a, ca))
+                        TFunc(ca, aa)
+                    ]
+                returnType = typ a ca aa
+            }
+
+    
+    
     module Object =
         let typ =
             TExtRef(Namespace "System", "Object", [])
@@ -315,6 +456,23 @@ module AdaptiveTypes =
             declaringType = Choice2Of2(TExtRef(fda, "ShallowEqualityComparer", [t]))
             isStatic = true
             name = "ShallowEquals"
+            parameters = [ t; t ]
+            returnType = TBool
+        }
+
+    let defaultEquals (t : TypeRef) =
+        {
+            declaringType = Choice2Of2(TExtRef(fda, "DefaultEqualityComparer", []))
+            isStatic = true
+            name = "Equals"
+            parameters = [ t; t ]
+            returnType = TBool
+        }
+    let referenceEquals (t : TypeRef) =
+        {
+            declaringType = Choice2Of2(TExtRef(system, "Object", [t]))
+            isStatic = true
+            name = "ReferenceEquals"
             parameters = [ t; t ]
             returnType = TBool
         }

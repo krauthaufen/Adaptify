@@ -63,3 +63,16 @@ type TreatAsValueAttribute() = inherit Attribute()
 [<AttributeUsage(AttributeTargets.Class ||| AttributeTargets.Struct)>]
 type ModelTypeAttribute() = inherit Attribute()
 
+/// Instructs the PreCompiler to treat the marked field or property as primary key.
+[<AttributeUsage(AttributeTargets.Field ||| AttributeTargets.Property)>]
+type PrimaryKeyAttribute() = inherit Attribute()
+
+
+[<AttributeUsage(AttributeTargets.Field ||| AttributeTargets.Property)>]
+type DefaultEqualsAttribute() = inherit Attribute()
+
+[<AttributeUsage(AttributeTargets.Field ||| AttributeTargets.Property)>]
+type CheapEqualsAttribute() = inherit Attribute()
+
+[<AttributeUsage(AttributeTargets.Field ||| AttributeTargets.Property)>]
+type TreatAsAListAttribute() = inherit Attribute()

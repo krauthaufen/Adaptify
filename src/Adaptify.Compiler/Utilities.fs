@@ -243,6 +243,50 @@ module FSharpAttribute =
             log.error Range.range0 "1337" "checking isNonAdaptive: %A" ex
             false
 
+    let isPrimaryKey (log : ILog) (a : FSharpAttribute) =
+        try
+            match a.AttributeType.TryFullName with
+            | Some name ->
+                name = "Adaptify.PrimaryKeyAttribute"
+            | None ->
+                false
+        with ex ->
+            log.error Range.range0 "1337" "checking isPrimaryKey: %A" ex
+            false
+            
+    let isDefaultEquals (log : ILog) (a : FSharpAttribute) =
+        try
+            match a.AttributeType.TryFullName with
+            | Some name ->
+                name = "Adaptify.DefaultEqualsAttribute"
+            | None ->
+                false
+        with ex ->
+            log.error Range.range0 "1337" "checking isDefaultEquals: %A" ex
+            false
+            
+    let isCheapEquals (log : ILog) (a : FSharpAttribute) =
+        try
+            match a.AttributeType.TryFullName with
+            | Some name ->
+                name = "Adaptify.CheapEqualsAttribute"
+            | None ->
+                false
+        with ex ->
+            log.error Range.range0 "1337" "checking isCheapEquals: %A" ex
+            false
+                
+    let isTreatAsList (log : ILog) (a : FSharpAttribute) =
+        try
+            match a.AttributeType.TryFullName with
+            | Some name ->
+                name = "Adaptify.TreatAsAListAttribute"
+            | None ->
+                false
+        with ex ->
+            log.error Range.range0 "1337" "checking isTreatAsList: %A" ex
+            false
+            
 [<RequireQualifiedAccess>]
 type OutputStream =
     | Stdout

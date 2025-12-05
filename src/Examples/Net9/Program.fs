@@ -4,26 +4,30 @@ open Adaptify.FSharp.Core
 open Model
 open Adaptify
 
-
+open LibraryModel
+open LibraryModel2
 
 [<EntryPoint>]
 let main _argv =
-    let _ = Unpersist.instance<MyUnion, AdaptiveMyUnion>
-    let test = Unpersist.instance<MyModel, AdaptiveMyModel>
-
-    let bla = fst MyModel.a_ Unchecked.defaultof<MyModel>
-    
-    
-    let v : AdaptiveMyModel = test.init { a = Error "bad"; b = 3.0; map = HashMap.empty; e = null; g = Unchecked.defaultof<_>; x = 0 }
-    test.update v { a = Error "bad"; b = 4.0; map = HashMap.empty; e = null; g = Unchecked.defaultof<_>;  x = 0  }
-
-   
-
-    let _ : aval<MyModel> = v.Current
-
-    match AVal.force v.a with
-    | AdaptiveOk value -> ()
-    | AdaptiveError error -> ()
+    //printfn "HELLO"
+    Test.test()
+    //
+    // let _ = Unpersist.instance<MyUnion, AdaptiveMyUnion>
+    // let test = Unpersist.instance<MyModel, AdaptiveMyModel>
+    //
+    // let bla = fst MyModel.a_ Unchecked.defaultof<MyModel>
+    //
+    //
+    // let v : AdaptiveMyModel = test.init { a = Error "bad"; b = 3.0; map = HashMap.empty; e = null; g = Unchecked.defaultof<_>; x = 0 }
+    // test.update v { a = Error "bad"; b = 4.0; map = HashMap.empty; e = null; g = Unchecked.defaultof<_>;  x = 0  }
+    //
+    //
+    //
+    // let _ : aval<MyModel> = v.Current
+    //
+    // match AVal.force v.a with
+    // | AdaptiveOk value -> ()
+    // | AdaptiveError error -> ()
 
     //test.MyCurrent
 

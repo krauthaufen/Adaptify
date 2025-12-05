@@ -6,6 +6,7 @@ open FSharp.Data.Adaptive
 [<ModelType>]
 type Thing =    
     {
+        [<PrimaryKey>]
         name : string
         guhtest : int
     }

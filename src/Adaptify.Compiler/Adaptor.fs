@@ -3,8 +3,40 @@
 
 open System
 open FSharp.Compiler.Symbols
+open FSharp.Compiler.Symbols.FSharpExprPatterns
 open FSharp.Compiler.Text
 open Adaptify.Compiler
+
+module TypeAttributes =
+    
+    let rec primaryKeyExtractor (x : TypeRef) =
+        match x with
+        | TModel(_, def, targs) ->
+            match def.Value with
+            | ProductType(_, _, _, _, _, props) | Union(_, _, _, props, _) ->
+                let fields = 
+                    props |> List.filter (fun p ->
+                        p.attributes |> List.exists (function PropAttribute.PrimaryKey -> true | _ -> false)    
+                    )
+                    
+                match fields with
+                | [] -> None
+                | fs ->
+                    let self = new Var("__self", x)
+                    let expr = 
+                        Expr.Lambda([self],
+                            let args = fs |> List.map (fun f -> Expr.PropertyGet(Expr.Var self, f))
+                            match args with
+                            | [a] -> a
+                            | _ -> Expr.NewTuple(false, args)           
+                        )
+                    Some expr
+            | Generic(_, d) ->
+                TypeRef.TModel(Range.range0, lazy d, targs) |> primaryKeyExtractor
+            
+        | _ ->
+            None
+    
 
 module Config =
     let generatedTypeName       = sprintf "Adaptive%s"
@@ -37,6 +69,13 @@ type Adaptor =
 
 [<AutoOpen>]
 module TypePatterns =
+    
+    let rec getName (e : FSharpEntity) =
+        if e.IsFSharpAbbreviation then
+            Some e.AbbreviatedType.BasicQualifiedName
+        else
+            e.TryFullName
+    
     let (|Option|_|) (t : TypeRef) =
         match t with
         | TModel(_, d, [t]) ->
@@ -81,7 +120,17 @@ module TypePatterns =
             | _ -> None
         | _ ->
             None
-                
+               
+    let (|List|_|) (t : TypeRef) =
+        match t with
+        | TRef(_, e, [t]) ->
+            match getName e with
+            | Some "Microsoft.FSharp.Collections.FSharpList`1" -> Some t
+            | Some "Microsoft.FSharp.Collections.list`1" -> Some t
+            | _ -> None
+        | _ ->
+            None
+             
     let (|AVal|_|) (t : TypeRef) =
         match t with
         | TRef(_, e, [t]) ->
@@ -123,12 +172,27 @@ module TypePatterns =
         | IndexList _ -> Some t
         | HashMap _ -> Some t
         | AVal _ -> Some t
+        | List _ -> Some t
         | _ -> None
             
     let (|PlainValue|_|) (t : TypeRef) =
         match t with
         | AnyAdaptive _ -> None
         | _ -> Some t
+
+[<AutoOpen>]
+module ExprExtensions =
+    
+    type Expr with
+        static member ShallowEquals (a : Expr, b : Expr) =
+            Expr.Call(None, AdaptiveTypes.shallowEquals a.Type, [a;b])
+        
+        static member DefaultEquals (a : Expr, b : Expr) =
+            Expr.Call(None, AdaptiveTypes.defaultEquals a.Type, [a;b])
+        
+        static member ReferenceEquals (a : Expr, b : Expr) =
+            Expr.Call(None, AdaptiveTypes.referenceEquals a.Type, [a;b])
+        
 
 module Adaptor =    
     let varPrimitive (t : TypeVar) =
@@ -177,16 +241,32 @@ module Adaptor =
             view = fun c -> c
         } 
 
-    let aval (t : TypeRef) =
-        {
-            trivial = true
-            vType = t
-            mType = CVal.typ t
-            aType = AVal.typ t
-            init = fun v -> Call(None, CVal.ctor t, [v])
-            update = fun c v -> Call(Some c, CVal.setValue t, [v])
-            view = fun c -> Upcast(c, AVal.typ t)
-        } 
+    let aval (mode : EqualityMode) (t : TypeRef) =
+        if mode = EqualityMode.Cheap || (t.IsTArray && mode = EqualityMode.Unspecified) then
+            let eq =
+                let va = new Var("va", t)
+                let vb = new Var("vb", t)
+                let meth = AdaptiveTypes.shallowEquals t
+                Lambda([va], Lambda([vb], Expr.Call(None, meth, [Expr.Var va; Expr.Var vb])))
+            {
+                trivial = true
+                vType = t
+                mType = CValCustomEquality.typ t
+                aType = AVal.typ t
+                init = fun v -> Call(None, CValCustomEquality.ctor t, [v; eq])
+                update = fun c v -> Call(Some c, CValCustomEquality.setValue t, [v])
+                view = fun c -> Upcast(c, AVal.typ t)
+            } 
+        else
+            {
+                trivial = true
+                vType = t
+                mType = CVal.typ t
+                aType = AVal.typ t
+                init = fun v -> Call(None, CVal.ctor t, [v])
+                update = fun c v -> Call(Some c, CVal.setValue t, [v])
+                view = fun c -> Upcast(c, AVal.typ t)
+            } 
         
     [<Obsolete("wrong implementation! cannot hide side-effect")>]
     let lazyAdaptor (a : Adaptor) =
@@ -255,8 +335,109 @@ module Adaptor =
             init = fun v -> Call(None, ChangeableModelList.ctor a.vType a.mType a.aType, [v; init; update; view])
             update = fun c v -> Call(Some c, ChangeableModelList.setValue a.vType a.mType a.aType, [v])
             view = fun c -> Upcast(c, AList.typ a.aType)
-        } 
+        }
+        
+              
+    let alistModelList (a : Adaptor) =
+        let v = new Var("v", a.vType)
+        let m = new Var("m", a.mType)
 
+        let init = Expr.Lambda([v], a.init (Var v))
+        let update = 
+            let b = a.update (Var m) (Var v)
+            match b.Type with
+            | TUnit -> Expr.Lambda([m], Expr.Lambda([v], Seq(b, Var m)))
+            | _ -> Expr.Lambda([m], Expr.Lambda([v], b))
+
+        let view = 
+            Expr.Lambda([m], a.view (Var m))
+
+        let va = new Var("va", a.vType)
+        let vb = new Var("vb", a.vType)
+        
+        let extractor = TypeAttributes.primaryKeyExtractor a.vType
+        
+        match extractor with
+        | Some extractor ->
+            let ea = Expr.Application(extractor, Expr.Var va)
+            let eb = Expr.Application(extractor, Expr.Var vb)
+            let expr = Expr.DefaultEquals(ea, eb)
+            
+            let eq = Expr.Lambda([va], Expr.Lambda([vb], expr))
+            Some {
+                trivial = false
+                vType = List.typ a.vType
+                mType = ChangeableModelListList.typ a.vType a.mType a.aType
+                aType = AList.typ a.aType
+                init = fun v -> Call(None, ChangeableModelListList.ctor a.vType a.mType a.aType, [v; eq; init; update; view])
+                update = fun c v -> Call(Some c, ChangeableModelListList.setValue a.vType a.mType a.aType, [v])
+                view = fun c -> Upcast(c, AList.typ a.aType)
+            } 
+        | None ->
+            None
+                
+    let alistModelArray (a : Adaptor) =
+        let v = new Var("v", a.vType)
+        let m = new Var("m", a.mType)
+
+        let init = Expr.Lambda([v], a.init (Var v))
+        let update = 
+            let b = a.update (Var m) (Var v)
+            match b.Type with
+            | TUnit -> Expr.Lambda([m], Expr.Lambda([v], Seq(b, Var m)))
+            | _ -> Expr.Lambda([m], Expr.Lambda([v], b))
+
+        let view = 
+            Expr.Lambda([m], a.view (Var m))
+
+        let va = new Var("va", a.vType)
+        let vb = new Var("vb", a.vType)
+        
+        let extractor = TypeAttributes.primaryKeyExtractor a.vType
+        
+        match extractor with
+        | Some extractor ->
+            let ea = Expr.Application(extractor, Expr.Var va)
+            let eb = Expr.Application(extractor, Expr.Var vb)
+            let expr = Expr.DefaultEquals(ea, eb)
+            
+            let eq = Expr.Lambda([va], Expr.Lambda([vb], expr))
+            Some {
+                trivial = false
+                vType = TArray(a.vType, 1)
+                mType = ChangeableModelListArray.typ a.vType a.mType a.aType
+                aType = AList.typ a.aType
+                init = fun v -> Call(None, ChangeableModelListArray.ctor a.vType a.mType a.aType, [v; eq; init; update; view])
+                update = fun c v -> Call(Some c, ChangeableModelListArray.setValue a.vType a.mType a.aType, [v])
+                view = fun c -> Upcast(c, AList.typ a.aType)
+            } 
+        | None ->
+            None
+        
+
+    let alistList (t : TypeRef) =
+        {
+            trivial = false
+            vType = List.typ t
+            mType = ChangeableListList.typ t
+            aType = AList.typ t
+            init = fun v -> Call(None, ChangeableListList.ctor t, [v])
+            update = fun c v -> Call(Some c, ChangeableListList.setValue t, [v])
+            view = fun c -> Upcast(c, AList.typ t)
+        }
+        
+    let alistArray (t : TypeRef) =
+        {
+            trivial = false
+            vType = TArray(t, 1)
+            mType = ChangeableListArray.typ t
+            aType = AList.typ t
+            init = fun v -> Call(None, ChangeableListArray.ctor t, [v])
+            update = fun c v -> Call(Some c, ChangeableListArray.setValue t, [v])
+            view = fun c -> Upcast(c, AList.typ t)
+        } 
+    
+    
     let amapPrimitive (k : TypeRef) (v : TypeRef) =
         {
             trivial = false
@@ -350,7 +531,10 @@ module Adaptor =
         | o ->
             o
 
-    let rec get (log : ILog) (range : FSharp.Compiler.Text.range) (mutableScope : bool) (typ : TypeRef) : Adaptor =
+    
+    
+    
+    let rec get  (equalityMode : EqualityMode) (log : ILog) (range : FSharp.Compiler.Text.range) (mutableScope : bool) (typ : TypeRef) : Adaptor =
         match typ with
         | TVar v ->
             if mutableScope then varPrimitive v
@@ -358,7 +542,7 @@ module Adaptor =
 
         | Option (PlainValue t) ->
             if mutableScope then identity typ
-            else aval typ
+            else aval equalityMode typ
 
         | HashSet (PlainValue t) ->
             asetPrimitive t
@@ -366,30 +550,62 @@ module Adaptor =
         | HashSet t ->
             let fullType = TypeRef.toString log Global t
             log.warn range "7865" "HashSet<%s> cannot be adaptified since HashSets of model-type are not yet implemented" fullType
-            aval typ
+            aval equalityMode typ
 
         | IndexList (PlainValue t) ->
             alistPrimitive t
 
         | IndexList t ->
-            let a = get log range true t
+            let a = get equalityMode log range true t
             alistModel a
-
+        //
+        // | TArray (PlainValue t, 1) ->
+        //     alistArray t
+        //
+        // | List (PlainValue t) ->
+        //     alistList t
+        //     
+        // | List t ->
+        //     let a = get equalityMode log range true t
+        //     match alistModelList a with
+        //     | Some a -> a
+        //     | None ->        //
+                                //        // | TArray (PlainValue t, 1) ->
+                                //        //     alistArray t
+                                //        //
+                                //        // | List (PlainValue t) ->
+                                //        //     alistList t
+                                //        //     
+                                //        // | List t ->
+                                //        //     let a = get equalityMode log range true t
+                                //        //     match alistModelList a with
+                                //        //     | Some a -> a
+                                //        //     | None ->
+                                //        //         log.error range "1337" "could not get primary key for list element type %s" (TypeRef.toString log Global t)
+                                //        //         aval equalityMode typ
+                                //        //
+                                //        
+        //         log.error range "1337" "could not get primary key for list element type %s" (TypeRef.toString log Global t)
+        //         aval equalityMode typ
+        //
+        //
+        
+        
         | HashMap (k, PlainValue v) ->
             amapPrimitive k v
 
         | HashMap(k, v) ->
-            let a = get log range true v
+            let a = get equalityMode log range true v
             amapModel k a
 
         | TRef(_, e, targs) when e.IsFSharpAbbreviation ->
             let pars = e.GenericParameters |> Seq.map (fun p -> p.Name) |> Seq.toList
             let inst = Map.ofList (List.zip pars targs)
             let r = TypeRef.ofType log inst e.AbbreviatedType
-            let res = get log range mutableScope r
+            let res = get equalityMode log range mutableScope r
             if res.trivial then 
                 if mutableScope then identity typ
-                else aval typ
+                else aval equalityMode typ
             else
                 res
 
@@ -413,8 +629,8 @@ module Adaptor =
                 
                 let adaptors =
                     targs |> List.map (fun a ->
-                        let pat = get log range true a
-                        let at = get log range false a
+                        let pat = get equalityMode log range true a
+                        let at = get equalityMode log range false a
                         pat, at
                     )
 
@@ -526,8 +742,8 @@ module Adaptor =
 
                 let adaptors =
                     targs |> List.map (fun a ->
-                        let pat = get log range true a
-                        let at = get log range false a
+                        let pat = get equalityMode log range true a
+                        let at = get equalityMode log range false a
                         pat, at
                     )
 
@@ -599,7 +815,7 @@ module Adaptor =
                 } 
 
         | TTuple(isStruct, els) ->
-            let adaptors = els |> List.map (get log range false)
+            let adaptors = els |> List.map (get equalityMode log range false)
             tuple isStruct adaptors
 
 
@@ -614,9 +830,35 @@ module Adaptor =
                     "4565"
                     "found model types in opaque scope %s: %s" (TypeRef.toString log Global typ) inner
             if mutableScope then identity typ
-            else aval typ
+            else aval equalityMode typ
 
+    let getAList (equalityMode : EqualityMode) (log : ILog) (range : FSharp.Compiler.Text.range) (mutableScope : bool) (typ : TypeRef) : Adaptor =
+        match typ with
+        | List (PlainValue t) ->
+            alistList t
+            
+        | List t ->
+            let a = get equalityMode log range true t
+            match alistModelList a with
+            | Some a -> a
+            | None ->
+                log.error range "1337" "could not get primary key for list element type %s" (TypeRef.toString log Global t)
+                aval equalityMode typ
 
+        | TArray (PlainValue t, 1) ->
+            alistArray t
+        
+        | TArray (t, 1) ->
+            let a = get equalityMode log range true t
+            match alistModelArray a with
+            | Some a -> a
+            | None ->
+                log.error range "1337" "could not get primary key for array element type %s" (TypeRef.toString log Global t)
+                aval equalityMode typ
+        | t ->
+            log.warn range "7834" "expected list or array type but got %s" (TypeRef.toString log Global t)
+            get equalityMode log range mutableScope typ
+            
 [<RequireQualifiedAccess>]
 type TypeKind =
     | Class
@@ -921,16 +1163,26 @@ module TypeDefinition =
                     new Var("_" + prop.name + "_", prop.typ, isMutable)
 
                 
+                let equalityMode =
+                    prop.attributes |> List.tryPick (function
+                        | PropAttribute.Equality em -> Some em
+                        | _ -> None
+                    )
+                    |> Option.defaultValue EqualityMode.Unspecified
+                
+                    
 
                 match prop.mode with
+                | AdaptifyMode.TreatAsList ->
+                    local, prop, get, Some (Adaptor.getAList equalityMode log prop.range false prop.typ)
                 | AdaptifyMode.NonAdaptive -> 
                     local, prop, get, None
                 | AdaptifyMode.Value -> 
-                    local, prop, get, Some (Adaptor.aval prop.typ)
-                | AdaptifyMode.Default -> 
-                    local, prop, get, Some (Adaptor.get log prop.range false prop.typ)
+                    local, prop, get, Some (Adaptor.aval equalityMode prop.typ)
+                | AdaptifyMode.Default ->
+                    local, prop, get, Some (Adaptor.get equalityMode log prop.range false prop.typ)
                 | AdaptifyMode.Lazy ->
-                    let a = Adaptor.get log prop.range false prop.typ
+                    let a = Adaptor.get equalityMode log prop.range false prop.typ
                     local, prop, get, Some a
             )
         let props = ()
@@ -1274,8 +1526,8 @@ module TypeDefinition =
 
                 let adaptors =
                     tpars |> List.map (fun a ->
-                        let pat = Adaptor.get log Range.range0 true (TVar a)
-                        let at = Adaptor.get log Range.range0 false (TVar a)
+                        let pat = Adaptor.get EqualityMode.Unspecified log Range.range0 true (TVar a)
+                        let at = Adaptor.get EqualityMode.Unspecified log Range.range0 false (TVar a)
                         pat, at
                     )
 

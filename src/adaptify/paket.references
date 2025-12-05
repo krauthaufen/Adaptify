@@ -4,15 +4,3 @@ group Compiler
     FSharp.Core
     DotNet.Glob
     Ionide.ProjInfo
-
-group Net8
-    Microsoft.Build
-    Microsoft.Build.Framework
-    Microsoft.Build.Utilities.Core
-    Microsoft.Build.Tasks.Core
-
-group Net9
-    Microsoft.Build
-    Microsoft.Build.Framework
-    Microsoft.Build.Utilities.Core
-    Microsoft.Build.Tasks.Core
