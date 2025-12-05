@@ -1,3 +1,8 @@
+### 1.3.6
+* List adaptify is now accessible via `[<TreatAsAList>]`  attribute and defaults have not changed here.
+* arrays now use cheap equality by default
+* added attributes `[<CheapEquals>]`  and `[<DefaultEquals>]` allowing to change equality per record-field
+  
 ### 1.3.5
 - Skip C# projects
 - Package adaptify tool with MSBuild task
