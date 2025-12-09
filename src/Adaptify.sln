@@ -1,4 +1,4 @@
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.12.35707.178
 MinimumVisualStudioVersion = 10.0.40219.1
@@ -36,6 +36,8 @@ EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Net9", "Examples\Net9\Net9.fsproj", "{EBB3E425-713C-423E-A8CE-2F9F87575519}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Adaptify.MSBuild", "Adaptify.MSBuild\Adaptify.MSBuild.fsproj", "{AC1340A9-E943-4E06-BB3C-BDA3C5F243CF}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Net10", "Examples\Net10\Net10.fsproj", "{36A61D6E-6E9E-4650-B5D3-E87C8898316B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -83,6 +85,10 @@ Global
 		{AC1340A9-E943-4E06-BB3C-BDA3C5F243CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AC1340A9-E943-4E06-BB3C-BDA3C5F243CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AC1340A9-E943-4E06-BB3C-BDA3C5F243CF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{36A61D6E-6E9E-4650-B5D3-E87C8898316B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{36A61D6E-6E9E-4650-B5D3-E87C8898316B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{36A61D6E-6E9E-4650-B5D3-E87C8898316B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{36A61D6E-6E9E-4650-B5D3-E87C8898316B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -94,6 +100,7 @@ Global
 		{F0D4CEFA-8C2C-431B-82B0-0B1E5A7D93CC} = {9D5E01BF-77D8-4A88-84DC-33B65D0ECCA0}
 		{9AA63FFF-7E45-4B8F-B346-B7F79DA512AA} = {5B5FA24C-140A-48F6-8F51-F170C0392020}
 		{EBB3E425-713C-423E-A8CE-2F9F87575519} = {9D5E01BF-77D8-4A88-84DC-33B65D0ECCA0}
+		{36A61D6E-6E9E-4650-B5D3-E87C8898316B} = {9D5E01BF-77D8-4A88-84DC-33B65D0ECCA0}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F3DF5A5D-D599-45D1-869E-4552860AF1BC}
