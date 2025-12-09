@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <DisableImplicitFSharpCoreReference>True</DisableImplicitFSharpCoreReference>
+    <GenerateLenses>True</GenerateLenses>
+    <AdaptifyToolAssembly>..\..\..\bin\$(Configuration)\msbuild-tool\Adaptify.MSBuild.dll</AdaptifyToolAssembly>
+    <AdaptifyVerbose>true</AdaptifyVerbose>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>..\..\..\bin\Debug\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <OutputPath>..\..\..\bin\Release\</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+    <Compile Include="Model.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\LibraryCSharp\LibraryCSharp.csproj" />
+    <ProjectReference Include="..\Library\Library.fsproj" />
+  </ItemGroup>
+  <Import Project="$(MSBuildThisFileDirectory)..\..\..\src\Adaptify.MSBuild\Adaptify.MSBuild.targets" />
+  <Import Project="..\..\..\.paket\Paket.Restore.targets" />
+</Project>

@@ -10,6 +10,7 @@
       "Examples\\Library\\Library.fsproj",
       "Examples\\Net8\\Net8.fsproj",
       "Examples\\Net9\\Net9.fsproj",
+      "Examples\\Net10\\Net10.fsproj",
       "Tests\\Adaptify.Tests.fsproj"
     ]
   }

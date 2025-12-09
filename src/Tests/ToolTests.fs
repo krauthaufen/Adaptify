@@ -24,11 +24,18 @@ module ToolTests =
     let netRuntime = 9
 #endif
 
+#if NET10_0
+    let netRuntime = 10
+#endif
+
     let net8Proj =
         Path.Combine(__SOURCE_DIRECTORY__, "..", "Examples", "Net8", "Net8.fsproj")
 
     let net9Proj =
         Path.Combine(__SOURCE_DIRECTORY__, "..", "Examples", "Net9", "Net9.fsproj")
+
+    let net10Proj =
+        Path.Combine(__SOURCE_DIRECTORY__, "..", "Examples", "Net10", "Net10.fsproj")
 
     let netFrameworkProj =
         Path.Combine(__SOURCE_DIRECTORY__, "..", "Examples", "NetFramework", "NetFramework.fsproj")
@@ -55,9 +62,8 @@ module ToolTests =
             let files = Directory.EnumerateFiles(directory, "*.g.fs", SearchOption.TopDirectoryOnly)
             for f in files do File.deleteSafe f
 
-        let lock (action: unit -> 'T) (projectPath: string) =
-            let dir = Path.GetDirectoryName(projectPath)
-            let lockFile = Path.Combine(dir, "test.lock")
+        let lock (action: unit -> 'T) (projectDirectory: string) =
+            let lockFile = Path.Combine(projectDirectory, "test.lock")
 
             let mutable stream : FileStream = null
             while isNull stream do
@@ -77,10 +83,12 @@ module ToolTests =
     module private Adaptify =
 
         let run (projectPath: string) =
-            projectPath |> Directory.lock (fun () ->
+            let projectDirectory = Path.GetDirectoryName(projectPath)
+
+            projectDirectory |> Directory.lock (fun () ->
                 // Ionide is really picky about the .NET SDK version, so we have to put an appropriate global.json
                 // next to the project file before trying to load it....
-                let globalJson = Path.Combine(Path.GetDirectoryName(projectPath), "global.json")
+                let globalJson = Path.Combine(projectDirectory, "global.json")
 
                 try
                     File.WriteAllLines(globalJson, [| globalJsonData |])
@@ -93,7 +101,9 @@ module ToolTests =
     let Setup() =
         Assert.That(net8Proj, Does.Exist)
         Assert.That(net9Proj, Does.Exist)
+        Assert.That(net10Proj, Does.Exist)
         Assert.That(netFrameworkProj, Does.Exist)
+        Assert.That(adaptifyPath, Does.Exist)
 
     let private test (projectPath: string) =
         let dir = Path.GetDirectoryName projectPath
@@ -110,10 +120,16 @@ module ToolTests =
     let ``[Adaptify] NET 8``() =
         test net8Proj
 
-#if NET9_0
+#if NET9_0_OR_GREATER
     [<Test>]
     let ``[Adaptify] NET 9``() =
         test net9Proj
+#endif
+
+#if NET10_0_OR_GREATER
+    [<Test>]
+    let ``[Adaptify] NET 10``() =
+        test net10Proj
 #endif
 
     [<Test>]
