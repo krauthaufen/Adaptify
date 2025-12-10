@@ -1,3 +1,6 @@
+### 1.3.7
+- [adaptify] Added .NET 10 support
+
 ### 1.3.6
 * List adaptify is now accessible via `[<TreatAsAList>]`  attribute and defaults have not changed here.
 * arrays now use cheap equality by default
