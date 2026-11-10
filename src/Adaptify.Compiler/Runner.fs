@@ -365,6 +365,7 @@ module Adaptify =
 
                         if noGeneration && outputExists && hashEquals then // no matter what, if output file does not exist, create it - non-existing files should not be returned
                             newFiles.Add file
+                            newHashes <- Map.add file oldHashes.[file] newHashes
                             let generated = getOutputFile file
                             if mayDefineModelTypes then
                                 newFiles.Add generated
