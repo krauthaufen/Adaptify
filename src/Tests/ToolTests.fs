@@ -82,7 +82,7 @@ module ToolTests =
 
     module private Adaptify =
 
-        let run (projectPath: string) =
+        let private runWith (flags: string) (projectPath: string) =
             let projectDirectory = Path.GetDirectoryName(projectPath)
 
             projectDirectory |> Directory.lock (fun () ->
@@ -92,10 +92,15 @@ module ToolTests =
 
                 try
                     File.WriteAllLines(globalJson, [| globalJsonData |])
-                    Process.run true None "dotnet" $"{adaptifyPath} --lenses --local --verbose --force \"{projectPath}\"" |> ignore
+                    Process.run true None "dotnet" $"{adaptifyPath} --lenses --local --verbose {flags} \"{projectPath}\"" |> ignore
                 finally
                     File.deleteSafe globalJson
             )
+
+        let run (projectPath: string) = runWith "--force" projectPath
+
+        /// Without --force, so the run reads and writes the .adaptifycache.
+        let runCached (projectPath: string) = runWith "" projectPath
 
     [<SetUp>]
     let Setup() =
@@ -131,6 +136,33 @@ module ToolTests =
     let ``[Adaptify] NET 10``() =
         test net10Proj
 #endif
+
+    /// An up-to-date run must keep the model files' cache entries; otherwise the next run finds "no old hash",
+    /// regenerates every *.g.fs and the project recompiles on every second build.
+    [<Test>]
+    let ``[Adaptify] up-to-date runs keep the cache, so a third run regenerates nothing``() =
+        if not <| RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then
+            Assert.Ignore("Windows-only")
+
+        let dir = Path.GetDirectoryName netFrameworkProj
+        if Directory.containsGFiles dir then
+            Assert.Ignore($"Directory '{dir}' contains *.g.fs files.")
+
+        let stamps () =
+            Directory.EnumerateFiles(dir, "*.g.fs", SearchOption.TopDirectoryOnly)
+            |> Seq.map (fun f -> f, File.GetLastWriteTimeUtc f)
+            |> Map.ofSeq
+
+        try
+            Adaptify.runCached netFrameworkProj
+            Adaptify.runCached netFrameworkProj
+            let generated = stamps ()
+            generated |> Map.isEmpty |> should be False
+            Adaptify.runCached netFrameworkProj
+            stamps () |> should equal generated
+        finally
+            Directory.deleteGFiles dir
+            File.deleteSafe (Path.Combine(dir, ".adaptifycache"))
 
     [<Test>]
     let ``[Adaptify] NET Framework``() =
